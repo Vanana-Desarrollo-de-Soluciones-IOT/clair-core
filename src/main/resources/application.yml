@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: clair-core
+  webflux:
+    base-path: /
+  config:
+    import: optional:file:.env[.properties]
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: false

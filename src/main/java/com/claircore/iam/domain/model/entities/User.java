@@ -2,56 +2,35 @@ package com.claircore.iam.domain.model.entities;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.Password;
-import com.claircore.iam.domain.model.valueobjects.Username;
+import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@EntityListeners(AuditingEntityListener.class)
-public class User {
+public class User extends AuditableModel {
 
     protected User() {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Embedded
-    private Username username;
-
-    @Embedded
-    @AttributeOverride(name = "address", column = @Column(name = "email", unique = true))
     private EmailAddress email;
 
     @Embedded
     private Password password;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private Date createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private Date updatedAt;
-
-    public User(Username username, EmailAddress email, Password password) {
-        this.username = username;
+    public User(EmailAddress email, Password password) {
         this.email = email;
         this.password = password;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
-    }
-
-    public Username getUsername() {
-        return username;
     }
 
     public EmailAddress getEmail() {
@@ -60,13 +39,5 @@ public class User {
 
     public Password getPassword() {
         return password;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public Date getUpdatedAt() {
-        return updatedAt;
     }
 }

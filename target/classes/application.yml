@@ -28,6 +28,10 @@ jwt:
 server:
   port: 8080
 
+notifications:
+  email:
+    provider: ${EMAIL_PROVIDER:console}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

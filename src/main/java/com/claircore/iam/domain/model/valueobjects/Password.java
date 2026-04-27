@@ -4,10 +4,10 @@ import jakarta.persistence.Embeddable;
 
 @Embeddable
 public record Password(
-    String encryptedPassword
+    String passwordHash
 ) {
     public Password {
-        if (encryptedPassword == null || encryptedPassword.isBlank()) {
+        if (passwordHash == null || passwordHash.isBlank()) {
             throw new IllegalArgumentException("Password cannot be null or empty");
         }
     }

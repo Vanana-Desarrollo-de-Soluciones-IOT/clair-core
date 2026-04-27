@@ -1,11 +1,10 @@
 package com.claircore.iam.application.internal.commandservices;
 
+import com.claircore.iam.application.internal.outboundservices.acl.ExternalNotificationService;
 import com.claircore.iam.domain.model.commands.SignUpCommand;
 import com.claircore.iam.domain.model.entities.User;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.Password;
-import com.claircore.iam.domain.model.valueobjects.Username;
-import com.claircore.iam.domain.services.NotificationService;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,12 +18,12 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final NotificationService notificationService;
+    private final ExternalNotificationService externalNotificationService;
 
-    public UserCommandServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, NotificationService notificationService) {
+    public UserCommandServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, ExternalNotificationService externalNotificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.notificationService = notificationService;
+        this.externalNotificationService = externalNotificationService;
     }
 
     @Override
@@ -36,13 +35,12 @@ public class UserCommandServiceImpl implements UserCommandService {
         }
 
         var user = new User(
-                new Username(command.username()),
                 emailAddress,
                 new Password(passwordEncoder.encode(command.password()))
         );
 
         userRepository.save(user);
-        notificationService.sendSignUpConfirmation(user.getEmail());
+        externalNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
         
         return Optional.of(user);
     }

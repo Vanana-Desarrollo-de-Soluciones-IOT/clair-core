@@ -57,7 +57,7 @@ public class AuthenticationController {
         var getUserByEmailQuery = new GetUserByEmailQuery(new EmailAddress(request.email()));
         var user = userQueryService.handle(getUserByEmailQuery);
         
-        if (user.isEmpty() || !passwordEncoder.matches(request.password(), user.get().getPassword().encryptedPassword())) {
+        if (user.isEmpty() || !passwordEncoder.matches(request.password(), user.get().getPassword().passwordHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 

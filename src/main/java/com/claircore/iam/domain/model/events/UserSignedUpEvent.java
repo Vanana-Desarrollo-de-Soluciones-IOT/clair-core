@@ -2,12 +2,14 @@ package com.claircore.iam.domain.model.events;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 
+import java.util.UUID;
+
 public record UserSignedUpEvent(
-    Long userId,
+    UUID userId,
     EmailAddress email,
     long timestamp
 ) {
-    public UserSignedUpEvent(Long userId, EmailAddress email) {
+    public UserSignedUpEvent(UUID userId, EmailAddress email) {
         this(userId, email, System.currentTimeMillis());
     }
 }

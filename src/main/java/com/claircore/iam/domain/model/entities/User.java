@@ -4,7 +4,6 @@ import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.Password;
 import com.claircore.iam.domain.model.valueobjects.Username;
 import jakarta.persistence.*;
-import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -14,8 +13,10 @@ import java.util.Date;
 @Entity
 @Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
-@NoArgsConstructor
 public class User {
+
+    protected User() {
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

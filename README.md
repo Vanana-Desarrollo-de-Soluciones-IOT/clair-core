@@ -1,31 +1,16 @@
-# Spring Template
+# clair-core
 
-A Spring Boot project with Swagger/OpenAPI and a simple REST endpoint.
+Spring Boot project (Java 25) with Swagger/OpenAPI.
 
 ## Features
 
-- Spring Boot 3.2.0
+- Spring Boot 3.x
 - REST API with Swagger/OpenAPI
-- Documented `hello-world` endpoint
 - Maven as dependency manager
-
-## Project Structure
-
-```
-src/
-├── main/
-│   ├── java/com/example/springtemplate/
-│   │   ├── SpringTemplateApplication.java
-│   │   └── controller/
-│   │       └── HelloController.java
-│   └── resources/
-│       └── application.yml
-└── test/java/com/example/springtemplate/
-```
 
 ## Requirements
 
-- Java 25 or higher
+- Java 25 (Maven must run on JDK 25)
 - Maven 3.6 or higher
 
 ## Environment Variables
@@ -42,10 +27,20 @@ PORT=8080
 mvn clean compile
 ```
 
+Using Nix:
+```bash
+nix-shell -p maven jdk25 --run "mvn clean compile"
+```
+
 ## Run the Project
 
 ```bash
 mvn spring-boot:run
+```
+
+Using Nix:
+```bash
+nix-shell -p maven jdk25 --run "mvn spring-boot:run"
 ```
 
 The server will be available at: `http://localhost:${PORT}` (Default: 8080)
@@ -81,10 +76,10 @@ http://localhost:${PORT}/v3/api-docs
 mvn clean package
 ```
 
-The JAR file will be located at `target/spring-template-1.0.0.jar`
+The JAR file will be located under `target/`.
 
 ## Run the JAR
 
 ```bash
-java -jar target/spring-template-1.0.0.jar
+java -jar target/clair-core-1.0.0.jar
 ```

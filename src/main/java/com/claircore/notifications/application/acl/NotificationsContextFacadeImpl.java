@@ -26,17 +26,13 @@ public class NotificationsContextFacadeImpl implements NotificationsContextFacad
         String subject = "Welcome to Clair IOT Platform!";
         String content = String.format("<h1>Welcome, User %s!</h1><p>We are glad to have you on board.</p>", userId);
 
-        EmailLog emailLog = new EmailLog(emailAddress, subject, content, false);
+        persistEmailLog(emailAddress, subject, true);
 
         try {
             emailService.sendEmail(emailAddress, subject, content);
-            emailLog = new EmailLog(emailAddress, subject, content, true);
             logger.info("Welcome email sent successfully to {}", emailAddress);
         } catch (Exception e) {
-            emailLog.markAsFailed(e.getMessage());
             logger.error("Failed to send welcome email to {}: {}", emailAddress, e.getMessage());
-        } finally {
-            emailLogRepository.save(emailLog);
         }
     }
 
@@ -45,17 +41,22 @@ public class NotificationsContextFacadeImpl implements NotificationsContextFacad
         String subject = "Your Clair IOT Verification Code";
         String content = String.format("<h1>Verification Code</h1><p>Your verification code is: <strong>%s</strong></p><p>This code will expire in 30 minutes.</p>", code);
 
-        EmailLog emailLog = new EmailLog(emailAddress, subject, content, false);
+        persistEmailLog(emailAddress, subject, false);
 
         try {
             emailService.sendEmail(emailAddress, subject, content);
-            emailLog = new EmailLog(emailAddress, subject, content, true);
             logger.info("Verification code sent successfully to {}", emailAddress);
         } catch (Exception e) {
-            emailLog.markAsFailed(e.getMessage());
             logger.error("Failed to send verification code to {}: {}", emailAddress, e.getMessage());
-        } finally {
+        }
+    }
+
+    private void persistEmailLog(String recipientEmail, String subject, boolean sent) {
+        try {
+            EmailLog emailLog = new EmailLog(recipientEmail, subject, null, sent);
             emailLogRepository.save(emailLog);
+        } catch (Exception e) {
+            logger.error("Failed to persist email log for {}: {}", recipientEmail, e.getMessage());
         }
     }
 }

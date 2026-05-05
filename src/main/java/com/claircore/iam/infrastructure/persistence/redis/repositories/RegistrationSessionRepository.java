@@ -4,7 +4,6 @@ import com.claircore.iam.domain.model.entities.RegistrationSession;
 import com.claircore.iam.domain.model.valueobjects.RegistrationSessionId;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -20,10 +19,9 @@ public class RegistrationSessionRepository {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public RegistrationSessionRepository(StringRedisTemplate redisTemplate) {
+    public RegistrationSessionRepository(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = new ObjectMapper();
-        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper = objectMapper;
     }
 
     public void save(RegistrationSession session) {

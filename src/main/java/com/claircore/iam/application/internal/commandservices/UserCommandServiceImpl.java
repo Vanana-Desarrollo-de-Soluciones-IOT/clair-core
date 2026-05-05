@@ -1,6 +1,6 @@
 package com.claircore.iam.application.internal.commandservices;
 
-import com.claircore.iam.application.internal.outboundservices.acl.ExternalNotificationService;
+import com.claircore.iam.application.internal.outboundservices.acl.AsyncNotificationService;
 import com.claircore.iam.domain.model.commands.ConfirmRegistrationCommand;
 import com.claircore.iam.domain.model.commands.InitiateRegistrationCommand;
 import com.claircore.iam.domain.model.entities.RegistrationSession;
@@ -22,19 +22,19 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final UserRepository userRepository;
     private final RegistrationSessionRepository registrationSessionRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ExternalNotificationService externalNotificationService;
+    private final AsyncNotificationService asyncNotificationService;
     private final SecureRandom secureRandom;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
             RegistrationSessionRepository registrationSessionRepository,
             PasswordEncoder passwordEncoder,
-            ExternalNotificationService externalNotificationService
+            AsyncNotificationService asyncNotificationService
     ) {
         this.userRepository = userRepository;
         this.registrationSessionRepository = registrationSessionRepository;
         this.passwordEncoder = passwordEncoder;
-        this.externalNotificationService = externalNotificationService;
+        this.asyncNotificationService = asyncNotificationService;
         this.secureRandom = new SecureRandom();
     }
 
@@ -44,7 +44,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         var emailAddress = new EmailAddress(command.email());
 
         if (userRepository.existsByEmail(emailAddress)) {
-            throw new IllegalArgumentException("Email already exists");
+            return Optional.empty();
         }
 
         var sessionId = RegistrationSessionId.generate();
@@ -60,7 +60,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         );
 
         registrationSessionRepository.save(session);
-        externalNotificationService.sendVerificationCode(emailAddress.address(), verificationCode.code());
+        asyncNotificationService.sendVerificationCode(emailAddress.address(), verificationCode.code());
 
         return Optional.of(session);
     }
@@ -93,7 +93,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
         userRepository.save(user);
         registrationSessionRepository.deleteById(command.sessionId());
-        externalNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
+        asyncNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
 
         return Optional.of(user);
     }

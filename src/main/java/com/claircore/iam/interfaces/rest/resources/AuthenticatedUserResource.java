@@ -9,6 +9,8 @@ public record AuthenticatedUserResource(
     UUID id,
     @Schema(description = "User email address")
     String email,
-    @Schema(description = "Authentication token")
-    String token
+    @Schema(description = "Access token")
+    String token,
+    @Schema(description = "Refresh token")
+    String refreshToken
 ) {}

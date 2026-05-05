@@ -18,8 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,7 +47,7 @@ public class AuthenticationController {
     @Operation(summary = "Sign up a new user")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Registration initiated, verification code sent"),
-            @ApiResponse(responseCode = "400", description = "Invalid input or email already exists")
+            @ApiResponse(responseCode = "400", description = "Invalid input")
     })
     public ResponseEntity<RegistrationInitiatedResource> signUp(@Valid @RequestBody InitiateRegistrationRequest request) {
         var command = InitiateRegistrationCommandFromRequestAssembler.toCommandFromRequest(request);
@@ -86,7 +88,59 @@ public class AuthenticationController {
         }
 
         var token = tokenService.generateToken(user.get());
-        var authenticatedUserResource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), token);
+        var refreshToken = tokenService.generateRefreshToken(user.get());
+        var authenticatedUserResource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), token, refreshToken);
         return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @PostMapping("/refresh")
+    @RateLimiter(name = "authRateLimiter")
+    @Operation(summary = "Refresh access token using a valid refresh token")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "New access token generated"),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
+    public ResponseEntity<AuthenticatedUserResource> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        if (!tokenService.validateToken(request.refreshToken())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var email = tokenService.getEmailFromToken(request.refreshToken());
+        var user = userQueryService.handle(new GetUserByEmailQuery(new EmailAddress(email)));
+
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var newToken = tokenService.generateToken(user.get());
+        var newRefreshToken = tokenService.generateRefreshToken(user.get());
+        var resource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), newToken, newRefreshToken);
+        return ResponseEntity.ok(resource);
+    }
+
+    @GetMapping("/verify")
+    @RateLimiter(name = "authRateLimiter")
+    @Operation(summary = "Verify if an access token is valid and return its metadata")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token is valid"),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired token")
+    })
+    public ResponseEntity<TokenVerificationResource> verifyToken(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new TokenVerificationResource(false, null, null));
+        }
+
+        String token = authHeader.substring(7);
+
+        if (!tokenService.validateToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new TokenVerificationResource(false, null, null));
+        }
+
+        var email = tokenService.getEmailFromToken(token);
+        var expiresAt = tokenService.getExpirationDateFromToken(token).toInstant().toString();
+        return ResponseEntity.ok(new TokenVerificationResource(true, email, expiresAt));
     }
 }

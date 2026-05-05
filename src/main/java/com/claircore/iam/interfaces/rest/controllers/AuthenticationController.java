@@ -6,13 +6,12 @@ import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.domain.services.UserQueryService;
 import com.claircore.iam.infrastructure.tokens.jwt.TokenService;
-import com.claircore.iam.interfaces.rest.resources.AuthenticatedUserResource;
-import com.claircore.iam.interfaces.rest.resources.SignInRequest;
-import com.claircore.iam.interfaces.rest.resources.SignUpRequest;
-import com.claircore.iam.interfaces.rest.resources.UserResource;
-import com.claircore.iam.interfaces.rest.transform.SignUpCommandFromRequestAssembler;
-import com.claircore.iam.interfaces.rest.transform.UserResourceFromEntityAssembler;
+import com.claircore.iam.interfaces.rest.resources.*;
+import com.claircore.iam.interfaces.rest.transform.*;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(value = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Authentication", description = "Authentication Endpoints")
+@Tag(name = "Authentication", description = "Authentication and Registration Endpoints")
 public class AuthenticationController {
 
     private final UserCommandService userCommandService;
@@ -42,17 +41,42 @@ public class AuthenticationController {
     }
 
     @PostMapping("/sign-up")
+    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Sign up a new user")
-    public ResponseEntity<UserResource> signUp(@Valid @RequestBody SignUpRequest request) {
-        var signUpCommand = SignUpCommandFromRequestAssembler.toCommandFromRequest(request);
-        var user = userCommandService.handle(signUpCommand);
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Registration initiated, verification code sent"),
+            @ApiResponse(responseCode = "400", description = "Invalid input or email already exists")
+    })
+    public ResponseEntity<RegistrationInitiatedResource> signUp(@Valid @RequestBody InitiateRegistrationRequest request) {
+        var command = InitiateRegistrationCommandFromRequestAssembler.toCommandFromRequest(request);
+        var session = userCommandService.handle(command);
+        if (session.isEmpty()) return ResponseEntity.badRequest().build();
+        var resource = RegistrationInitiatedResourceFromSessionAssembler.toResourceFromSession(session.get());
+        return new ResponseEntity<>(resource, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/confirm")
+    @RateLimiter(name = "authRateLimiter")
+    @Operation(summary = "Confirm registration with verification code")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Registration confirmed, user created"),
+            @ApiResponse(responseCode = "400", description = "Invalid or expired session/code")
+    })
+    public ResponseEntity<UserResource> confirm(@Valid @RequestBody ConfirmRegistrationRequest request) {
+        var command = ConfirmRegistrationCommandFromRequestAssembler.toCommandFromRequest(request);
+        var user = userCommandService.handle(command);
         if (user.isEmpty()) return ResponseEntity.badRequest().build();
-        var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
-        return new ResponseEntity<>(userResource, HttpStatus.CREATED);
+        var resource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
+        return new ResponseEntity<>(resource, HttpStatus.CREATED);
     }
 
     @PostMapping("/sign-in")
-    @Operation(summary = "Sign in an existing user")
+    @RateLimiter(name = "authRateLimiter")
+    @Operation(summary = "Sign in an existing verified user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Authentication successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid credentials or user not verified")
+    })
     public ResponseEntity<AuthenticatedUserResource> signIn(@Valid @RequestBody SignInRequest request) {
         var getUserByEmailQuery = new GetUserByEmailQuery(new EmailAddress(request.email()));
         var user = userQueryService.handle(getUserByEmailQuery);

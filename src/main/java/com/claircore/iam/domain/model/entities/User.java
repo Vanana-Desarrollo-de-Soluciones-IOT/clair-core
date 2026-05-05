@@ -2,6 +2,7 @@ package com.claircore.iam.domain.model.entities;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.Password;
+import com.claircore.iam.domain.model.valueobjects.UserStatus;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
 
@@ -24,9 +25,22 @@ public class User extends AuditableModel {
     @Embedded
     private Password password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
+
     public User(EmailAddress email, Password password) {
         this.email = email;
         this.password = password;
+        this.status = UserStatus.PENDING_VERIFICATION;
+    }
+
+    public void activate() {
+        this.status = UserStatus.ACTIVE;
+    }
+
+    public boolean isActive() {
+        return this.status == UserStatus.ACTIVE;
     }
 
     public UUID getId() {
@@ -39,5 +53,9 @@ public class User extends AuditableModel {
 
     public Password getPassword() {
         return password;
+    }
+
+    public UserStatus getStatus() {
+        return status;
     }
 }

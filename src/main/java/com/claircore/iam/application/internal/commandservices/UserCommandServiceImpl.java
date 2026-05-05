@@ -1,47 +1,113 @@
 package com.claircore.iam.application.internal.commandservices;
 
 import com.claircore.iam.application.internal.outboundservices.acl.ExternalNotificationService;
-import com.claircore.iam.domain.model.commands.SignUpCommand;
+import com.claircore.iam.domain.model.commands.ConfirmRegistrationCommand;
+import com.claircore.iam.domain.model.commands.InitiateRegistrationCommand;
+import com.claircore.iam.domain.model.entities.RegistrationSession;
 import com.claircore.iam.domain.model.entities.User;
-import com.claircore.iam.domain.model.valueobjects.EmailAddress;
-import com.claircore.iam.domain.model.valueobjects.Password;
+import com.claircore.iam.domain.model.valueobjects.*;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.infrastructure.persistence.jpa.repositories.UserRepository;
+import com.claircore.iam.infrastructure.persistence.redis.repositories.RegistrationSessionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.Optional;
 
 @Service
 public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
+    private final RegistrationSessionRepository registrationSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final ExternalNotificationService externalNotificationService;
+    private final SecureRandom secureRandom;
 
-    public UserCommandServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, ExternalNotificationService externalNotificationService) {
+    public UserCommandServiceImpl(
+            UserRepository userRepository,
+            RegistrationSessionRepository registrationSessionRepository,
+            PasswordEncoder passwordEncoder,
+            ExternalNotificationService externalNotificationService
+    ) {
         this.userRepository = userRepository;
+        this.registrationSessionRepository = registrationSessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.externalNotificationService = externalNotificationService;
+        this.secureRandom = new SecureRandom();
     }
 
     @Override
     @Transactional
-    public Optional<User> handle(SignUpCommand command) {
+    public Optional<RegistrationSession> handle(InitiateRegistrationCommand command) {
         var emailAddress = new EmailAddress(command.email());
+
         if (userRepository.existsByEmail(emailAddress)) {
             throw new IllegalArgumentException("Email already exists");
         }
 
-        var user = new User(
+        var sessionId = RegistrationSessionId.generate();
+        var verificationCode = generateVerificationCode();
+        var passwordHash = passwordEncoder.encode(command.password());
+
+        var session = new RegistrationSession(
+                sessionId,
                 emailAddress,
-                new Password(passwordEncoder.encode(command.password()))
+                passwordHash,
+                verificationCode,
+                30
         );
 
+        registrationSessionRepository.save(session);
+        externalNotificationService.sendVerificationCode(emailAddress.address(), verificationCode.code());
+
+        return Optional.of(session);
+    }
+
+    @Override
+    @Transactional
+    public Optional<User> handle(ConfirmRegistrationCommand command) {
+        var session = registrationSessionRepository.findById(command.sessionId())
+                .orElseThrow(() -> new IllegalArgumentException("Registration session not found or expired"));
+
+        if (session.isExpired()) {
+            registrationSessionRepository.deleteById(command.sessionId());
+            throw new IllegalArgumentException("Registration session has expired");
+        }
+
+        if (!session.verifyCode(command.verificationCode())) {
+            throw new IllegalArgumentException("Invalid verification code");
+        }
+
+        var emailAddress = session.email();
+        if (userRepository.existsByEmail(emailAddress)) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+
+        var user = new User(
+                emailAddress,
+                new Password(session.passwordHash())
+        );
+        user.activate();
+
         userRepository.save(user);
+        registrationSessionRepository.deleteById(command.sessionId());
         externalNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
-        
+
         return Optional.of(user);
+    }
+
+    private VerificationCode generateVerificationCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder code = new StringBuilder();
+        for (int i = 0; i < 4; i++) {
+            code.append(chars.charAt(secureRandom.nextInt(chars.length())));
+        }
+        code.append('-');
+        for (int i = 0; i < 4; i++) {
+            code.append(chars.charAt(secureRandom.nextInt(chars.length())));
+        }
+        return new VerificationCode(code.toString());
     }
 }

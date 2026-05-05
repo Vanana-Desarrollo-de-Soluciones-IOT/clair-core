@@ -21,6 +21,7 @@ public class UserQueryServiceImpl implements UserQueryService {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> handle(GetUserByEmailQuery query) {
-        return userRepository.findByEmail(query.email());
+        return userRepository.findByEmail(query.email())
+                .filter(User::isActive);
     }
 }

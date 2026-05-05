@@ -19,6 +19,24 @@ This project uses a `.env` file for configuration. Create a `.env` file in the r
 
 ```env
 PORT=8080
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5432/clair_core
+DB_USERNAME=postgres
+DB_PASSWORD=admin
+
+# Redis (no password)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Resend Email
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=onboarding@resend.dev
+EMAIL_PROVIDER=console
+
+# JWT
+JWT_SECRET=your_super_secret_jwt_key_that_is_at_least_32_characters_long
+JWT_EXPIRATION=3600000
 ```
 
 ## Compile the Project
@@ -59,16 +77,41 @@ http://localhost:${PORT}/v3/api-docs
 
 ## Endpoints
 
-### Hello World
+### Authentication
 
-- **GET** `/api/hello-world`
-- Description: Returns a greeting message
-- Response:
-  ```json
-  {
-    "message": "Hello World"
-  }
-  ```
+- **POST** `/api/v1/auth/sign-up`
+  - Description: Initiates user registration, sends verification code via email
+  - Body: `{ "email": "user@example.com", "password": "password123" }`
+  - Response (201):
+    ```json
+    {
+      "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+      "message": "Registration initiated. Please check your email for the verification code."
+    }
+    ```
+
+- **POST** `/api/v1/auth/confirm`
+  - Description: Confirms registration with the 6-digit verification code
+  - Body: `{ "sessionId": "550e8400-e29b-41d4-a716-446655440000", "verificationCode": "123456" }`
+  - Response (201):
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com"
+    }
+    ```
+
+- **POST** `/api/v1/auth/sign-in`
+  - Description: Authenticates a verified user and returns a JWT token
+  - Body: `{ "email": "user@example.com", "password": "password123" }`
+  - Response (200):
+    ```json
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "token": "eyJhbGciOiJIUzI1NiIs..."
+    }
+    ```
 
 ## Production Build
 

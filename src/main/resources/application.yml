@@ -14,6 +14,10 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 resend:
   api:
@@ -26,7 +30,7 @@ jwt:
   expiration: ${JWT_EXPIRATION:3600000}
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 notifications:
   email:
@@ -37,3 +41,20 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+resilience4j:
+  ratelimiter:
+    instances:
+      authRateLimiter:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0
+  circuitbreaker:
+    instances:
+      notificationService:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s

@@ -4,12 +4,15 @@ import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.Password;
 import com.claircore.iam.domain.model.valueobjects.UserStatus;
 import com.claircore.shared.domain.model.entities.AuditableModel;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class User extends AuditableModel {
 
     protected User() {
@@ -40,6 +43,7 @@ public class User extends AuditableModel {
         this.status = UserStatus.ACTIVE;
     }
 
+    @JsonIgnore
     public boolean isActive() {
         return this.status == UserStatus.ACTIVE;
     }

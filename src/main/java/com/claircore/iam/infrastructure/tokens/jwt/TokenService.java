@@ -15,6 +15,10 @@ import java.util.function.Function;
 @Service
 public class TokenService {
 
+    private static final String CLAIM_TYPE = "type";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_REFRESH = "refresh";
+
     private final SecretKey secretKey;
     private final long expiration;
     private final long refreshExpiration;
@@ -30,16 +34,17 @@ public class TokenService {
     }
 
     public String generateToken(User user) {
-        return buildToken(user, expiration);
+        return buildToken(user, expiration, TYPE_ACCESS);
     }
 
     public String generateRefreshToken(User user) {
-        return buildToken(user, refreshExpiration);
+        return buildToken(user, refreshExpiration, TYPE_REFRESH);
     }
 
-    private String buildToken(User user, long ttlMillis) {
+    private String buildToken(User user, long ttlMillis, String type) {
         return Jwts.builder()
                 .subject(user.getEmail().address())
+                .claim(CLAIM_TYPE, type)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + ttlMillis))
                 .signWith(secretKey)
@@ -52,6 +57,14 @@ public class TokenService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public boolean isRefreshToken(String token) {
+        return TYPE_REFRESH.equals(extractClaim(token, claims -> claims.get(CLAIM_TYPE, String.class)));
+    }
+
+    public boolean isAccessToken(String token) {
+        return TYPE_ACCESS.equals(extractClaim(token, claims -> claims.get(CLAIM_TYPE, String.class)));
     }
 
     public String getEmailFromToken(String token) {

@@ -8,9 +8,9 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "Initiate Registration Request")
 public record InitiateRegistrationRequest(
-    @Schema(description = "User email address")
+    @Schema(description = "User email address", example = "user@example.com")
     @NotBlank @Email String email,
-    @Schema(description = "User password")
+    @Schema(description = "User password", example = "SecurePass123!")
     @NotBlank
     @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
     @Pattern(

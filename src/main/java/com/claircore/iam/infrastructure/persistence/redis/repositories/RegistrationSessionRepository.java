@@ -14,7 +14,6 @@ import java.util.Optional;
 public class RegistrationSessionRepository {
 
     private static final String KEY_PREFIX = "registration:session:";
-    private static final long DEFAULT_TTL_MINUTES = 30;
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;

@@ -61,9 +61,4 @@ public class EmailLog extends AuditableModel {
     public String getErrorMessage() {
         return errorMessage;
     }
-
-    public void markAsFailed(String error) {
-        this.sent = false;
-        this.errorMessage = error;
-    }
 }

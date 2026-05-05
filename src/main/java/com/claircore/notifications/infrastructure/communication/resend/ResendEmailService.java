@@ -34,7 +34,7 @@ public class ResendEmailService implements EmailService {
                 .build();
 
         try {
-            CreateEmailResponse data = resend.emails().send(params);
+            resend.emails().send(params);
         } catch (ResendException e) {
             throw new RuntimeException("Failed to send email through Resend", e);
         }

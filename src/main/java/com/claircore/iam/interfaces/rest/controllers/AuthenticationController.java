@@ -1,6 +1,5 @@
 package com.claircore.iam.interfaces.rest.controllers;
 
-import com.claircore.iam.domain.model.entities.User;
 import com.claircore.iam.domain.model.queries.GetUserByEmailQuery;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.services.UserCommandService;
@@ -101,7 +100,7 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
     })
     public ResponseEntity<AuthenticatedUserResource> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        if (!tokenService.validateToken(request.refreshToken())) {
+        if (!tokenService.validateToken(request.refreshToken()) || !tokenService.isRefreshToken(request.refreshToken())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
@@ -134,7 +133,7 @@ public class AuthenticationController {
 
         String token = authHeader.substring(7);
 
-        if (!tokenService.validateToken(token)) {
+        if (!tokenService.validateToken(token) || !tokenService.isAccessToken(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new TokenVerificationResource(false, null, null));
         }

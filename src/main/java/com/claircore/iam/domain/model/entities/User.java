@@ -20,6 +20,7 @@ public class User extends AuditableModel {
     private UUID id;
 
     @Embedded
+    @AttributeOverride(name = "address", column = @Column(nullable = false, unique = true))
     private EmailAddress email;
 
     @Embedded

@@ -1,17 +1,26 @@
 package com.claircore;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
-import org.springframework.core.env.Environment;
+import org.springframework.context.ConfigurableApplicationContext;
 
 @SpringBootApplication
 public class ClairCoreApplication {
 
     public static void main(String[] args) {
-        ApplicationContext context = SpringApplication.run(ClairCoreApplication.class, args);
-        Environment env = context.getEnvironment();
-        String port = env.getProperty("server.port", "8080");
+        Dotenv dotenv = Dotenv.configure()
+                .ignoreIfMissing()
+                .load();
+        
+        System.out.println("Loading environment variables from .env file...");
+        dotenv.entries().forEach(entry -> {
+            System.setProperty(entry.getKey(), entry.getValue());
+            System.out.println("Loaded variable: " + entry.getKey());
+        });
+
+        ConfigurableApplicationContext context = SpringApplication.run(ClairCoreApplication.class, args);
+        String port = context.getEnvironment().getProperty("server.port", "8080");
 
         System.out.println("\n---------------------------------------------------------");
         System.out.println("\tSwagger UI: http://localhost:" + port + "/swagger-ui.html");

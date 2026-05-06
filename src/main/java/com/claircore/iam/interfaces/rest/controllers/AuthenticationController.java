@@ -2,9 +2,10 @@ package com.claircore.iam.interfaces.rest.controllers;
 
 import com.claircore.iam.domain.model.queries.GetUserByEmailQuery;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
+import com.claircore.iam.domain.services.TokenCommandService;
+import com.claircore.iam.domain.services.TokenQueryService;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.domain.services.UserQueryService;
-import com.claircore.iam.infrastructure.tokens.jwt.TokenService;
 import com.claircore.iam.interfaces.rest.resources.*;
 import com.claircore.iam.interfaces.rest.transform.*;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -31,13 +32,17 @@ public class AuthenticationController {
 
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
-    private final TokenService tokenService;
+    private final TokenCommandService tokenCommandService;
+    private final TokenQueryService tokenQueryService;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthenticationController(UserCommandService userCommandService, UserQueryService userQueryService, TokenService tokenService, PasswordEncoder passwordEncoder) {
+    public AuthenticationController(UserCommandService userCommandService, UserQueryService userQueryService,
+                                    TokenCommandService tokenCommandService, TokenQueryService tokenQueryService,
+                                    PasswordEncoder passwordEncoder) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
-        this.tokenService = tokenService;
+        this.tokenCommandService = tokenCommandService;
+        this.tokenQueryService = tokenQueryService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -81,13 +86,13 @@ public class AuthenticationController {
     public ResponseEntity<AuthenticatedUserResource> signIn(@Valid @RequestBody SignInRequest request) {
         var getUserByEmailQuery = new GetUserByEmailQuery(new EmailAddress(request.email()));
         var user = userQueryService.handle(getUserByEmailQuery);
-        
+
         if (user.isEmpty() || !passwordEncoder.matches(request.password(), user.get().getPassword().passwordHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var token = tokenService.generateToken(user.get());
-        var refreshToken = tokenService.generateRefreshToken(user.get());
+        var token = tokenCommandService.createAccessToken(user.get());
+        var refreshToken = tokenCommandService.createRefreshToken(user.get());
         var authenticatedUserResource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), token, refreshToken);
         return ResponseEntity.ok(authenticatedUserResource);
     }
@@ -100,19 +105,24 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
     })
     public ResponseEntity<AuthenticatedUserResource> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        if (!tokenService.validateToken(request.refreshToken()) || !tokenService.isRefreshToken(request.refreshToken())) {
+        if (!tokenQueryService.isRefreshTokenValid(request.refreshToken())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var email = tokenService.getEmailFromToken(request.refreshToken());
-        var user = userQueryService.handle(new GetUserByEmailQuery(new EmailAddress(email)));
+        var email = tokenQueryService.getEmailFromToken(request.refreshToken());
+        var user = userQueryService.handle(new GetUserByEmailQuery(new EmailAddress(email.orElse(""))));
 
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var newToken = tokenService.generateToken(user.get());
-        var newRefreshToken = tokenService.generateRefreshToken(user.get());
+        var newRefreshToken = tokenCommandService.rotateRefreshToken(request.refreshToken())
+                .orElse(null);
+        if (newRefreshToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var newToken = tokenCommandService.createAccessToken(user.get());
         var resource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), newToken, newRefreshToken);
         return ResponseEntity.ok(resource);
     }
@@ -133,13 +143,14 @@ public class AuthenticationController {
 
         String token = authHeader.substring(7);
 
-        if (!tokenService.validateToken(token) || !tokenService.isAccessToken(token)) {
+        if (!tokenQueryService.isAccessTokenValid(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new TokenVerificationResource(false, null, null));
         }
 
-        var email = tokenService.getEmailFromToken(token);
-        var expiresAt = tokenService.getExpirationDateFromToken(token).toInstant().toString();
-        return ResponseEntity.ok(new TokenVerificationResource(true, email, expiresAt));
+        var email = tokenQueryService.getEmailFromToken(token);
+        var session = tokenQueryService.getTokenSession(token);
+        var expiresAt = session.map(s -> s.expiresAt().toString()).orElse(null);
+        return ResponseEntity.ok(new TokenVerificationResource(true, email.orElse(null), expiresAt));
     }
 }

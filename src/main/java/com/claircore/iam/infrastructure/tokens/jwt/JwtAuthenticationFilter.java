@@ -1,5 +1,6 @@
 package com.claircore.iam.infrastructure.tokens.jwt;
 
+import com.claircore.iam.domain.services.TokenQueryService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,10 +18,10 @@ import java.util.Collections;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final TokenService tokenService;
+    private final TokenQueryService tokenQueryService;
 
-    public JwtAuthenticationFilter(TokenService tokenService) {
-        this.tokenService = tokenService;
+    public JwtAuthenticationFilter(TokenQueryService tokenQueryService) {
+        this.tokenQueryService = tokenQueryService;
     }
 
     @Override
@@ -35,21 +36,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String jwt = authHeader.substring(7);
 
-        if (tokenService.validateToken(jwt)) {
-            final String email = tokenService.getEmailFromToken(jwt);
+        if (tokenQueryService.isAccessTokenValid(jwt)) {
+            final String email = tokenQueryService.getEmailFromToken(jwt).orElse(null);
 
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    User.builder()
-                            .username(email)
-                            .password("")
-                            .authorities(Collections.emptyList())
-                            .build(),
-                    null,
-                    Collections.emptyList()
-            );
+            if (email != null) {
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        User.builder()
+                                .username(email)
+                                .password("")
+                                .authorities(Collections.emptyList())
+                                .build(),
+                        null,
+                        Collections.emptyList()
+                );
 
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
         }
 
         filterChain.doFilter(request, response);

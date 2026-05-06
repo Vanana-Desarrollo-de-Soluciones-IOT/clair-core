@@ -1,5 +1,6 @@
 package com.claircore.iam.interfaces.rest.controllers;
 
+import com.claircore.iam.domain.model.commands.SignOutCommand;
 import com.claircore.iam.domain.model.queries.GetUserByEmailQuery;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.services.TokenCommandService;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -95,6 +97,32 @@ public class AuthenticationController {
         var refreshToken = tokenCommandService.createRefreshToken(user.get());
         var authenticatedUserResource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), token, refreshToken);
         return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @DeleteMapping("/sign-out")
+    @RateLimiter(name = "authRateLimiter")
+    @Operation(summary = "Sign out user and revoke all active tokens")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Signed out successfully, all tokens revoked"),
+            @ApiResponse(responseCode = "401", description = "Invalid or missing token")
+    })
+    public ResponseEntity<Void> signOut(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String token = authHeader.substring(7);
+        if (!tokenQueryService.isAccessTokenValid(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var email = tokenQueryService.getEmailFromToken(token);
+        if (email.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        tokenCommandService.signOut(new SignOutCommand(new EmailAddress(email.get())));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/refresh")

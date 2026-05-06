@@ -1,7 +1,6 @@
 package com.claircore.iam.application.internal.commandservices;
 
-import com.claircore.iam.domain.model.commands.CreateTokenSessionCommand;
-import com.claircore.iam.domain.model.commands.RotateRefreshTokenCommand;
+import com.claircore.iam.domain.model.commands.SignOutCommand;
 import com.claircore.iam.domain.model.entities.TokenSession;
 import com.claircore.iam.domain.model.entities.User;
 import com.claircore.iam.domain.model.valueobjects.TokenJti;
@@ -44,7 +43,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         Instant expiresAt = now.plusMillis(accessTtlMillis);
 
         TokenSession session = new TokenSession(jti, user.getEmail(), TokenType.ACCESS, now, expiresAt);
-        tokenSessionRepository.save(session);
+        tokenSessionRepository.replaceForUser(session);
 
         return jwtTokenEncoder.generateToken(user.getEmail(), accessTtlMillis, jti.jti());
     }
@@ -57,7 +56,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         Instant expiresAt = now.plusMillis(refreshTtlMillis);
 
         TokenSession session = new TokenSession(jti, user.getEmail(), TokenType.REFRESH, now, expiresAt);
-        tokenSessionRepository.save(session);
+        tokenSessionRepository.replaceForUser(session);
 
         return jwtTokenEncoder.generateRefreshToken(user.getEmail(), refreshTtlMillis, jti.jti());
     }
@@ -98,8 +97,14 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         Instant now = Instant.now();
         Instant expiresAt = now.plusMillis(refreshTtlMillis);
         TokenSession newSession = new TokenSession(newJti, existingSession.get().email(), TokenType.REFRESH, now, expiresAt);
-        tokenSessionRepository.save(newSession);
+        tokenSessionRepository.replaceForUser(newSession);
 
         return Optional.of(jwtTokenEncoder.generateRefreshToken(existingSession.get().email(), refreshTtlMillis, newJti.jti()));
+    }
+
+    @Override
+    @Transactional
+    public void signOut(SignOutCommand command) {
+        tokenSessionRepository.revokeAllTokensForUser(command.email().address());
     }
 }

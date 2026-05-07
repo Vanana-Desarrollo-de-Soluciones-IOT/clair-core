@@ -60,12 +60,6 @@ springdoc:
     path: /swagger-ui.html
 
 resilience4j:
-  ratelimiter:
-    instances:
-      authRateLimiter:
-        limitForPeriod: 5
-        limitRefreshPeriod: 1m
-        timeoutDuration: 0
   circuitbreaker:
     instances:
       notificationService:

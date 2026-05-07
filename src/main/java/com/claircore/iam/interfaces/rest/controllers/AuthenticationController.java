@@ -9,7 +9,6 @@ import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.domain.services.UserQueryService;
 import com.claircore.iam.interfaces.rest.resources.*;
 import com.claircore.iam.interfaces.rest.transform.*;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -50,7 +49,6 @@ public class AuthenticationController {
     }
 
     @PostMapping("/sign-up")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Sign up a new user")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Registration initiated, verification code sent"),
@@ -65,7 +63,6 @@ public class AuthenticationController {
     }
 
     @PostMapping("/confirm")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Confirm registration with verification code")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Registration confirmed, user created"),
@@ -80,7 +77,6 @@ public class AuthenticationController {
     }
 
     @PostMapping("/sign-in")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Sign in an existing verified user")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Authentication successful"),
@@ -101,7 +97,6 @@ public class AuthenticationController {
     }
 
     @DeleteMapping("/sign-out")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Sign out user and revoke all active tokens")
     @SecurityRequirement(name = "BearerAuth")
     @ApiResponses(value = {
@@ -128,7 +123,6 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Refresh access token using a valid refresh token")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "New access token generated"),
@@ -158,7 +152,6 @@ public class AuthenticationController {
     }
 
     @GetMapping("/verify")
-    @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Verify if an access token is valid and return its metadata")
     @SecurityRequirement(name = "BearerAuth")
     @ApiResponses(value = {

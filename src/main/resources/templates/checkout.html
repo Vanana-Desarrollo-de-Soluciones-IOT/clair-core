@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Clair Core Payment Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-blue-600">Subscription Checkout</h1>
+
+        <div class="mb-6">
+            <p class="text-gray-600 mb-2">Clair Core Premium Plan</p>
+            <p class="text-3xl font-bold">$29.00 <span class="text-sm font-normal text-gray-500">/ month</span></p>
+        </div>
+
+        <form id="checkout-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">User ID</label>
+                <input type="text" id="userId" value="user_12345" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-50" readonly>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Detalles de Tarjeta</label>
+                <div id="card-element" class="p-3 border border-gray-300 rounded-md bg-white"></div>
+                <div id="card-errors" class="text-red-500 text-sm mt-1 hidden" role="alert"></div>
+            </div>
+
+            <button type="submit" id="checkout-button" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition duration-300">
+                Proceed to Payment
+            </button>
+        </form>
+
+        <div id="error-message" class="mt-4 text-red-500 text-sm hidden"></div>
+        <div id="success-message" class="mt-4 text-green-600 text-sm font-bold hidden"></div>
+
+        <p class="mt-6 text-xs text-center text-gray-400">
+            Powered by <span class="font-bold">Stripe</span>
+        </p>
+    </div>
+
+    <!-- Cargar Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <script th:inline="javascript">
+
+        /*<![CDATA[*/
+        var stripePublicKey = /*[[${stripePublicKey}]]*/ 'pk_test_...';
+        /*]]>*/
+
+        console.log("Iniciando con Public Key:", stripePublicKey);
+
+        
+        const stripe = Stripe(stripePublicKey);
+        const elements = stripe.elements();
+
+        // Estilos para el elemento de tarjeta
+        const style = {
+            base: {
+                color: "#32325d",
+                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                fontSmoothing: "antialiased",
+                fontSize: "16px",
+                "::placeholder": {
+                    color: "#aab7c4"
+                }
+            },
+            invalid: {
+                color: "#fa755a",
+                iconColor: "#fa755a"
+            }
+        };
+
+        const card = elements.create("card", { style: style });
+        card.mount("#card-element");
+
+        card.on('change', ({error}) => {
+            const displayError = document.getElementById('card-errors');
+            if (error) {
+                displayError.textContent = error.message;
+                displayError.classList.remove('hidden');
+            } else {
+                displayError.textContent = '';
+                displayError.classList.add('hidden');
+            }
+        });
+
+        const form = document.getElementById('checkout-form');
+        const button = document.getElementById('checkout-button');
+        const errorMsg = document.getElementById('error-message');
+        const successMsg = document.getElementById('success-message');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            button.disabled = true;
+            button.textContent = 'Processing...';
+            errorMsg.classList.add('hidden');
+            successMsg.classList.add('hidden');
+
+            const payload = {
+                userId: document.getElementById('userId').value,
+                amount: 2900, // $29.00 in cents
+                currency: 'usd',
+                returnUrl: window.location.origin + '/checkout-demo'
+            };
+
+            try {
+                // 1. Crear el PaymentIntent en el backend
+                const response = await fetch('/api/v1/subscriptions/payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Error al iniciar el pago');
+                }
+
+                const data = await response.json();
+                const clientSecret = data.clientSecret;
+
+                if (!clientSecret) {
+                    throw new Error('No se recibió el clientSecret del servidor');
+                }
+
+                // 2. Confirmar el pago en el frontend con Stripe Elements
+                const result = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: {
+                        card: card,
+                        billing_details: {
+                            name: document.getElementById('userId').value
+                        }
+                    }
+                });
+
+                if (result.error) {
+                    throw new Error(result.error.message);
+                } else {
+                    if (result.paymentIntent.status === 'succeeded') {
+                        successMsg.textContent = '¡Pago exitoso! Tu suscripción está siendo procesada.';
+                        successMsg.classList.remove('hidden');
+                        form.reset();
+                        card.clear();
+                        button.textContent = 'Pago Completado';
+                    }
+                }
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.classList.remove('hidden');
+                button.disabled = false;
+                button.textContent = 'Proceed to Payment';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -75,3 +75,12 @@ resilience4j:
         slowCallDurationThreshold: 2s
         failureRateThreshold: 50
         waitDurationInOpenState: 20s
+
+# Stripe Configuration
+stripe:
+  api:
+    key: ${STRIPE_PRIVATE_KEY}
+  public:
+    key: ${STRIPE_PUBLIC_KEY}
+  webhook:
+    secret: ${STRIPE_WEBHOOK_SECRET}

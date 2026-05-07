@@ -13,6 +13,7 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -102,6 +103,7 @@ public class AuthenticationController {
     @DeleteMapping("/sign-out")
     @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Sign out user and revoke all active tokens")
+    @SecurityRequirement(name = "BearerAuth")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Signed out successfully, all tokens revoked"),
             @ApiResponse(responseCode = "401", description = "Invalid or missing token")
@@ -158,6 +160,7 @@ public class AuthenticationController {
     @GetMapping("/verify")
     @RateLimiter(name = "authRateLimiter")
     @Operation(summary = "Verify if an access token is valid and return its metadata")
+    @SecurityRequirement(name = "BearerAuth")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Token is valid"),
             @ApiResponse(responseCode = "401", description = "Invalid or expired token")

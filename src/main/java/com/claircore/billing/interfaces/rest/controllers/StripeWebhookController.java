@@ -1,6 +1,8 @@
 package com.claircore.billing.interfaces.rest.controllers;
 
 import com.claircore.billing.domain.model.commands.FulfillSubscriptionCommand;
+import com.claircore.billing.domain.model.valueobjects.Money;
+import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.domain.services.SubscriptionCommandService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -40,7 +42,15 @@ public class StripeWebhookController {
         if ("payment_intent.succeeded".equals(event.getType())) {
             PaymentIntent paymentIntent = (PaymentIntent) event.getDataObjectDeserializer().getObject().orElse(null);
             if (paymentIntent != null) {
-                subscriptionCommandService.handle(new FulfillSubscriptionCommand(paymentIntent.getId()));
+                var userId = paymentIntent.getMetadata().get("userId");
+                var amount = paymentIntent.getAmount();
+                var currency = paymentIntent.getCurrency();
+
+                subscriptionCommandService.handle(new FulfillSubscriptionCommand(
+                        paymentIntent.getId(),
+                        new UserId(userId),
+                        new Money(amount, currency)
+                ));
             }
         }
 

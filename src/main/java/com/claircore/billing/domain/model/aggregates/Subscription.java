@@ -7,10 +7,12 @@ import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
 import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.UUID;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 public class Subscription extends AbstractAggregateRoot<Subscription> {
 
     @Id
@@ -29,11 +31,7 @@ public class Subscription extends AbstractAggregateRoot<Subscription> {
     private String stripePaymentIntentId;
 
     @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "createdAt", column = @Column(name = "created_at", nullable = false, updatable = false)),
-        @AttributeOverride(name = "updatedAt", column = @Column(name = "updated_at", nullable = false))
-    })
-    private AuditFields auditFields = new AuditFields();
+    private SubscriptionAudit auditFields = new SubscriptionAudit();
 
     protected Subscription() {}
 
@@ -61,6 +59,5 @@ public class Subscription extends AbstractAggregateRoot<Subscription> {
     public String getStripePaymentIntentId() { return stripePaymentIntentId; }
 
     @Embeddable
-    @EntityListeners(org.springframework.data.jpa.domain.support.AuditingEntityListener.class)
-    public static class AuditFields extends AuditableModel {}
+    public static class SubscriptionAudit extends AuditableModel {}
 }

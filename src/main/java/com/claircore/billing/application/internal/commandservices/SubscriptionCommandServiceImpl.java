@@ -32,7 +32,16 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
     @Override
     @Transactional
     public String handle(CreatePaymentIntentCommand command) {
-        return paymentGateway.createPaymentIntent(command);
+        var result = paymentGateway.createPaymentIntent(command);
+        
+        var subscription = new Subscription(
+                command.userId(),
+                command.money(),
+                result.paymentIntentId()
+        );
+        subscriptionRepository.save(subscription);
+        
+        return result.clientSecret();
     }
 
     @Override

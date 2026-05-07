@@ -5,12 +5,16 @@ import com.claircore.billing.domain.model.commands.CreateCheckoutSessionCommand;
 import com.claircore.billing.domain.model.commands.CreatePaymentIntentCommand;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.PaymentIntent;
 import com.stripe.model.checkout.Session;
+import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
+
+import com.claircore.billing.domain.model.valueobjects.PaymentIntentResult;
 
 @Component
 public class StripePaymentGatewayAdapter implements PaymentGateway {
@@ -56,16 +60,16 @@ public class StripePaymentGatewayAdapter implements PaymentGateway {
         }
     }
     @Override
-    public String createPaymentIntent(CreatePaymentIntentCommand command) {
-        com.stripe.param.PaymentIntentCreateParams params = com.stripe.param.PaymentIntentCreateParams.builder()
+    public PaymentIntentResult createPaymentIntent(CreatePaymentIntentCommand command) {
+        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                 .setAmount(command.money().amount())
                 .setCurrency(command.money().currency())
                 .putMetadata("userId", command.userId().userId())
                 .build();
 
         try {
-            com.stripe.model.PaymentIntent intent = com.stripe.model.PaymentIntent.create(params);
-            return intent.getClientSecret();
+            PaymentIntent intent = PaymentIntent.create(params);
+            return new PaymentIntentResult(intent.getId(), intent.getClientSecret());
         } catch (StripeException e) {
             throw new RuntimeException("Error creating Stripe PaymentIntent: " + e.getMessage(), e);
         }

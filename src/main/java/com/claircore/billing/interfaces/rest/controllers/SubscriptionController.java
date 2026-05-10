@@ -2,14 +2,18 @@ package com.claircore.billing.interfaces.rest.controllers;
 
 import com.claircore.billing.domain.model.commands.CreateCheckoutSessionCommand;
 import com.claircore.billing.domain.model.queries.GetSubscriptionsByUserIdQuery;
+import com.claircore.billing.domain.model.queries.GetUserPlanQuery;
 import com.claircore.billing.domain.model.valueobjects.Money;
+import com.claircore.billing.domain.model.valueobjects.SubscriptionStatus;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.domain.services.SubscriptionCommandService;
 import com.claircore.billing.domain.services.SubscriptionQueryService;
 import com.claircore.billing.interfaces.rest.resources.CreateSubscriptionResource;
 import com.claircore.billing.interfaces.rest.resources.SubscriptionResource;
+import com.claircore.billing.interfaces.rest.resources.UserPlanResource;
 import com.claircore.billing.interfaces.rest.transform.SubscriptionResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -63,5 +67,19 @@ public class SubscriptionController {
                 .map(SubscriptionResourceFromEntityAssembler::toResourceFromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/plans/{userId}")
+    @Operation(summary = "Get current plan (premium or freemium) for a user")
+    public ResponseEntity<UserPlanResource> getUserPlan(@PathVariable String userId) {
+        var plan = subscriptionQueryService.resolveUserPlan(new GetUserPlanQuery(userId));
+        var activeStatus = subscriptionQueryService
+                .handle(new GetSubscriptionsByUserIdQuery(new UserId(userId)))
+                .stream()
+                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
+                .findFirst()
+                .map(s -> s.getStatus().name())
+                .orElse(null);
+        return ResponseEntity.ok(new UserPlanResource(userId, plan, activeStatus));
     }
 }

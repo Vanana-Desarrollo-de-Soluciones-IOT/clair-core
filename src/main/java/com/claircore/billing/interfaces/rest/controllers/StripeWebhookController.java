@@ -11,14 +11,21 @@ import com.stripe.net.Webhook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/webhooks/stripe")
+@Tag(name = "Webhooks", description = "Webhook Endpoints")
 public class StripeWebhookController {
+
+    private static final Logger log = LoggerFactory.getLogger(StripeWebhookController.class);
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
+
 
     private final SubscriptionCommandService subscriptionCommandService;
 
@@ -36,21 +43,46 @@ public class StripeWebhookController {
         try {
             event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
         } catch (SignatureVerificationException e) {
+            log.error("Stripe Webhook Signature Verification Failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
         }
 
+        log.info("Received Stripe Webhook event: {}", event.getType());
+
         if ("payment_intent.succeeded".equals(event.getType())) {
-            PaymentIntent paymentIntent = (PaymentIntent) event.getDataObjectDeserializer().getObject().orElse(null);
+            var deserializer = event.getDataObjectDeserializer();
+            PaymentIntent paymentIntent = null;
+            if (deserializer.getObject().isPresent()) {
+                paymentIntent = (PaymentIntent) deserializer.getObject().get();
+            } else {
+                try {
+                    log.info("API version mismatch detected. Attempting unsafe deserialization for payment_intent.succeeded.");
+                    paymentIntent = (PaymentIntent) deserializer.deserializeUnsafe();
+                } catch (Exception e) {
+                    log.error("Failed to deserialize PaymentIntent unsafely", e);
+                }
+            }
+
             if (paymentIntent != null) {
                 var userId = paymentIntent.getMetadata().get("userId");
                 var amount = paymentIntent.getAmount();
                 var currency = paymentIntent.getCurrency();
 
-                subscriptionCommandService.handle(new FulfillSubscriptionCommand(
-                        paymentIntent.getId(),
-                        new UserId(userId),
-                        new Money(amount, currency)
-                ));
+                log.info("Processing payment_intent.succeeded - id: {}, userId: {}, amount: {}", 
+                        paymentIntent.getId(), userId, amount);
+
+                try {
+                    subscriptionCommandService.handle(new FulfillSubscriptionCommand(
+                            paymentIntent.getId(),
+                            new UserId(userId),
+                            new Money(amount, currency)));
+                    log.info("FulfillSubscriptionCommand processed successfully for payment intent id: {}", paymentIntent.getId());
+                } catch (Exception e) {
+                    log.error("Error handling FulfillSubscriptionCommand: {}", e.getMessage(), e);
+                    // We can choose to throw or return bad request depending on retry preference
+                }
+            } else {
+                log.warn("payment_intent.succeeded event had null paymentIntent object");
             }
         }
 

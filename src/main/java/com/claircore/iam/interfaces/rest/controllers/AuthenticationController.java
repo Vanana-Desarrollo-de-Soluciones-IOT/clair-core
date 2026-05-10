@@ -1,12 +1,15 @@
 package com.claircore.iam.interfaces.rest.controllers;
 
+import com.claircore.iam.application.internal.commandservices.GoogleOAuthCallbackApplicationService;
 import com.claircore.iam.domain.model.commands.SignOutCommand;
 import com.claircore.iam.domain.model.queries.GetUserByEmailQuery;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
+import com.claircore.iam.domain.services.GoogleAuthenticationCommandService;
 import com.claircore.iam.domain.services.TokenCommandService;
 import com.claircore.iam.domain.services.TokenQueryService;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.domain.services.UserQueryService;
+import com.claircore.iam.infrastructure.oauth.google.GoogleOAuthStateManager;
 import com.claircore.iam.interfaces.rest.resources.*;
 import com.claircore.iam.interfaces.rest.transform.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +29,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping(value = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -36,16 +44,42 @@ public class AuthenticationController {
     private final UserQueryService userQueryService;
     private final TokenCommandService tokenCommandService;
     private final TokenQueryService tokenQueryService;
+    private final GoogleAuthenticationCommandService googleAuthenticationCommandService;
+    private final GoogleOAuthCallbackApplicationService googleOAuthCallbackApplicationService;
+    private final GoogleOAuthStateManager googleOAuthStateManager;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthenticationController(UserCommandService userCommandService, UserQueryService userQueryService,
-                                    TokenCommandService tokenCommandService, TokenQueryService tokenQueryService,
-                                    PasswordEncoder passwordEncoder) {
+    private final String googleClientId;
+    private final String googleClientSecret;
+    private final String googleRedirectUri;
+    private final String frontendUrl;
+
+    public AuthenticationController(
+            UserCommandService userCommandService,
+            UserQueryService userQueryService,
+            TokenCommandService tokenCommandService,
+            TokenQueryService tokenQueryService,
+            GoogleAuthenticationCommandService googleAuthenticationCommandService,
+            GoogleOAuthCallbackApplicationService googleOAuthCallbackApplicationService,
+            GoogleOAuthStateManager googleOAuthStateManager,
+            PasswordEncoder passwordEncoder,
+            @Value("${google.oauth.client-id}") String googleClientId,
+            @Value("${google.oauth.client-secret}") String googleClientSecret,
+            @Value("${google.oauth.redirect-uri}") String googleRedirectUri,
+            @Value("${frontend.url}") String frontendUrl
+    ) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.tokenCommandService = tokenCommandService;
         this.tokenQueryService = tokenQueryService;
+        this.googleAuthenticationCommandService = googleAuthenticationCommandService;
+        this.googleOAuthCallbackApplicationService = googleOAuthCallbackApplicationService;
+        this.googleOAuthStateManager = googleOAuthStateManager;
         this.passwordEncoder = passwordEncoder;
+        this.googleClientId = googleClientId;
+        this.googleClientSecret = googleClientSecret;
+        this.googleRedirectUri = googleRedirectUri;
+        this.frontendUrl = frontendUrl;
     }
 
     @PostMapping("/sign-up")
@@ -94,6 +128,89 @@ public class AuthenticationController {
         var refreshToken = tokenCommandService.createRefreshToken(user.get());
         var authenticatedUserResource = new AuthenticatedUserResource(user.get().getId(), user.get().getEmail().address(), token, refreshToken);
         return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @PostMapping("/google/sign-in")
+    @Operation(summary = "Sign in or register using Google OAuth 2.0 ID token (direct flow)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Authentication successful, returns JWT access and refresh tokens"),
+            @ApiResponse(responseCode = "401", description = "Invalid or unverifiable Google ID token")
+    })
+    public ResponseEntity<AuthenticatedUserResource> googleSignIn(@Valid @RequestBody GoogleSignInRequest request) {
+        var command = AuthenticateWithGoogleCommandFromRequestAssembler.toCommandFromRequest(request);
+        var user = googleAuthenticationCommandService.handle(command);
+
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        var token = tokenCommandService.createAccessToken(user.get());
+        var refreshToken = tokenCommandService.createRefreshToken(user.get());
+        var authenticatedUserResource = new AuthenticatedUserResource(
+                user.get().getId(),
+                user.get().getEmail().address(),
+                token,
+                refreshToken
+        );
+        return ResponseEntity.ok(authenticatedUserResource);
+    }
+
+    @GetMapping("/google/authorize")
+    @Operation(summary = "Initiate Google OAuth 2.0 authorization code flow")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "302", description = "Redirects to Google OAuth consent screen")
+    })
+    public ResponseEntity<Void> googleAuthorize() {
+        String state = googleOAuthStateManager.generateState();
+
+        String googleAuthUrl = UriComponentsBuilder
+                .fromHttpUrl("https://accounts.google.com/o/oauth2/v2/auth")
+                .queryParam("client_id", googleClientId)
+                .queryParam("redirect_uri", googleRedirectUri)
+                .queryParam("response_type", "code")
+                .queryParam("scope", "openid email profile")
+                .queryParam("state", state)
+                .queryParam("access_type", "offline")
+                .queryParam("prompt", "consent")
+                .toUriString();
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(googleAuthUrl))
+                .build();
+    }
+
+    @GetMapping("/google/callback")
+    @Operation(summary = "Google OAuth 2.0 callback. Exchanges code for tokens and redirects to frontend.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "302", description = "Redirects to frontend with JWT tokens"),
+            @ApiResponse(responseCode = "302", description = "Redirects to frontend error page on failure")
+    })
+    public ResponseEntity<Void> googleCallback(
+            @RequestParam("code") String code,
+            @RequestParam("state") String state,
+            @RequestParam(value = "error", required = false) String error) {
+
+        if (error != null || !googleOAuthStateManager.validateState(state)) {
+            return redirectToFrontendError();
+        }
+
+        var user = googleOAuthCallbackApplicationService.handle(code, googleClientId, googleClientSecret, googleRedirectUri);
+
+        if (user.isEmpty()) {
+            return redirectToFrontendError();
+        }
+
+        var accessToken = tokenCommandService.createAccessToken(user.get());
+        var refreshToken = tokenCommandService.createRefreshToken(user.get());
+
+        String redirectUrl = UriComponentsBuilder.fromHttpUrl(frontendUrl + "/auth/callback")
+                .queryParam("token", accessToken)
+                .queryParam("refreshToken", refreshToken)
+                .toUriString();
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(redirectUrl))
+                .build();
     }
 
     @DeleteMapping("/sign-out")
@@ -176,5 +293,14 @@ public class AuthenticationController {
         var session = tokenQueryService.getTokenSession(token);
         var expiresAt = session.map(s -> s.expiresAt().toString()).orElse(null);
         return ResponseEntity.ok(new TokenVerificationResource(true, email.orElse(null), expiresAt));
+    }
+
+    private ResponseEntity<Void> redirectToFrontendError() {
+        String errorUrl = UriComponentsBuilder.fromHttpUrl(frontendUrl + "/auth/error")
+                .queryParam("reason", "google_oauth_failed")
+                .toUriString();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(errorUrl))
+                .build();
     }
 }

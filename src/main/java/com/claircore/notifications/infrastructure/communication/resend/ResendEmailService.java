@@ -5,6 +5,8 @@ import com.resend.Resend;
 import com.resend.core.exception.ResendException;
 import com.resend.services.emails.model.CreateEmailOptions;
 import com.resend.services.emails.model.CreateEmailResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(name = "notifications.email.provider", havingValue = "resend")
 public class ResendEmailService implements EmailService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ResendEmailService.class);
 
     private final Resend resend;
     private final String fromEmail;
@@ -34,8 +38,10 @@ public class ResendEmailService implements EmailService {
                 .build();
 
         try {
-            resend.emails().send(params);
+            CreateEmailResponse response = resend.emails().send(params);
+            logger.info("Email sent successfully via Resend. ID: {}, To: {}", response.getId(), to);
         } catch (ResendException e) {
+            logger.error("Failed to send email through Resend to: {}", to, e);
             throw new RuntimeException("Failed to send email through Resend", e);
         }
     }

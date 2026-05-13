@@ -34,10 +34,12 @@ DB_PASSWORD=admin
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Resend Email
-RESEND_API_KEY=your_resend_api_key
-RESEND_FROM_EMAIL=onboarding@resend.dev
-EMAIL_PROVIDER=console
+# SMTP Email (Resend)
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USERNAME=resend
+SMTP_PASSWORD=your_resend_api_key
+SMTP_FROM=noreply@yourdomain.com
 
 # JWT
 JWT_SECRET=your_super_secret_jwt_key_that_is_at_least_32_characters_long

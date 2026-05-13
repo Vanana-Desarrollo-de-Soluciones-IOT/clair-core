@@ -28,6 +28,19 @@
     </properties>
 
     <dependencies>
+        <!-- Cucumber --> 
+        <dependency> 
+            <groupId>io.cucumber</groupId> 
+            <artifactId>cucumber-java</artifactId> 
+            <version>7.20.1</version> 
+            <scope>test</scope> 
+        </dependency> 
+        <dependency> 
+            <groupId>io.cucumber</groupId> 
+            <artifactId>cucumber-spring</artifactId> 
+            <version>7.20.1</version> 
+            <scope>test</scope> 
+        </dependency>
         <!-- Spring Boot Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

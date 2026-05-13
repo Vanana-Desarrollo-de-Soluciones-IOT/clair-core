@@ -28,14 +28,25 @@ spring:
   cache:
     type: redis
 
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+        debug: false
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
-
-resend:
-  api:
-    key: ${RESEND_API_KEY}
-  from:
-    email: ${RESEND_FROM_EMAIL}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -57,10 +68,6 @@ server:
     enabled: true
     mime-types: application/json,application/xml,text/html,text/plain
     min-response-size: 1024
-
-notifications:
-  email:
-    provider: ${EMAIL_PROVIDER:console}
 
 springdoc:
   api-docs:

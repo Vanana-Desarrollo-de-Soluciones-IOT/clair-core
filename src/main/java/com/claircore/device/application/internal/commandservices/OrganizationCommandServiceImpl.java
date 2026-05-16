@@ -1,9 +1,10 @@
 package com.claircore.device.application.internal.commandservices;
 
+import com.claircore.billing.domain.model.valueobjects.PlanType;
+import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
 import com.claircore.device.domain.model.entities.Organization;
-import com.claircore.device.domain.model.valueobjects.PlanType;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.OrganizationCommandService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
@@ -17,32 +18,39 @@ import java.util.UUID;
 @Service
 public class OrganizationCommandServiceImpl implements OrganizationCommandService {
 
-    private static final int STANDART_MAX_ORGANIZATIONS = 1;
-    private static final int MESH_MAX_ORGANIZATIONS = 3;
-
     private final OrganizationRepository organizationRepository;
+    private final ExternalBillingService externalBillingService;
 
-    public OrganizationCommandServiceImpl(OrganizationRepository organizationRepository) {
+    public OrganizationCommandServiceImpl(
+            OrganizationRepository organizationRepository,
+            ExternalBillingService externalBillingService) {
         this.organizationRepository = organizationRepository;
+        this.externalBillingService = externalBillingService;
     }
 
     @Override
     @Transactional
     public Organization handle(CreateOrganizationCommand command) {
+        UUID userId = command.ownerUserId().userId();
+
+        PlanType planType = externalBillingService.getUserPlanType(userId);
+
+        if (planType == PlanType.VISITOR) {
+            throw new IllegalStateException("VISITOR plan cannot create organizations");
+        }
+
         int currentCount = organizationRepository.countByOwnerUserId(command.ownerUserId());
-        int maxAllowed = command.planType() == PlanType.MESH ? MESH_MAX_ORGANIZATIONS : STANDART_MAX_ORGANIZATIONS;
+        int maxAllowed = externalBillingService.getMaxOrganizations(userId);
 
         if (currentCount >= maxAllowed) {
             throw new IllegalStateException(
-                "Cannot create organization. User has " + currentCount + " organizations, max allowed for " +
-                command.planType() + " plan is " + maxAllowed
+                "Cannot create organization. User has " + currentCount + " organizations, max allowed is " + maxAllowed
             );
         }
 
         Organization organization = new Organization(
             command.name(),
-            command.ownerUserId(),
-            command.planType()
+            command.ownerUserId()
         );
 
         return organizationRepository.save(organization);

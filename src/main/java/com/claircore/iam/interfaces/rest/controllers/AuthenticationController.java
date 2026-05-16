@@ -4,6 +4,7 @@ import com.claircore.iam.application.internal.commandservices.GoogleOAuthCallbac
 import com.claircore.iam.domain.model.commands.SignOutCommand;
 import com.claircore.iam.domain.model.queries.GetUserByEmailQuery;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
+import com.claircore.iam.domain.model.valueobjects.UserId;
 import com.claircore.iam.domain.services.GoogleAuthenticationCommandService;
 import com.claircore.iam.domain.services.TokenCommandService;
 import com.claircore.iam.domain.services.TokenQueryService;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(value = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -230,12 +232,12 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var email = tokenQueryService.getEmailFromToken(token);
-        if (email.isEmpty()) {
+        var userId = tokenQueryService.getUserIdFromToken(token);
+        if (userId.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        tokenCommandService.signOut(new SignOutCommand(new EmailAddress(email.get())));
+        tokenCommandService.signOut(new SignOutCommand(new UserId(userId.get())));
         return ResponseEntity.noContent().build();
     }
 
@@ -250,8 +252,10 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        var email = tokenQueryService.getEmailFromToken(request.refreshToken());
-        var user = userQueryService.handle(new GetUserByEmailQuery(new EmailAddress(email.orElse(""))));
+        var session = tokenQueryService.getTokenSession(request.refreshToken());
+        var user = session
+                .map(tokenSession -> userQueryService.handle(new GetUserByEmailQuery(tokenSession.email())))
+                .orElseGet(Optional::empty);
 
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -289,10 +293,10 @@ public class AuthenticationController {
                     .body(new TokenVerificationResource(false, null, null));
         }
 
-        var email = tokenQueryService.getEmailFromToken(token);
         var session = tokenQueryService.getTokenSession(token);
+        var userId = tokenQueryService.getUserIdFromToken(token);
         var expiresAt = session.map(s -> s.expiresAt().toString()).orElse(null);
-        return ResponseEntity.ok(new TokenVerificationResource(true, email.orElse(null), expiresAt));
+        return ResponseEntity.ok(new TokenVerificationResource(true, userId.orElse(null), expiresAt));
     }
 
     private ResponseEntity<Void> redirectToFrontendError() {

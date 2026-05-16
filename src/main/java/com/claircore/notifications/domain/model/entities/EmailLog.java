@@ -1,8 +1,16 @@
 package com.claircore.notifications.domain.model.entities;
 
+import com.claircore.notifications.domain.model.valueobjects.EmailContent;
+import com.claircore.notifications.domain.model.valueobjects.EmailRecipient;
+import com.claircore.notifications.domain.model.valueobjects.EmailSubject;
 import com.claircore.shared.domain.model.entities.AuditableModel;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "email_logs")
@@ -15,27 +23,37 @@ public class EmailLog extends AuditableModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    @Column(nullable = false)
-    private String recipientEmail;
+    @Embedded
+    private EmailRecipient recipientEmail;
 
-    @NotBlank
-    @Column(nullable = false)
-    private String subject;
+    @Embedded
+    private EmailSubject subject;
 
-    @Column(columnDefinition = "TEXT")
-    private String content;
+    @Embedded
+    private EmailContent content;
 
     @Column(nullable = false)
     private boolean sent;
 
     private String errorMessage;
 
-    public EmailLog(String recipientEmail, String subject, String content, boolean sent) {
+    public EmailLog(EmailRecipient recipientEmail, EmailSubject subject, EmailContent content, boolean sent, String errorMessage) {
+        if (recipientEmail == null) throw new IllegalArgumentException("Recipient email is required");
+        if (subject == null) throw new IllegalArgumentException("Email subject is required");
+        if (content == null) throw new IllegalArgumentException("Email content is required");
         this.recipientEmail = recipientEmail;
         this.subject = subject;
         this.content = content;
         this.sent = sent;
+        this.errorMessage = errorMessage;
+    }
+
+    public static EmailLog sent(EmailRecipient recipientEmail, EmailSubject subject, EmailContent content) {
+        return new EmailLog(recipientEmail, subject, content, true, null);
+    }
+
+    public static EmailLog failed(EmailRecipient recipientEmail, EmailSubject subject, EmailContent content, String errorMessage) {
+        return new EmailLog(recipientEmail, subject, content, false, errorMessage);
     }
 
     public Long getId() {
@@ -43,15 +61,15 @@ public class EmailLog extends AuditableModel {
     }
 
     public String getRecipientEmail() {
-        return recipientEmail;
+        return recipientEmail.address();
     }
 
     public String getSubject() {
-        return subject;
+        return subject.value();
     }
 
     public String getContent() {
-        return content;
+        return content.html();
     }
 
     public boolean isSent() {

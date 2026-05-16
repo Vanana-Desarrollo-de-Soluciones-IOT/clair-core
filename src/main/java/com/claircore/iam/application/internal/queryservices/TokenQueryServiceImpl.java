@@ -52,14 +52,8 @@ public class TokenQueryServiceImpl implements TokenQueryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<String> getEmailFromToken(String jwtToken) {
-        return jwtTokenEncoder.extractEmail(jwtToken);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public Optional<UUID> getUserIdFromToken(String jwtToken) {
-        return getTokenSession(jwtToken).map(TokenSession::userId);
+        return jwtTokenEncoder.extractUserId(jwtToken);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.claircore.notifications.infrastructure.persistence.jpa.repositories;
 
 import com.claircore.notifications.domain.model.entities.EmailLog;
+import com.claircore.notifications.domain.model.valueobjects.EmailRecipient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +11,7 @@ import java.util.List;
 
 @Repository
 public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
-    List<EmailLog> findByRecipientEmail(String recipientEmail);
+    List<EmailLog> findByRecipientEmail(EmailRecipient recipientEmail);
 
-    Page<EmailLog> findByRecipientEmail(String recipientEmail, Pageable pageable);
+    Page<EmailLog> findByRecipientEmail(EmailRecipient recipientEmail, Pageable pageable);
 }

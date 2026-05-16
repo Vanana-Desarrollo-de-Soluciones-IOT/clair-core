@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class TokenSessionRepository {
@@ -36,7 +37,7 @@ public class TokenSessionRepository {
             }
             redisTemplate.opsForValue().set(tokenKey, value, Duration.ofSeconds(ttlSeconds));
 
-            String indexKey = buildUserIndexKey(session.email().address(), session.type());
+            String indexKey = buildUserIndexKey(session.userId(), session.type());
             redisTemplate.opsForValue().set(indexKey, session.jti().jti(), Duration.ofSeconds(ttlSeconds));
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize token session", e);
@@ -44,10 +45,10 @@ public class TokenSessionRepository {
     }
 
     public void replaceForUser(TokenSession session) {
-        String email = session.email().address();
+        UUID userId = session.userId();
         TokenType type = session.type();
 
-        String indexKey = buildUserIndexKey(email, type);
+        String indexKey = buildUserIndexKey(userId, type);
         String existingJti = redisTemplate.opsForValue().get(indexKey);
         if (existingJti != null) {
             redisTemplate.delete(buildTokenKey(existingJti, type));
@@ -56,9 +57,9 @@ public class TokenSessionRepository {
         save(session);
     }
 
-    public void revokeAllTokensForUser(String email) {
-        String accessIndex = buildUserIndexKey(email, TokenType.ACCESS);
-        String refreshIndex = buildUserIndexKey(email, TokenType.REFRESH);
+    public void revokeAllTokensForUser(UUID userId) {
+        String accessIndex = buildUserIndexKey(userId, TokenType.ACCESS);
+        String refreshIndex = buildUserIndexKey(userId, TokenType.REFRESH);
 
         String accessJti = redisTemplate.opsForValue().get(accessIndex);
         String refreshJti = redisTemplate.opsForValue().get(refreshIndex);
@@ -102,7 +103,7 @@ public class TokenSessionRepository {
         return KEY_PREFIX + type.name().toLowerCase() + ":" + jti;
     }
 
-    private String buildUserIndexKey(String email, TokenType type) {
-        return USER_INDEX_PREFIX + email + ":" + type.name().toLowerCase();
+    private String buildUserIndexKey(UUID userId, TokenType type) {
+        return USER_INDEX_PREFIX + userId + ":" + type.name().toLowerCase();
     }
 }

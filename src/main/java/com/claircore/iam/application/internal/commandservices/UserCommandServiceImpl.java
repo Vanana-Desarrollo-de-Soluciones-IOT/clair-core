@@ -100,7 +100,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         eventPublisher.publishEvent(new UserRegisteredEvent(this, user.getId()));
         
         registrationSessionRepository.deleteById(command.sessionId());
-        asyncNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
+        asyncNotificationService.sendWelcomeEmail(user.getEmail().address());
 
         return Optional.of(user);
     }

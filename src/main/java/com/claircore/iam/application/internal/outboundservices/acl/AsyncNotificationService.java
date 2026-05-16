@@ -13,8 +13,8 @@ public class AsyncNotificationService {
     }
 
     @Async
-    public void sendWelcomeEmail(String email, String userId) {
-        externalNotificationService.sendWelcomeEmail(email, userId);
+    public void sendWelcomeEmail(String email) {
+        externalNotificationService.sendWelcomeEmail(email);
     }
 
     @Async

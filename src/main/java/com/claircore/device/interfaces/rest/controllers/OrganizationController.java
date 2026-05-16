@@ -13,7 +13,10 @@ import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
 import com.claircore.device.interfaces.rest.resources.OrganizationResponse;
 import com.claircore.device.interfaces.rest.resources.UpdateOrganizationNameRequest;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -74,6 +77,11 @@ public class OrganizationController {
 
     @DeleteMapping("/{organizationId}")
     @Operation(summary = "Delete organization")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Organization deleted"),
+        @ApiResponse(responseCode = "400", description = "Organization not found", content = @Content),
+        @ApiResponse(responseCode = "409", description = "Organization has registered devices", content = @Content)
+    })
     public ResponseEntity<Void> deleteOrganization(@PathVariable UUID organizationId) {
         organizationCommandService.handle(new DeleteOrganizationCommand(organizationId));
         return ResponseEntity.noContent().build();

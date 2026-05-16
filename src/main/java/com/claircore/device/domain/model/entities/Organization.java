@@ -40,6 +40,10 @@ public class Organization {
         return 10;
     }
 
+    public void updateName(String name) {
+        this.name = name;
+    }
+
     public UUID getId() { return id; }
     public String getName() { return name; }
     public UserId getOwnerUserId() { return ownerUserId; }

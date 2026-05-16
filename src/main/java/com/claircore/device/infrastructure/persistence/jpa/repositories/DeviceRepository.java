@@ -16,4 +16,5 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     List<Device> findBySpaceId(UUID spaceId);
     Page<Device> findBySpaceId(UUID spaceId, Pageable pageable);
     long countBySpaceId(UUID spaceId);
+    boolean existsBySpaceId(UUID spaceId);
 }

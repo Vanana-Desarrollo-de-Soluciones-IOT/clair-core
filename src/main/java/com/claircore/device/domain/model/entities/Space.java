@@ -36,6 +36,10 @@ public class Space {
         this.ownerUserId = ownerUserId;
     }
 
+    public void updateName(String name) {
+        this.name = name;
+    }
+
     public UUID getId() { return id; }
     public String getName() { return name; }
     public UUID getOrganizationId() { return organizationId; }

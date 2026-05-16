@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface SpaceRepository extends JpaRepository<Space, UUID> {
     List<Space> findByOrganizationId(UUID organizationId);
     int countByOrganizationId(UUID organizationId);
+    boolean existsByOrganizationId(UUID organizationId);
 }

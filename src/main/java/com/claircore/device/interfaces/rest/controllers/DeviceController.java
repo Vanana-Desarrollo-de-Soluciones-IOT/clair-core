@@ -3,6 +3,8 @@ package com.claircore.device.interfaces.rest.controllers;
 import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
 import com.claircore.device.domain.model.commands.RegisterDeviceCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceConfigurationCommand;
+import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
+import com.claircore.device.domain.model.commands.UpdateDeviceSerialNumberCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceStatusCommand;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.services.DeviceCommandService;
@@ -84,6 +86,28 @@ public class DeviceController {
             @RequestBody UpdateDeviceConfigurationRequest request) {
 
         var command = new UpdateDeviceConfigurationCommand(deviceId, request.configuration());
+        deviceCommandService.handle(command);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{deviceId}/name")
+    @Operation(summary = "Update device name")
+    public ResponseEntity<Void> updateDeviceName(
+            @PathVariable UUID deviceId,
+            @RequestBody UpdateDeviceNameRequest request) {
+
+        var command = new UpdateDeviceNameCommand(deviceId, request.name());
+        deviceCommandService.handle(command);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{deviceId}/serial-number")
+    @Operation(summary = "Update device serial number")
+    public ResponseEntity<Void> updateDeviceSerialNumber(
+            @PathVariable UUID deviceId,
+            @RequestBody UpdateDeviceSerialNumberRequest request) {
+
+        var command = new UpdateDeviceSerialNumberCommand(deviceId, request.serialNumber());
         deviceCommandService.handle(command);
         return ResponseEntity.ok().build();
     }

@@ -2,6 +2,7 @@ package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.CreateSpaceCommand;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
+import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.SpaceCommandService;
@@ -10,6 +11,7 @@ import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
 import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
 import com.claircore.device.interfaces.rest.resources.SpaceResponse;
+import com.claircore.device.interfaces.rest.resources.UpdateSpaceNameRequest;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,6 +76,16 @@ public class SpaceController {
     public ResponseEntity<Void> deleteSpace(@PathVariable UUID spaceId) {
         spaceCommandService.handle(new DeleteSpaceCommand(spaceId));
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{spaceId}/name")
+    @Operation(summary = "Update space name")
+    public ResponseEntity<Void> updateSpaceName(
+            @PathVariable UUID spaceId,
+            @RequestBody UpdateSpaceNameRequest request) {
+
+        spaceCommandService.handle(new UpdateSpaceNameCommand(spaceId, request.name()));
+        return ResponseEntity.ok().build();
     }
 
     private SpaceResponse toResponse(Space space) {

@@ -57,6 +57,14 @@ public class Device {
         this.configuration = new HashMap<>(configuration);
     }
 
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updateSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
+
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }
     public String getName() { return name; }

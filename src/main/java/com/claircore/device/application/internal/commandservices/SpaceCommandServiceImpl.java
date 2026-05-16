@@ -2,10 +2,12 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.domain.model.commands.CreateSpaceCommand;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
+import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.SpaceCommandService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
@@ -22,10 +24,15 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
 
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
+    private final DeviceRepository deviceRepository;
 
-    public SpaceCommandServiceImpl(SpaceRepository spaceRepository, OrganizationRepository organizationRepository) {
+    public SpaceCommandServiceImpl(
+            SpaceRepository spaceRepository,
+            OrganizationRepository organizationRepository,
+            DeviceRepository deviceRepository) {
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
+        this.deviceRepository = deviceRepository;
     }
 
     @Override
@@ -57,7 +64,22 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
 
+        if (deviceRepository.existsBySpaceId(command.spaceId())) {
+            throw new IllegalStateException("Cannot delete space with devices. Remove all devices first.");
+        }
+
         spaceRepository.delete(space);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateSpaceNameCommand command) {
+        Space space = spaceRepository
+            .findById(command.spaceId())
+            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+
+        space.updateName(command.name());
+        spaceRepository.save(space);
     }
 
     @Override

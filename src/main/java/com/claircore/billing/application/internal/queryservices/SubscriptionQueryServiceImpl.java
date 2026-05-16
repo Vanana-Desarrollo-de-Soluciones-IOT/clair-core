@@ -1,45 +1,55 @@
 package com.claircore.billing.application.internal.queryservices;
 
-import com.claircore.billing.domain.model.aggregates.Subscription;
+import com.claircore.billing.domain.model.aggregates.PaymentRecord;
 import com.claircore.billing.domain.model.queries.GetSubscriptionByIdQuery;
 import com.claircore.billing.domain.model.queries.GetSubscriptionsByUserIdQuery;
 import com.claircore.billing.domain.model.queries.GetUserPlanQuery;
-import com.claircore.billing.domain.model.valueobjects.SubscriptionStatus;
+import com.claircore.billing.domain.model.valueobjects.PlanType;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.domain.services.SubscriptionQueryService;
-import com.claircore.billing.infrastructure.persistence.jpa.repositories.SubscriptionRepository;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.PaymentRecordRepository;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.UserPlanRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class SubscriptionQueryServiceImpl implements SubscriptionQueryService {
 
-    private final SubscriptionRepository subscriptionRepository;
+    private final PaymentRecordRepository paymentRecordRepository;
+    private final UserPlanRepository userPlanRepository;
 
-    public SubscriptionQueryServiceImpl(SubscriptionRepository subscriptionRepository) {
-        this.subscriptionRepository = subscriptionRepository;
+    public SubscriptionQueryServiceImpl(PaymentRecordRepository paymentRecordRepository, UserPlanRepository userPlanRepository) {
+        this.paymentRecordRepository = paymentRecordRepository;
+        this.userPlanRepository = userPlanRepository;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Subscription> handle(GetSubscriptionByIdQuery query) {
-        return subscriptionRepository.findById(query.subscriptionId());
+    public Optional<PaymentRecord> handle(GetSubscriptionByIdQuery query) {
+        return paymentRecordRepository.findById(query.subscriptionId());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Subscription> handle(GetSubscriptionsByUserIdQuery query) {
-        return subscriptionRepository.findAllByUserId(query.userId());
+    public List<PaymentRecord> handle(GetSubscriptionsByUserIdQuery query) {
+        return paymentRecordRepository.findAllByUserId(query.userId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public String resolveUserPlan(GetUserPlanQuery query) {
-        var uid = new UserId(query.userId());
-        boolean hasPremium = subscriptionRepository.existsByUserIdAndStatus(uid, SubscriptionStatus.ACTIVE);
-        return hasPremium ? "premium" : "freemium";
+        var uid = new UserId(UUID.fromString(query.userId()));
+        return userPlanRepository.findByUserId(uid)
+                .map(userPlan -> {
+                    if (userPlan.isPremiumExpired()) {
+                        return PlanType.FREEMIUM.name().toLowerCase();
+                    }
+                    return userPlan.getPlanType().name().toLowerCase();
+                })
+                .orElse(PlanType.VISITOR.name().toLowerCase());
     }
 }

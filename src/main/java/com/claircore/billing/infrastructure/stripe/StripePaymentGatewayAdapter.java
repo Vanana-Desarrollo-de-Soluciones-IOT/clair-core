@@ -49,7 +49,7 @@ public class StripePaymentGatewayAdapter implements PaymentGateway {
                                 )
                                 .build()
                 )
-                .putMetadata("userId", command.userId().userId())
+                .putMetadata("userId", command.userId().userId().toString())
                 .build();
 
         try {
@@ -64,7 +64,7 @@ public class StripePaymentGatewayAdapter implements PaymentGateway {
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                 .setAmount(command.money().amount())
                 .setCurrency(command.money().currency())
-                .putMetadata("userId", command.userId().userId())
+                .putMetadata("userId", command.userId().userId().toString())
                 .build();
 
         try {

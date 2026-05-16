@@ -1,7 +1,7 @@
 package com.claircore.billing.domain.model.valueobjects;
 
-public enum SubscriptionStatus {
+public enum PaymentStatus {
     PENDING,
-    ACTIVE,
-    CANCELLED
+    COMPLETED,
+    FAILED
 }

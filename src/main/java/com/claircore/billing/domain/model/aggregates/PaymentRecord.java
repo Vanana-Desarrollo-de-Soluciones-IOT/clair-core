@@ -2,7 +2,7 @@ package com.claircore.billing.domain.model.aggregates;
 
 import com.claircore.billing.domain.model.events.SubscriptionPaidEvent;
 import com.claircore.billing.domain.model.valueobjects.Money;
-import com.claircore.billing.domain.model.valueobjects.SubscriptionStatus;
+import com.claircore.billing.domain.model.valueobjects.PaymentStatus;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class Subscription extends AbstractAggregateRoot<Subscription> {
+public class PaymentRecord extends AbstractAggregateRoot<PaymentRecord> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,28 +26,28 @@ public class Subscription extends AbstractAggregateRoot<Subscription> {
     private Money amount;
 
     @Enumerated(EnumType.STRING)
-    private SubscriptionStatus status;
+    private PaymentStatus status;
 
     private String stripePaymentIntentId;
 
     @Embedded
-    private SubscriptionAudit auditFields = new SubscriptionAudit();
+    private PaymentRecordAudit auditFields = new PaymentRecordAudit();
 
-    protected Subscription() {}
+    protected PaymentRecord() {}
 
-    public Subscription(UserId userId, Money amount, String stripePaymentIntentId) {
+    public PaymentRecord(UserId userId, Money amount, String stripePaymentIntentId) {
         this.userId = userId;
         this.amount = amount;
         this.stripePaymentIntentId = stripePaymentIntentId;
-        this.status = SubscriptionStatus.PENDING;
+        this.status = PaymentStatus.PENDING;
     }
 
-    public void markAsActive() {
-        if (this.status == SubscriptionStatus.PENDING) {
-            this.status = SubscriptionStatus.ACTIVE;
+    public void markAsCompleted() {
+        if (this.status == PaymentStatus.PENDING) {
+            this.status = PaymentStatus.COMPLETED;
             this.registerEvent(new SubscriptionPaidEvent(this, this.stripePaymentIntentId, this.userId));
         } else {
-            throw new IllegalStateException("Subscription can only be activated from PENDING status");
+            throw new IllegalStateException("PaymentRecord can only be completed from PENDING status");
         }
     }
 
@@ -55,9 +55,9 @@ public class Subscription extends AbstractAggregateRoot<Subscription> {
     public UUID getId() { return id; }
     public UserId getUserId() { return userId; }
     public Money getAmount() { return amount; }
-    public SubscriptionStatus getStatus() { return status; }
+    public PaymentStatus getStatus() { return status; }
     public String getStripePaymentIntentId() { return stripePaymentIntentId; }
 
     @Embeddable
-    public static class SubscriptionAudit extends AuditableModel {}
+    public static class PaymentRecordAudit extends AuditableModel {}
 }

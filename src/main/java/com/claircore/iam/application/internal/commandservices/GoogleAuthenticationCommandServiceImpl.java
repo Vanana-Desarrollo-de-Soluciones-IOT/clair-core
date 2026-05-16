@@ -3,6 +3,7 @@ package com.claircore.iam.application.internal.commandservices;
 import com.claircore.iam.domain.model.commands.AuthenticateWithGoogleCommand;
 import com.claircore.iam.domain.model.entities.User;
 import com.claircore.iam.domain.model.events.UserAuthenticatedWithGoogleEvent;
+import com.claircore.iam.domain.model.events.UserRegisteredEvent;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.OAuthProvider;
 import com.claircore.iam.domain.services.GoogleAuthenticationCommandService;
@@ -56,6 +57,7 @@ public class GoogleAuthenticationCommandServiceImpl implements GoogleAuthenticat
         } else {
             user = new User(email, OAuthProvider.GOOGLE, subject);
             userRepository.save(user);
+            eventPublisher.publishEvent(new UserRegisteredEvent(this, user.getId()));
         }
 
         eventPublisher.publishEvent(new UserAuthenticatedWithGoogleEvent(

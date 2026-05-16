@@ -1,10 +1,11 @@
 package com.claircore.billing.interfaces.rest.controllers;
 
 import com.claircore.billing.domain.model.commands.CreateCheckoutSessionCommand;
+import com.claircore.billing.domain.model.commands.DowngradeToFreemiumCommand;
 import com.claircore.billing.domain.model.queries.GetSubscriptionsByUserIdQuery;
 import com.claircore.billing.domain.model.queries.GetUserPlanQuery;
 import com.claircore.billing.domain.model.valueobjects.Money;
-import com.claircore.billing.domain.model.valueobjects.SubscriptionStatus;
+import com.claircore.billing.domain.model.valueobjects.PaymentStatus;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.domain.services.SubscriptionCommandService;
 import com.claircore.billing.domain.services.SubscriptionQueryService;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,7 +41,7 @@ public class SubscriptionController {
     @Operation(summary = "Create a Stripe checkout session")
     public ResponseEntity<Map<String, String>> createCheckoutSession(@RequestBody CreateSubscriptionResource resource) {
         var command = new CreateCheckoutSessionCommand(
-                new UserId(resource.userId()),
+                new UserId(UUID.fromString(resource.userId())),
                 new Money(resource.amount(), resource.currency()),
                 resource.returnUrl()
         );
@@ -51,7 +53,7 @@ public class SubscriptionController {
     @Operation(summary = "Create a Stripe payment intent")
     public ResponseEntity<Map<String, String>> createPaymentIntent(@RequestBody CreateSubscriptionResource resource) {
         var command = new com.claircore.billing.domain.model.commands.CreatePaymentIntentCommand(
-                new UserId(resource.userId()),
+                new UserId(UUID.fromString(resource.userId())),
                 new Money(resource.amount(), resource.currency())
         );
         String clientSecret = subscriptionCommandService.handle(command);
@@ -61,7 +63,7 @@ public class SubscriptionController {
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get all subscriptions for a user")
     public ResponseEntity<List<SubscriptionResource>> getSubscriptionsByUserId(@PathVariable String userId) {
-        var query = new GetSubscriptionsByUserIdQuery(new UserId(userId));
+        var query = new GetSubscriptionsByUserIdQuery(new UserId(UUID.fromString(userId)));
         var subscriptions = subscriptionQueryService.handle(query);
         var resources = subscriptions.stream()
                 .map(SubscriptionResourceFromEntityAssembler::toResourceFromEntity)
@@ -74,12 +76,19 @@ public class SubscriptionController {
     public ResponseEntity<UserPlanResource> getUserPlan(@PathVariable String userId) {
         var plan = subscriptionQueryService.resolveUserPlan(new GetUserPlanQuery(userId));
         var activeStatus = subscriptionQueryService
-                .handle(new GetSubscriptionsByUserIdQuery(new UserId(userId)))
+                .handle(new GetSubscriptionsByUserIdQuery(new UserId(UUID.fromString(userId))))
                 .stream()
-                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
+                .filter(s -> s.getStatus() == PaymentStatus.COMPLETED)
                 .findFirst()
                 .map(s -> s.getStatus().name())
                 .orElse(null);
         return ResponseEntity.ok(new UserPlanResource(userId, plan, activeStatus));
+    }
+
+    @PostMapping("/downgrade/{userId}")
+    @Operation(summary = "Downgrade a user's plan to FREEMIUM")
+    public ResponseEntity<Void> downgradeToFreemium(@PathVariable String userId) {
+        subscriptionCommandService.handle(new DowngradeToFreemiumCommand(new UserId(UUID.fromString(userId))));
+        return ResponseEntity.ok().build();
     }
 }

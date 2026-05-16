@@ -2,6 +2,7 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
+import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
@@ -63,5 +64,16 @@ class OrganizationCommandServiceImplTest {
 
         verify(spaceRepository).deleteByOrganizationId(organizationId);
         verify(organizationRepository).delete(organization);
+    }
+
+    @Test
+    void updateOrganizationNameSucceeds() {
+        UUID organizationId = UUID.randomUUID();
+        Organization organization = new Organization("Home", new UserId(UUID.randomUUID()));
+        when(organizationRepository.findById(organizationId)).thenReturn(Optional.of(organization));
+
+        service.handle(new UpdateOrganizationNameCommand(organizationId, "Office"));
+
+        verify(organizationRepository).save(organization);
     }
 }

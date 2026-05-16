@@ -90,7 +90,7 @@ public class DeviceController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/{deviceId}/name")
+    @PatchMapping({"/{deviceId}/name", "/{deviceId}"})
     @Operation(summary = "Update device name")
     public ResponseEntity<Void> updateDeviceName(
             @PathVariable UUID deviceId,

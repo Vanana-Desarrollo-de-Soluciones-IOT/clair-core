@@ -1,6 +1,5 @@
 package com.claircore.iam.infrastructure.tokens.jwt;
 
-import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -11,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Component
@@ -27,9 +27,9 @@ public class JwtTokenEncoder {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(EmailAddress email, long ttlMillis, String jti) {
+    public String generateToken(UUID userId, long ttlMillis, String jti) {
         return Jwts.builder()
-                .subject(email.address())
+                .subject(userId.toString())
                 .claim(CLAIM_TYPE, TYPE_ACCESS)
                 .claim(CLAIM_JTI, jti)
                 .issuedAt(new Date())
@@ -38,9 +38,9 @@ public class JwtTokenEncoder {
                 .compact();
     }
 
-    public String generateRefreshToken(EmailAddress email, long ttlMillis, String jti) {
+    public String generateRefreshToken(UUID userId, long ttlMillis, String jti) {
         return Jwts.builder()
-                .subject(email.address())
+                .subject(userId.toString())
                 .claim(CLAIM_TYPE, TYPE_REFRESH)
                 .claim(CLAIM_JTI, jti)
                 .issuedAt(new Date())
@@ -57,9 +57,9 @@ public class JwtTokenEncoder {
         }
     }
 
-    public Optional<String> extractEmail(String token) {
+    public Optional<UUID> extractUserId(String token) {
         try {
-            return Optional.ofNullable(extractClaim(token, Claims::getSubject));
+            return Optional.ofNullable(extractClaim(token, Claims::getSubject)).map(UUID::fromString);
         } catch (Exception e) {
             return Optional.empty();
         }

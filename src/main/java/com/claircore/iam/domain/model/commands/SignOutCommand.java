@@ -1,11 +1,11 @@
 package com.claircore.iam.domain.model.commands;
 
-import com.claircore.iam.domain.model.valueobjects.EmailAddress;
+import com.claircore.iam.domain.model.valueobjects.UserId;
 
 public record SignOutCommand(
-    EmailAddress email
+    UserId userId
 ) {
     public SignOutCommand {
-        if (email == null) throw new IllegalArgumentException("Email is required");
+        if (userId == null) throw new IllegalArgumentException("User ID is required");
     }
 }

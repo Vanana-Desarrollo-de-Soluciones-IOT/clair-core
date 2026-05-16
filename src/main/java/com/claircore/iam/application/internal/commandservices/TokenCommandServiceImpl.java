@@ -45,7 +45,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         TokenSession session = new TokenSession(jti, user.getEmail(), user.getId(), TokenType.ACCESS, now, expiresAt);
         tokenSessionRepository.replaceForUser(session);
 
-        return jwtTokenEncoder.generateToken(user.getEmail(), accessTtlMillis, jti.jti());
+        return jwtTokenEncoder.generateToken(user.getId(), accessTtlMillis, jti.jti());
     }
 
     @Override
@@ -58,7 +58,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         TokenSession session = new TokenSession(jti, user.getEmail(), user.getId(), TokenType.REFRESH, now, expiresAt);
         tokenSessionRepository.replaceForUser(session);
 
-        return jwtTokenEncoder.generateRefreshToken(user.getEmail(), refreshTtlMillis, jti.jti());
+        return jwtTokenEncoder.generateRefreshToken(user.getId(), refreshTtlMillis, jti.jti());
     }
 
     @Override
@@ -99,12 +99,12 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         TokenSession newSession = new TokenSession(newJti, existingSession.get().email(), existingSession.get().userId(), TokenType.REFRESH, now, expiresAt);
         tokenSessionRepository.replaceForUser(newSession);
 
-        return Optional.of(jwtTokenEncoder.generateRefreshToken(existingSession.get().email(), refreshTtlMillis, newJti.jti()));
+        return Optional.of(jwtTokenEncoder.generateRefreshToken(existingSession.get().userId(), refreshTtlMillis, newJti.jti()));
     }
 
     @Override
     @Transactional
     public void signOut(SignOutCommand command) {
-        tokenSessionRepository.revokeAllTokensForUser(command.email().address());
+        tokenSessionRepository.revokeAllTokensForUser(command.userId().userId());
     }
 }

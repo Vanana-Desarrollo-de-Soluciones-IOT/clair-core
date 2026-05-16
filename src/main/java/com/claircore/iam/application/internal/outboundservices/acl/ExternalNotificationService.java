@@ -18,8 +18,8 @@ public class ExternalNotificationService {
     }
 
     @CircuitBreaker(name = "notificationService", fallbackMethod = "sendWelcomeEmailFallback")
-    public void sendWelcomeEmail(String email, String userId) {
-        notificationsContextFacade.sendWelcomeEmail(email, userId);
+    public void sendWelcomeEmail(String email) {
+        notificationsContextFacade.sendWelcomeEmail(email);
     }
 
     @CircuitBreaker(name = "notificationService", fallbackMethod = "sendVerificationCodeFallback")
@@ -27,7 +27,7 @@ public class ExternalNotificationService {
         notificationsContextFacade.sendVerificationCode(email, code);
     }
 
-    private void sendWelcomeEmailFallback(String email, String userId, Exception ex) {
+    private void sendWelcomeEmailFallback(String email, Exception ex) {
         logger.error("Circuit breaker active: failed to send welcome email to {}. Reason: {}", email, ex.getMessage());
     }
 

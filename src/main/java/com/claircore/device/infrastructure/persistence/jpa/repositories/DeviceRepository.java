@@ -21,6 +21,9 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     long countBySpaceId(UUID spaceId);
     boolean existsBySpaceId(UUID spaceId);
 
+    @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM Device d WHERE d.spaceId IN (SELECT s.id FROM Space s WHERE s.organizationId = :organizationId)")
+    boolean existsByOrganizationId(@Param("organizationId") UUID organizationId);
+
     @Query("SELECT COUNT(d) FROM Device d WHERE d.spaceId IN (SELECT s.id FROM Space s WHERE s.ownerUserId = :ownerUserId)")
     long countByOwnerUserId(@Param("ownerUserId") UserId ownerUserId);
 }

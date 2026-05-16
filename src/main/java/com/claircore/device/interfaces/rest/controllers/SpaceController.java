@@ -13,7 +13,10 @@ import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
 import com.claircore.device.interfaces.rest.resources.SpaceResponse;
 import com.claircore.device.interfaces.rest.resources.UpdateSpaceNameRequest;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -73,6 +76,11 @@ public class SpaceController {
 
     @DeleteMapping("/{spaceId}")
     @Operation(summary = "Delete a space")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Space deleted"),
+        @ApiResponse(responseCode = "400", description = "Space not found", content = @Content),
+        @ApiResponse(responseCode = "409", description = "Space has registered devices", content = @Content)
+    })
     public ResponseEntity<Void> deleteSpace(@PathVariable UUID spaceId) {
         spaceCommandService.handle(new DeleteSpaceCommand(spaceId));
         return ResponseEntity.noContent().build();

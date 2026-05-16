@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class TokenQueryServiceImpl implements TokenQueryService {
@@ -53,6 +54,12 @@ public class TokenQueryServiceImpl implements TokenQueryService {
     @Transactional(readOnly = true)
     public Optional<String> getEmailFromToken(String jwtToken) {
         return jwtTokenEncoder.extractEmail(jwtToken);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> getUserIdFromToken(String jwtToken) {
+        return getTokenSession(jwtToken).map(TokenSession::userId);
     }
 
     @Override

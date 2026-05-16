@@ -14,9 +14,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    public static final String USER_ID_ATTRIBUTE = "X-User-Id";
 
     private final TokenQueryService tokenQueryService;
 
@@ -38,8 +41,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (tokenQueryService.isAccessTokenValid(jwt)) {
             final String email = tokenQueryService.getEmailFromToken(jwt).orElse(null);
+            final UUID userId = tokenQueryService.getUserIdFromToken(jwt).orElse(null);
 
-            if (email != null) {
+            if (email != null && userId != null) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         User.builder()
                                 .username(email)
@@ -52,6 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                request.setAttribute(USER_ID_ATTRIBUTE, userId);
             }
         }
 

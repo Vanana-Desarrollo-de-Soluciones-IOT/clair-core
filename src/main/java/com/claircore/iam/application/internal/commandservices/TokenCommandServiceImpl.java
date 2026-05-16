@@ -42,7 +42,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         Instant now = Instant.now();
         Instant expiresAt = now.plusMillis(accessTtlMillis);
 
-        TokenSession session = new TokenSession(jti, user.getEmail(), TokenType.ACCESS, now, expiresAt);
+        TokenSession session = new TokenSession(jti, user.getEmail(), user.getId(), TokenType.ACCESS, now, expiresAt);
         tokenSessionRepository.replaceForUser(session);
 
         return jwtTokenEncoder.generateToken(user.getEmail(), accessTtlMillis, jti.jti());
@@ -55,7 +55,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         Instant now = Instant.now();
         Instant expiresAt = now.plusMillis(refreshTtlMillis);
 
-        TokenSession session = new TokenSession(jti, user.getEmail(), TokenType.REFRESH, now, expiresAt);
+        TokenSession session = new TokenSession(jti, user.getEmail(), user.getId(), TokenType.REFRESH, now, expiresAt);
         tokenSessionRepository.replaceForUser(session);
 
         return jwtTokenEncoder.generateRefreshToken(user.getEmail(), refreshTtlMillis, jti.jti());
@@ -96,7 +96,7 @@ public class TokenCommandServiceImpl implements TokenCommandService {
         TokenJti newJti = TokenJti.generate();
         Instant now = Instant.now();
         Instant expiresAt = now.plusMillis(refreshTtlMillis);
-        TokenSession newSession = new TokenSession(newJti, existingSession.get().email(), TokenType.REFRESH, now, expiresAt);
+        TokenSession newSession = new TokenSession(newJti, existingSession.get().email(), existingSession.get().userId(), TokenType.REFRESH, now, expiresAt);
         tokenSessionRepository.replaceForUser(newSession);
 
         return Optional.of(jwtTokenEncoder.generateRefreshToken(existingSession.get().email(), refreshTtlMillis, newJti.jti()));

@@ -10,8 +10,10 @@ import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
 import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
 import com.claircore.device.interfaces.rest.resources.SpaceResponse;
+import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,12 +37,13 @@ public class SpaceController {
     @PostMapping
     @Operation(summary = "Create a new space")
     public ResponseEntity<SpaceResponse> createSpace(
-            @RequestHeader("X-User-Id") UUID userId,
+            HttpServletRequest request,
             @RequestParam UUID organizationId,
-            @RequestBody CreateSpaceRequest request) {
+            @RequestBody CreateSpaceRequest req) {
 
+        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var command = new CreateSpaceCommand(
-            request.name(),
+            req.name(),
             organizationId,
             new UserId(userId)
         );

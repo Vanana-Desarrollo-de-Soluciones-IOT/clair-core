@@ -10,8 +10,10 @@ import com.claircore.device.domain.model.queries.GetOrganizationByIdQuery;
 import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
 import com.claircore.device.interfaces.rest.resources.OrganizationResponse;
+import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +39,14 @@ public class OrganizationController {
     @PostMapping
     @Operation(summary = "Create a new organization")
     public ResponseEntity<OrganizationResponse> createOrganization(
-            @RequestHeader("X-User-Id") UUID userId,
-            @RequestBody CreateOrganizationRequest request) {
+            HttpServletRequest request,
+            @RequestBody CreateOrganizationRequest req) {
 
+        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var command = new CreateOrganizationCommand(
-            request.name(),
+            req.name(),
             new UserId(userId),
-            request.planType()
+            req.planType()
         );
 
         Organization org = organizationCommandService.handle(command);
@@ -61,8 +64,8 @@ public class OrganizationController {
 
     @GetMapping
     @Operation(summary = "Get organizations for current user")
-    public ResponseEntity<List<OrganizationResponse>> getUserOrganizations(
-            @RequestHeader("X-User-Id") UUID userId) {
+    public ResponseEntity<List<OrganizationResponse>> getUserOrganizations(HttpServletRequest request) {
+        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var query = new GetOrganizationsByOwnerQuery(new UserId(userId));
         List<Organization> orgs = deviceQueryService.handle(query);
         return ResponseEntity.ok(orgs.stream().map(this::toResponse).toList());

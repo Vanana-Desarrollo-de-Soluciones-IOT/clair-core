@@ -34,7 +34,7 @@ public class UserPlan extends AbstractAggregateRoot<UserPlan> {
 
     public UserPlan(UserId userId) {
         this.userId = userId;
-        this.planType = PlanType.VISITOR;
+        this.planType = PlanType.FREEMIUM;
         this.startDate = LocalDate.now();
         this.endDate = null;
     }

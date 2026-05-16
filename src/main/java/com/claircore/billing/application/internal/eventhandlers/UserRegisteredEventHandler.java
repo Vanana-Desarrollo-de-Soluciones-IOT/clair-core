@@ -25,6 +25,6 @@ public class UserRegisteredEventHandler {
         var userId = new UserId(event.getUserId());
         var userPlan = new UserPlan(userId);
         userPlanRepository.save(userPlan);
-        log.info("Created VISITOR UserPlan for user: {}", event.getUserId());
+        log.info("Created FREEMIUM UserPlan for user: {}", event.getUserId());
     }
 }

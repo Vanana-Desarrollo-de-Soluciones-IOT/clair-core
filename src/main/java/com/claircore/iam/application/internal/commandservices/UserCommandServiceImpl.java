@@ -9,6 +9,8 @@ import com.claircore.iam.domain.model.valueobjects.*;
 import com.claircore.iam.domain.services.UserCommandService;
 import com.claircore.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import com.claircore.iam.infrastructure.persistence.redis.repositories.RegistrationSessionRepository;
+import org.springframework.context.ApplicationEventPublisher;
+import com.claircore.iam.domain.model.events.UserRegisteredEvent;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,18 +25,21 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final RegistrationSessionRepository registrationSessionRepository;
     private final PasswordEncoder passwordEncoder;
     private final AsyncNotificationService asyncNotificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final SecureRandom secureRandom;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
             RegistrationSessionRepository registrationSessionRepository,
             PasswordEncoder passwordEncoder,
-            AsyncNotificationService asyncNotificationService
+            AsyncNotificationService asyncNotificationService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.userRepository = userRepository;
         this.registrationSessionRepository = registrationSessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.asyncNotificationService = asyncNotificationService;
+        this.eventPublisher = eventPublisher;
         this.secureRandom = new SecureRandom();
     }
 
@@ -92,6 +97,8 @@ public class UserCommandServiceImpl implements UserCommandService {
         user.activate();
 
         userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(this, user.getId()));
+        
         registrationSessionRepository.deleteById(command.sessionId());
         asyncNotificationService.sendWelcomeEmail(user.getEmail().address(), user.getId().toString());
 

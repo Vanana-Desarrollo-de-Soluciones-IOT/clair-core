@@ -8,4 +8,5 @@ public interface SubscriptionCommandService {
     String handle(CreateCheckoutSessionCommand command);
     String handle(CreatePaymentIntentCommand command);
     void handle(FulfillSubscriptionCommand command);
+    void handle(com.claircore.billing.domain.model.commands.DowngradeToFreemiumCommand command);
 }

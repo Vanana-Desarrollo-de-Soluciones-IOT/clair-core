@@ -1,12 +1,14 @@
 package com.claircore.billing.application.internal.commandservices;
 
 import com.claircore.billing.domain.gateways.PaymentGateway;
-import com.claircore.billing.domain.model.aggregates.Subscription;
+import com.claircore.billing.domain.model.aggregates.PaymentRecord;
 import com.claircore.billing.domain.model.commands.CreateCheckoutSessionCommand;
 import com.claircore.billing.domain.model.commands.CreatePaymentIntentCommand;
+import com.claircore.billing.domain.model.commands.DowngradeToFreemiumCommand;
 import com.claircore.billing.domain.model.commands.FulfillSubscriptionCommand;
 import com.claircore.billing.domain.services.SubscriptionCommandService;
-import com.claircore.billing.infrastructure.persistence.jpa.repositories.SubscriptionRepository;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.PaymentRecordRepository;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.UserPlanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,18 +20,18 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
     private static final Logger log = LoggerFactory.getLogger(SubscriptionCommandServiceImpl.class);
 
     private final PaymentGateway paymentGateway;
-    private final SubscriptionRepository subscriptionRepository;
+    private final PaymentRecordRepository paymentRecordRepository;
+    private final UserPlanRepository userPlanRepository;
 
-    public SubscriptionCommandServiceImpl(PaymentGateway paymentGateway, SubscriptionRepository subscriptionRepository) {
+    public SubscriptionCommandServiceImpl(PaymentGateway paymentGateway, PaymentRecordRepository paymentRecordRepository, UserPlanRepository userPlanRepository) {
         this.paymentGateway = paymentGateway;
-        this.subscriptionRepository = subscriptionRepository;
+        this.paymentRecordRepository = paymentRecordRepository;
+        this.userPlanRepository = userPlanRepository;
     }
 
     @Override
     @Transactional
     public String handle(CreateCheckoutSessionCommand command) {
-        // Here we could pre-create a PENDING subscription if we want to track intent
-        // For now, we'll just return the Stripe URL
         return paymentGateway.createCheckoutSession(command);
     }
 
@@ -38,12 +40,12 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
     public String handle(CreatePaymentIntentCommand command) {
         var result = paymentGateway.createPaymentIntent(command);
         
-        var subscription = new Subscription(
+        var paymentRecord = new PaymentRecord(
                 command.userId(),
                 command.money(),
                 result.paymentIntentId()
         );
-        subscriptionRepository.save(subscription);
+        paymentRecordRepository.save(paymentRecord);
         
         return result.clientSecret();
     }
@@ -53,17 +55,35 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
     public void handle(FulfillSubscriptionCommand command) {
         log.info("Handling FulfillSubscriptionCommand for paymentIntentId: {}", command.stripePaymentIntentId());
         
-        subscriptionRepository.findByStripePaymentIntentId(command.stripePaymentIntentId())
+        paymentRecordRepository.findByStripePaymentIntentId(command.stripePaymentIntentId())
                 .ifPresentOrElse(
-                        subscription -> {
-                            log.info("Found subscription with ID: {} in PENDING state. Marking as ACTIVE.", subscription.getId());
-                            subscription.markAsActive();
-                            subscriptionRepository.save(subscription);
-                            log.info("Subscription with ID: {} successfully updated to ACTIVE.", subscription.getId());
+                        paymentRecord -> {
+                            log.info("Found paymentRecord with ID: {} in PENDING state. Marking as COMPLETED.", paymentRecord.getId());
+                            paymentRecord.markAsCompleted();
+                            paymentRecordRepository.save(paymentRecord);
+                            log.info("PaymentRecord with ID: {} successfully updated to COMPLETED.", paymentRecord.getId());
                         },
                         () -> {
-                            log.warn("Subscription not found for stripePaymentIntentId: {}. Cannot mark as active.", 
+                            log.warn("PaymentRecord not found for stripePaymentIntentId: {}. Cannot mark as completed.", 
                                     command.stripePaymentIntentId());
+                        }
+                );
+    }
+
+    @Override
+    @Transactional
+    public void handle(DowngradeToFreemiumCommand command) {
+        log.info("Handling DowngradeToFreemiumCommand for user: {}", command.userId().userId());
+        userPlanRepository.findByUserId(command.userId())
+                .ifPresentOrElse(
+                        userPlan -> {
+                            userPlan.downgradeToFreemium();
+                            userPlanRepository.save(userPlan);
+                            log.info("User {} successfully downgraded to FREEMIUM.", command.userId().userId());
+                        },
+                        () -> {
+                            log.warn("UserPlan not found for user: {}. Cannot downgrade.", command.userId().userId());
+                            throw new IllegalArgumentException("User plan not found");
                         }
                 );
     }

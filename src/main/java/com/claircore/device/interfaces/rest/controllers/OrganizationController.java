@@ -45,8 +45,7 @@ public class OrganizationController {
         UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var command = new CreateOrganizationCommand(
             req.name(),
-            new UserId(userId),
-            req.planType()
+            new UserId(userId)
         );
 
         Organization org = organizationCommandService.handle(command);
@@ -82,7 +81,6 @@ public class OrganizationController {
         return new OrganizationResponse(
             org.getId(),
             org.getName(),
-            org.getPlanType(),
             org.getOwnerUserId().userId(),
             org.getAuditFields().getCreatedAt().toInstant(),
             org.getAuditFields().getUpdatedAt().toInstant()

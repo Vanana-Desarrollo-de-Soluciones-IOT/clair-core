@@ -1,6 +1,5 @@
 package com.claircore.device.domain.model.entities;
 
-import com.claircore.device.domain.model.valueobjects.PlanType;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
@@ -23,19 +22,14 @@ public class Organization {
     @Embedded
     private UserId ownerUserId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PlanType planType;
-
     @Embedded
     private OrganizationAudit auditFields = new OrganizationAudit();
 
     protected Organization() {}
 
-    public Organization(String name, UserId ownerUserId, PlanType planType) {
+    public Organization(String name, UserId ownerUserId) {
         this.name = name;
         this.ownerUserId = ownerUserId;
-        this.planType = planType;
     }
 
     public int getMaxSpaces() {
@@ -49,7 +43,6 @@ public class Organization {
     public UUID getId() { return id; }
     public String getName() { return name; }
     public UserId getOwnerUserId() { return ownerUserId; }
-    public PlanType getPlanType() { return planType; }
     public OrganizationAudit getAuditFields() { return auditFields; }
 
     @Embeddable

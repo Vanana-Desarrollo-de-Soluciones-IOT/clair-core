@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/webhooks/stripe")
 @Tag(name = "Webhooks", description = "Webhook Endpoints")
@@ -74,7 +76,7 @@ public class StripeWebhookController {
                 try {
                     subscriptionCommandService.handle(new FulfillSubscriptionCommand(
                             paymentIntent.getId(),
-                            new UserId(userId),
+                            new UserId(UUID.fromString(userId)),
                             new Money(amount, currency)));
                     log.info("FulfillSubscriptionCommand processed successfully for payment intent id: {}", paymentIntent.getId());
                 } catch (Exception e) {

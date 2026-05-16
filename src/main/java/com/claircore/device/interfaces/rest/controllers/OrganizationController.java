@@ -2,6 +2,7 @@ package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
+import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.OrganizationCommandService;
@@ -10,6 +11,7 @@ import com.claircore.device.domain.model.queries.GetOrganizationByIdQuery;
 import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
 import com.claircore.device.interfaces.rest.resources.OrganizationResponse;
+import com.claircore.device.interfaces.rest.resources.UpdateOrganizationNameRequest;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,6 +77,16 @@ public class OrganizationController {
     public ResponseEntity<Void> deleteOrganization(@PathVariable UUID organizationId) {
         organizationCommandService.handle(new DeleteOrganizationCommand(organizationId));
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{organizationId}/name")
+    @Operation(summary = "Update organization name")
+    public ResponseEntity<Void> updateOrganizationName(
+            @PathVariable UUID organizationId,
+            @RequestBody UpdateOrganizationNameRequest request) {
+
+        organizationCommandService.handle(new UpdateOrganizationNameCommand(organizationId, request.name()));
+        return ResponseEntity.ok().build();
     }
 
     private OrganizationResponse toResponse(Organization org) {

@@ -3,6 +3,8 @@ package com.claircore.device.application.internal.commandservices;
 import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
 import com.claircore.device.domain.model.commands.RegisterDeviceCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceConfigurationCommand;
+import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
+import com.claircore.device.domain.model.commands.UpdateDeviceSerialNumberCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceStatusCommand;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.Organization;
@@ -81,6 +83,32 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             .orElseThrow(() -> new IllegalArgumentException("Device not found"));
 
         device.updateConfiguration(command.configuration());
+        deviceRepository.save(device);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateDeviceNameCommand command) {
+        Device device = deviceRepository
+            .findById(command.deviceId())
+            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+
+        device.updateName(command.name());
+        deviceRepository.save(device);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateDeviceSerialNumberCommand command) {
+        if (deviceRepository.findBySerialNumber(command.serialNumber()).isPresent()) {
+            throw new IllegalArgumentException("Device with serial number already exists");
+        }
+
+        Device device = deviceRepository
+            .findById(command.deviceId())
+            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+
+        device.updateSerialNumber(command.serialNumber());
         deviceRepository.save(device);
     }
 

@@ -4,10 +4,13 @@ import com.claircore.billing.domain.model.valueobjects.PlanType;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
+import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.OrganizationCommandService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +22,18 @@ import java.util.UUID;
 public class OrganizationCommandServiceImpl implements OrganizationCommandService {
 
     private final OrganizationRepository organizationRepository;
+    private final SpaceRepository spaceRepository;
+    private final DeviceRepository deviceRepository;
     private final ExternalBillingService externalBillingService;
 
     public OrganizationCommandServiceImpl(
             OrganizationRepository organizationRepository,
+            SpaceRepository spaceRepository,
+            DeviceRepository deviceRepository,
             ExternalBillingService externalBillingService) {
         this.organizationRepository = organizationRepository;
+        this.spaceRepository = spaceRepository;
+        this.deviceRepository = deviceRepository;
         this.externalBillingService = externalBillingService;
     }
 
@@ -63,7 +72,27 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
 
+        List<Space> spaces = spaceRepository.findByOrganizationId(command.organizationId());
+        for (Space space : spaces) {
+            if (deviceRepository.existsBySpaceId(space.getId())) {
+                throw new IllegalStateException(
+                    "Cannot delete organization. Space '" + space.getName() + "' has devices. Remove all devices first."
+                );
+            }
+        }
+
         organizationRepository.delete(organization);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateOrganizationNameCommand command) {
+        Organization organization = organizationRepository
+            .findById(command.organizationId())
+            .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        organization.updateName(command.name());
+        organizationRepository.save(organization);
     }
 
     @Override

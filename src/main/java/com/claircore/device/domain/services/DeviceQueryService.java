@@ -1,6 +1,7 @@
 package com.claircore.device.domain.services;
 
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.queries.*;
 import com.claircore.device.domain.model.valueobjects.UserId;
@@ -11,11 +12,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DeviceQueryService {
+    Optional<Organization> handle(GetOrganizationByIdQuery query);
+    List<Organization> handle(GetOrganizationsByOwnerQuery query);
     Optional<Space> handle(GetSpaceByIdQuery query);
-    List<Space> handle(GetSpacesByOwnerQuery query);
+    List<Space> handle(GetSpacesByOrganizationQuery query);
     Optional<Device> handle(GetDeviceByIdQuery query);
     Optional<Device> handle(GetDeviceBySerialNumberQuery query);
     Page<Device> handle(GetDevicesBySpaceQuery query);
-    List<Device> findBySpaceId(UUID spaceId);
-    Optional<Device> findById(UUID id);
 }

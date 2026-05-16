@@ -13,5 +13,6 @@ public interface SpaceCommandService {
     Space handle(CreateSpaceCommand command);
     void handle(DeleteSpaceCommand command);
     Optional<Space> findById(UUID id);
-    List<Space> findByOwnerUserId(UserId userId);
+    List<Space> findByOrganizationId(UUID organizationId);
+    int countByOrganizationId(UUID organizationId);
 }

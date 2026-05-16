@@ -18,4 +18,5 @@ public interface DeviceCommandService {
     Optional<Device> findById(UUID id);
     Optional<Device> findBySerialNumber(String serialNumber);
     List<Device> findBySpaceId(UUID spaceId);
+    long countBySpaceId(UUID spaceId);
 }

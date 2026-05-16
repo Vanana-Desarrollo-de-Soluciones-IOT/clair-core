@@ -7,7 +7,7 @@ import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.SpaceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
-import com.claircore.device.domain.model.queries.GetSpacesByOwnerQuery;
+import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
 import com.claircore.device.interfaces.rest.resources.SpaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,10 +36,12 @@ public class SpaceController {
     @Operation(summary = "Create a new space")
     public ResponseEntity<SpaceResponse> createSpace(
             @RequestHeader("X-User-Id") UUID userId,
+            @RequestParam UUID organizationId,
             @RequestBody CreateSpaceRequest request) {
 
         var command = new CreateSpaceCommand(
             request.name(),
+            organizationId,
             new UserId(userId)
         );
 
@@ -57,9 +59,9 @@ public class SpaceController {
     }
 
     @GetMapping
-    @Operation(summary = "Get spaces by owner")
-    public ResponseEntity<List<SpaceResponse>> getSpacesByOwner(@RequestHeader("X-User-Id") UUID userId) {
-        var query = new GetSpacesByOwnerQuery(new UserId(userId));
+    @Operation(summary = "Get spaces by organization")
+    public ResponseEntity<List<SpaceResponse>> getSpacesByOrganization(@RequestParam UUID organizationId) {
+        var query = new GetSpacesByOrganizationQuery(organizationId);
         List<Space> spaces = deviceQueryService.handle(query);
         return ResponseEntity.ok(spaces.stream().map(this::toResponse).toList());
     }
@@ -75,6 +77,7 @@ public class SpaceController {
         return new SpaceResponse(
             space.getId(),
             space.getName(),
+            space.getOrganizationId(),
             space.getOwnerUserId().userId(),
             space.getAuditFields().getCreatedAt().toInstant(),
             space.getAuditFields().getUpdatedAt().toInstant()

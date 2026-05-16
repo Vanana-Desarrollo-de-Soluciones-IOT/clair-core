@@ -1,5 +1,6 @@
 package com.claircore.device.application.internal.commandservices;
 
+import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.CreateSpaceCommand;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
 import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
@@ -20,19 +21,20 @@ import java.util.UUID;
 @Service
 public class SpaceCommandServiceImpl implements SpaceCommandService {
 
-    private static final int MAX_SPACES_PER_ORG = 5;
-
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final DeviceRepository deviceRepository;
+    private final ExternalBillingService externalBillingService;
 
     public SpaceCommandServiceImpl(
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
-            DeviceRepository deviceRepository) {
+            DeviceRepository deviceRepository,
+            ExternalBillingService externalBillingService) {
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.deviceRepository = deviceRepository;
+        this.externalBillingService = externalBillingService;
     }
 
     @Override
@@ -42,9 +44,13 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
 
-        if (spaceRepository.countByOrganizationId(command.organizationId()) >= MAX_SPACES_PER_ORG) {
+        UUID userId = command.ownerUserId().userId();
+        int currentCount = spaceRepository.countByOwnerUserId(command.ownerUserId());
+        int maxAllowed = externalBillingService.getMaxSpaces(userId);
+
+        if (currentCount >= maxAllowed) {
             throw new IllegalStateException(
-                "Organization has reached maximum spaces limit of " + MAX_SPACES_PER_ORG
+                "Cannot create space. User has " + currentCount + " spaces, max allowed is " + maxAllowed
             );
         }
 

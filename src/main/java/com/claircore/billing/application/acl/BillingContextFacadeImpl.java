@@ -23,6 +23,6 @@ public class BillingContextFacadeImpl implements BillingContextFacade {
     public PlanType getUserPlanType(UUID userId) {
         return userPlanRepository.findByUserId(new UserId(userId))
                 .map(UserPlan::getPlanType)
-                .orElse(PlanType.VISITOR);
+                .orElse(PlanType.FREEMIUM);
     }
 }

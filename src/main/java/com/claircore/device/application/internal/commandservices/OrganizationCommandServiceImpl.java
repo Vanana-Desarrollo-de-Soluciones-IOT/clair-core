@@ -6,6 +6,7 @@ import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
 import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
+import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.OrganizationCommandService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
@@ -41,12 +42,6 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
     @Transactional
     public Organization handle(CreateOrganizationCommand command) {
         UUID userId = command.ownerUserId().userId();
-
-        PlanType planType = externalBillingService.getUserPlanType(userId);
-
-        if (planType == PlanType.VISITOR) {
-            throw new IllegalStateException("VISITOR plan cannot create organizations");
-        }
 
         int currentCount = organizationRepository.countByOwnerUserId(command.ownerUserId());
         int maxAllowed = externalBillingService.getMaxOrganizations(userId);

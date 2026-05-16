@@ -26,9 +26,25 @@ public class ExternalBillingService {
 
     public int getMaxOrganizations(UUID userId) {
         return switch (getUserPlanType(userId)) {
-            case FREEMIUM -> 1;
             case PREMIUM -> 3;
-            default -> 0;
+            case FREEMIUM -> 1;
+            default -> 1;
+        };
+    }
+
+    public int getMaxSpaces(UUID userId) {
+        return switch (getUserPlanType(userId)) {
+            case PREMIUM -> 5;
+            case FREEMIUM -> 1;
+            default -> 1;
+        };
+    }
+
+    public int getMaxDevices(UUID userId) {
+        return switch (getUserPlanType(userId)) {
+            case PREMIUM -> 10;
+            case FREEMIUM -> 1;
+            default -> 1;
         };
     }
 }

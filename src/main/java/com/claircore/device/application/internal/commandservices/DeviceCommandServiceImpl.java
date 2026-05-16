@@ -1,5 +1,6 @@
 package com.claircore.device.application.internal.commandservices;
 
+import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
 import com.claircore.device.domain.model.commands.RegisterDeviceCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceConfigurationCommand;
@@ -23,19 +24,20 @@ import java.util.UUID;
 @Service
 public class DeviceCommandServiceImpl implements DeviceCommandService {
 
-    private static final int MAX_DEVICES_PER_SPACE = 10;
-
     private final DeviceRepository deviceRepository;
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
+    private final ExternalBillingService externalBillingService;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
             SpaceRepository spaceRepository,
-            OrganizationRepository organizationRepository) {
+            OrganizationRepository organizationRepository,
+            ExternalBillingService externalBillingService) {
         this.deviceRepository = deviceRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
+        this.externalBillingService = externalBillingService;
     }
 
     @Override
@@ -49,9 +51,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
 
-        if (deviceRepository.countBySpaceId(command.spaceId()) >= MAX_DEVICES_PER_SPACE) {
+        UUID userId = space.getOwnerUserId().userId();
+        long currentCount = deviceRepository.countByOwnerUserId(space.getOwnerUserId());
+        int maxAllowed = externalBillingService.getMaxDevices(userId);
+
+        if (currentCount >= maxAllowed) {
             throw new IllegalStateException(
-                "Space has reached maximum devices limit of " + MAX_DEVICES_PER_SPACE
+                "Cannot register device. User has " + currentCount + " devices, max allowed is " + maxAllowed
             );
         }
 

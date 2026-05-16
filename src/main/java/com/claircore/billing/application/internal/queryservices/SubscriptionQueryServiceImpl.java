@@ -50,6 +50,6 @@ public class SubscriptionQueryServiceImpl implements SubscriptionQueryService {
                     }
                     return userPlan.getPlanType().name().toLowerCase();
                 })
-                .orElse(PlanType.VISITOR.name().toLowerCase());
+                .orElse(PlanType.FREEMIUM.name().toLowerCase());
     }
 }

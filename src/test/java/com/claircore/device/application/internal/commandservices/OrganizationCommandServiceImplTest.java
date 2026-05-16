@@ -6,6 +6,7 @@ import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,6 +28,9 @@ class OrganizationCommandServiceImplTest {
     private OrganizationRepository organizationRepository;
 
     @Mock
+    private SpaceRepository spaceRepository;
+
+    @Mock
     private DeviceRepository deviceRepository;
 
     @Mock
@@ -44,6 +48,7 @@ class OrganizationCommandServiceImplTest {
 
         assertThrows(IllegalStateException.class, () -> service.handle(new DeleteOrganizationCommand(organizationId)));
 
+        verify(spaceRepository, never()).deleteByOrganizationId(organizationId);
         verify(organizationRepository, never()).delete(organization);
     }
 
@@ -56,6 +61,7 @@ class OrganizationCommandServiceImplTest {
 
         service.handle(new DeleteOrganizationCommand(organizationId));
 
+        verify(spaceRepository).deleteByOrganizationId(organizationId);
         verify(organizationRepository).delete(organization);
     }
 }

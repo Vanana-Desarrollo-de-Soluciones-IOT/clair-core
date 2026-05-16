@@ -74,6 +74,20 @@ Using Nix:
 nix-shell -p maven jdk25 --run "mvn spring-boot:run"
 ```
 
+## Stripe CLI (Nix)
+
+If you want Stripe CLI available via Nix:
+
+```bash
+nix-shell -p stripe-cli --run "stripe version"
+```
+
+Example webhook forward:
+
+```bash
+nix-shell -p stripe-cli --run "stripe listen --forward-to localhost:8080/api/v1/billing/webhook"
+```
+
 The server will be available at: `http://localhost:${PORT}` (Default: 8080)
 
 ## API Documentation

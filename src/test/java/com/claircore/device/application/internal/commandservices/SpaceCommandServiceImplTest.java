@@ -2,6 +2,7 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
+import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
@@ -61,5 +62,16 @@ class SpaceCommandServiceImplTest {
         service.handle(new DeleteSpaceCommand(spaceId));
 
         verify(spaceRepository).delete(space);
+    }
+
+    @Test
+    void updateSpaceNameSucceeds() {
+        UUID spaceId = UUID.randomUUID();
+        Space space = new Space("Living Room", UUID.randomUUID(), new UserId(UUID.randomUUID()));
+        when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
+
+        service.handle(new UpdateSpaceNameCommand(spaceId, "Kitchen"));
+
+        verify(spaceRepository).save(space);
     }
 }

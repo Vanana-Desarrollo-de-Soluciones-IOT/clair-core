@@ -86,7 +86,7 @@ public class SpaceController {
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{spaceId}/name")
+    @PatchMapping({"/{spaceId}/name", "/{spaceId}"})
     @Operation(summary = "Update space name")
     public ResponseEntity<Void> updateSpaceName(
             @PathVariable UUID spaceId,

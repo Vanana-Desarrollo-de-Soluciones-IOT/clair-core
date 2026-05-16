@@ -87,7 +87,7 @@ public class OrganizationController {
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{organizationId}/name")
+    @PatchMapping({"/{organizationId}/name", "/{organizationId}"})
     @Operation(summary = "Update organization name")
     public ResponseEntity<Void> updateOrganizationName(
             @PathVariable UUID organizationId,

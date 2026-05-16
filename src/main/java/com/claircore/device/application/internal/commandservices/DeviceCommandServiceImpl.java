@@ -106,13 +106,15 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     @Transactional
     public void handle(UpdateDeviceSerialNumberCommand command) {
-        if (deviceRepository.findBySerialNumber(command.serialNumber()).isPresent()) {
-            throw new IllegalArgumentException("Device with serial number already exists");
-        }
-
         Device device = deviceRepository
             .findById(command.deviceId())
             .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+
+        deviceRepository.findBySerialNumber(command.serialNumber())
+            .filter(existingDevice -> !existingDevice.getId().equals(command.deviceId()))
+            .ifPresent(existingDevice -> {
+                throw new IllegalArgumentException("Device with serial number already exists");
+            });
 
         device.updateSerialNumber(command.serialNumber());
         deviceRepository.save(device);

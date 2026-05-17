@@ -1,11 +1,7 @@
 package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
-import com.claircore.device.domain.model.commands.RegisterDeviceCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceConfigurationCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceSerialNumberCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceStatusCommand;
+import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
@@ -23,7 +19,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/devices")
-@Tag(name = "Devices", description = "Device management endpoints")
+@Tag(name = "Devices", description = "Device pairing and management endpoints")
 public class DeviceController {
 
     private final DeviceCommandService deviceCommandService;
@@ -34,15 +30,10 @@ public class DeviceController {
         this.deviceQueryService = deviceQueryService;
     }
 
-    @PostMapping
-    @Operation(summary = "Register a new device")
-    public ResponseEntity<DeviceResponse> registerDevice(@RequestBody RegisterDeviceRequest request) {
-        var command = new RegisterDeviceCommand(
-            request.serialNumber(),
-            request.name(),
-            UUID.fromString(request.spaceId())
-        );
-
+    @PostMapping("/pair")
+    @Operation(summary = "Pair a physical device")
+    public ResponseEntity<DeviceResponse> pairDevice(@RequestBody PairDeviceRequest request) {
+        var command = new PairDeviceCommand(request.hardwareId(), request.deviceType());
         Device device = deviceCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(device));
     }
@@ -68,50 +59,6 @@ public class DeviceController {
         return ResponseEntity.ok(devices.map(this::toResponse));
     }
 
-    @PatchMapping("/{deviceId}/status")
-    @Operation(summary = "Update device status")
-    public ResponseEntity<Void> updateDeviceStatus(
-            @PathVariable UUID deviceId,
-            @RequestBody UpdateDeviceStatusRequest request) {
-
-        var command = new UpdateDeviceStatusCommand(deviceId, request.status());
-        deviceCommandService.handle(command);
-        return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping("/{deviceId}/configuration")
-    @Operation(summary = "Update device configuration")
-    public ResponseEntity<Void> updateDeviceConfiguration(
-            @PathVariable UUID deviceId,
-            @RequestBody UpdateDeviceConfigurationRequest request) {
-
-        var command = new UpdateDeviceConfigurationCommand(deviceId, request.configuration());
-        deviceCommandService.handle(command);
-        return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping({"/{deviceId}/name", "/{deviceId}"})
-    @Operation(summary = "Update device name")
-    public ResponseEntity<Void> updateDeviceName(
-            @PathVariable UUID deviceId,
-            @RequestBody UpdateDeviceNameRequest request) {
-
-        var command = new UpdateDeviceNameCommand(deviceId, request.name());
-        deviceCommandService.handle(command);
-        return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping("/{deviceId}/serial-number")
-    @Operation(summary = "Update device serial number")
-    public ResponseEntity<Void> updateDeviceSerialNumber(
-            @PathVariable UUID deviceId,
-            @RequestBody UpdateDeviceSerialNumberRequest request) {
-
-        var command = new UpdateDeviceSerialNumberCommand(deviceId, request.serialNumber());
-        deviceCommandService.handle(command);
-        return ResponseEntity.ok().build();
-    }
-
     @DeleteMapping("/{deviceId}")
     @Operation(summary = "Delete a device")
     public ResponseEntity<Void> deleteDevice(@PathVariable UUID deviceId) {
@@ -127,6 +74,12 @@ public class DeviceController {
             device.getStatus(),
             device.getSpaceId(),
             device.getConfiguration(),
+            device.getHardwareId().value(),
+            device.getApiKey().value(),
+            device.getDeviceType().value(),
+            device.getClaimToken() != null ? device.getClaimToken().value() : null,
+            device.getActivatedAt(),
+            device.getLastSeenAt(),
             device.getAuditFields().getCreatedAt().toInstant(),
             device.getAuditFields().getUpdatedAt().toInstant()
         );

@@ -1,15 +1,11 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
-import com.claircore.device.domain.model.commands.RegisterDeviceCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceConfigurationCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceSerialNumberCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceStatusCommand;
+import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.valueobjects.*;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
@@ -17,6 +13,8 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRep
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,82 +40,62 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     @Override
     @Transactional
-    public Device handle(RegisterDeviceCommand command) {
-        if (deviceRepository.findBySerialNumber(command.serialNumber()).isPresent()) {
-            throw new IllegalArgumentException("Device with serial number already exists");
+    public List<Device> handle(SeedDevicesCommand command) {
+        List<Device> seeded = new ArrayList<>();
+        for (int i = 1; i <= command.count(); i++) {
+            String serialNumber = "SN-" + String.format("%04d", i);
+            if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
+                continue;
+            }
+            String hardwareId = "HW-" + String.format("%04d", i);
+            if (deviceRepository.existsByHardwareId(hardwareId)) {
+                continue;
+            }
+
+            Device device = new Device(
+                serialNumber,
+                "Sensor " + i,
+                null,
+                new HardwareId(hardwareId),
+                ApiKey.generate(),
+                new DeviceType("air-quality-v1"),
+                ClaimToken.generate()
+            );
+            seeded.add(deviceRepository.save(device));
+        }
+        return seeded;
+    }
+
+    @Override
+    @Transactional
+    public Device handle(PairDeviceCommand command) {
+        Optional<Device> existing = deviceRepository.findByHardwareId(command.hardwareId());
+        if (existing.isPresent()) {
+            Device device = existing.get();
+            if (device.getClaimToken() == null) {
+                throw new IllegalStateException("Device already paired");
+            }
+            // Re-issue claim token if still pending
+            return device;
         }
 
-        Space space = spaceRepository
-            .findById(command.spaceId())
-            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
-
-        UUID userId = space.getOwnerUserId().userId();
-        long currentCount = deviceRepository.countByOwnerUserId(space.getOwnerUserId());
-        int maxAllowed = externalBillingService.getMaxDevices(userId);
-
-        if (currentCount >= maxAllowed) {
-            throw new IllegalStateException(
-                "Cannot register device. User has " + currentCount + " devices, max allowed is " + maxAllowed
-            );
+        // If not pre-seeded, create on-the-fly (for flexibility, but you can enforce pre-seeding only)
+        String serialNumber = "SN-" + command.hardwareId().substring(command.hardwareId().length() - 4);
+        if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
+            throw new IllegalArgumentException("Serial number collision");
         }
 
         Device device = new Device(
-            command.serialNumber(),
-            command.name(),
-            command.spaceId()
+            serialNumber,
+            "Unnamed Sensor",
+            null,
+            new HardwareId(command.hardwareId()),
+            ApiKey.generate(),
+            new DeviceType(command.deviceType()),
+            ClaimToken.generate()
         );
 
         return deviceRepository.save(device);
-    }
-
-    @Override
-    @Transactional
-    public void handle(UpdateDeviceStatusCommand command) {
-        Device device = deviceRepository
-            .findById(command.deviceId())
-            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-
-        device.updateStatus(command.status());
-        deviceRepository.save(device);
-    }
-
-    @Override
-    @Transactional
-    public void handle(UpdateDeviceConfigurationCommand command) {
-        Device device = deviceRepository
-            .findById(command.deviceId())
-            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-
-        device.updateConfiguration(command.configuration());
-        deviceRepository.save(device);
-    }
-
-    @Override
-    @Transactional
-    public void handle(UpdateDeviceNameCommand command) {
-        Device device = deviceRepository
-            .findById(command.deviceId())
-            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-
-        device.updateName(command.name());
-        deviceRepository.save(device);
-    }
-
-    @Override
-    @Transactional
-    public void handle(UpdateDeviceSerialNumberCommand command) {
-        Device device = deviceRepository
-            .findById(command.deviceId())
-            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-
-        deviceRepository.findBySerialNumber(command.serialNumber())
-            .filter(existingDevice -> !existingDevice.getId().equals(command.deviceId()))
-            .ifPresent(existingDevice -> {
-                throw new IllegalArgumentException("Device with serial number already exists");
-            });
-
-        device.updateSerialNumber(command.serialNumber());
-        deviceRepository.save(device);
     }
 
     @Override
@@ -138,6 +116,16 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     public Optional<Device> findBySerialNumber(String serialNumber) {
         return deviceRepository.findBySerialNumber(serialNumber);
+    }
+
+    @Override
+    public Optional<Device> findByHardwareId(String hardwareId) {
+        return deviceRepository.findByHardwareId(hardwareId);
+    }
+
+    @Override
+    public Optional<Device> findByApiKey(String apiKey) {
+        return deviceRepository.findByApiKey(apiKey);
     }
 
     @Override

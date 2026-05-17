@@ -26,4 +26,16 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
     @Query("SELECT COUNT(d) FROM Device d WHERE d.spaceId IN (SELECT s.id FROM Space s WHERE s.ownerUserId = :ownerUserId)")
     long countByOwnerUserId(@Param("ownerUserId") UserId ownerUserId);
+
+    @Query("SELECT d FROM Device d WHERE d.hardwareId.value = :hardwareId")
+    Optional<Device> findByHardwareId(@Param("hardwareId") String hardwareId);
+
+    @Query("SELECT d FROM Device d WHERE d.apiKey.value = :apiKey")
+    Optional<Device> findByApiKey(@Param("apiKey") String apiKey);
+
+    @Query("SELECT d FROM Device d WHERE d.claimToken.value = :claimToken")
+    Optional<Device> findByClaimToken(@Param("claimToken") String claimToken);
+
+    @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM Device d WHERE d.hardwareId.value = :hardwareId")
+    boolean existsByHardwareId(@Param("hardwareId") String hardwareId);
 }

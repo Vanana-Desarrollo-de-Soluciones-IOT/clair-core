@@ -71,6 +71,18 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<Device> handle(GetDeviceByHardwareIdQuery query) {
+        return deviceRepository.findByHardwareId(query.hardwareId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Device> handle(GetDeviceByApiKeyQuery query) {
+        return deviceRepository.findByApiKey(query.apiKey());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<Device> handle(GetDevicesBySpaceQuery query) {
         int page = query.page() != null ? query.page() : 0;
         int size = query.size() != null ? query.size() : 20;

@@ -13,6 +13,12 @@ public record DeviceResponse(
     DeviceStatus status,
     UUID spaceId,
     Map<String, String> configuration,
+    String hardwareId,
+    String apiKey,
+    String deviceType,
+    String claimToken,
+    Instant activatedAt,
+    Instant lastSeenAt,
     Instant createdAt,
     Instant updatedAt
 ) {}

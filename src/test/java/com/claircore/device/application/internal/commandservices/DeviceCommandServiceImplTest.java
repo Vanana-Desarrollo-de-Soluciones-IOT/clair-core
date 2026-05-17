@@ -2,9 +2,12 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
+import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.SeedDevicesCommand;
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
@@ -13,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -93,6 +97,44 @@ class DeviceCommandServiceImplTest {
         );
     }
 
+    @Test
+    void claimDeviceAssignsDeviceToUserOwnedSpace() {
+        UUID userId = UUID.randomUUID();
+        UUID spaceId = UUID.randomUUID();
+        Device device = deviceWithId(UUID.randomUUID(), "SN-002", "HW-002");
+        Space space = spaceWithId(spaceId, userId);
+
+        when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
+        when(deviceRepository.findByClaimToken(device.getClaimToken().value())).thenReturn(Optional.of(device));
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
+
+        Device result = service.handle(new ClaimDeviceCommand(
+            device.getClaimToken().value(),
+            spaceId,
+            new UserId(userId)
+        ));
+
+        assertEquals(spaceId, result.getSpaceId());
+        assertNull(result.getClaimToken());
+        assertNotNull(result.getActivatedAt());
+        verify(deviceWebhookNotifier).notifyDeviceChanged(result);
+    }
+
+    @Test
+    void claimDeviceFailsWhenSpaceBelongsToAnotherUser() {
+        UUID userId = UUID.randomUUID();
+        UUID anotherUserId = UUID.randomUUID();
+        UUID spaceId = UUID.randomUUID();
+        Space space = spaceWithId(spaceId, anotherUserId);
+
+        when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
+
+        assertThrows(AccessDeniedException.class, () ->
+            service.handle(new ClaimDeviceCommand("claim-token", spaceId, new UserId(userId)))
+        );
+        verify(deviceRepository, never()).findByClaimToken(any());
+    }
+
     private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {
         Device device = new Device(
             serialNumber,
@@ -105,5 +147,11 @@ class DeviceCommandServiceImplTest {
         );
         ReflectionTestUtils.setField(device, "id", deviceId);
         return device;
+    }
+
+    private Space spaceWithId(UUID spaceId, UUID ownerUserId) {
+        Space space = new Space("Living Room", UUID.randomUUID(), new UserId(ownerUserId));
+        ReflectionTestUtils.setField(space, "id", spaceId);
+        return space;
     }
 }

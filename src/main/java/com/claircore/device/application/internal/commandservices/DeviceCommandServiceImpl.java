@@ -13,6 +13,7 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.Organiza
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -102,6 +103,27 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             ClaimToken.generate()
         );
 
+        Device savedDevice = deviceRepository.save(device);
+        deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
+        return savedDevice;
+    }
+
+    @Override
+    @Transactional
+    public Device handle(ClaimDeviceCommand command) {
+        Space space = spaceRepository
+            .findById(command.spaceId())
+            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+
+        if (!space.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Space does not belong to user");
+        }
+
+        Device device = deviceRepository
+            .findByClaimToken(command.claimToken())
+            .orElseThrow(() -> new IllegalArgumentException("Invalid claim token"));
+
+        device.claimToSpace(command.spaceId());
         Device savedDevice = deviceRepository.save(device);
         deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
         return savedDevice;

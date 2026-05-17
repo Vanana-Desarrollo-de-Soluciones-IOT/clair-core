@@ -3,8 +3,8 @@ package com.claircore.device.application.internal.outboundservices.webhooks;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
-import com.claircore.device.interfaces.rest.resources.DeviceResponse;
 import com.claircore.device.interfaces.rest.resources.DeviceWebhookNotificationResource;
+import com.claircore.device.interfaces.rest.resources.ProvisionedDeviceResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +34,7 @@ public class DeviceWebhookNotifier {
         send("DeviceAssignmentDeleted", toResponse(assignment, DeviceStatus.DECOMMISSIONED));
     }
 
-    private void send(String eventType, DeviceResponse device) {
+    private void send(String eventType, ProvisionedDeviceResource device) {
         if (deviceWebhookUrl == null || deviceWebhookUrl.isBlank()) {
             return;
         }
@@ -46,26 +46,17 @@ public class DeviceWebhookNotifier {
                 .retrieve()
                 .toBodilessEntity();
         } catch (RuntimeException exc) {
-            LOGGER.warn("Device webhook notification failed for device {}", device.id(), exc);
+            LOGGER.warn("Device webhook notification failed for device {}", device.deviceId(), exc);
         }
     }
 
-    private DeviceResponse toResponse(DeviceAssignment assignment, DeviceStatus status) {
+    private ProvisionedDeviceResource toResponse(DeviceAssignment assignment, DeviceStatus status) {
         Device device = assignment.getDevice();
-        return new DeviceResponse(
-            device.getId(),
-            device.getSerialNumber(),
-            device.getName(),
-            status,
-            assignment.getSpaceId(),
-            assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
-            assignment.getConfiguration(),
-            device.getHardwareId().value(),
-            device.getDeviceType().value(),
-            assignment.getActivatedAt(),
-            assignment.getLastSeenAt(),
-            assignment.getAuditFields().getCreatedAt() != null ? assignment.getAuditFields().getCreatedAt().toInstant() : null,
-            assignment.getAuditFields().getUpdatedAt() != null ? assignment.getAuditFields().getUpdatedAt().toInstant() : null
+        return new ProvisionedDeviceResource(
+                device.getId().toString(),
+                device.getHardwareId().value(),
+                device.getApiKey().value(),
+                status.name()
         );
     }
 }

@@ -10,7 +10,6 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAs
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
-import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,19 +26,16 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     private final SpaceRepository spaceRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceAssignmentRepository deviceAssignmentRepository;
-    private final DeviceApiKeyHasher deviceApiKeyHasher;
 
     public DeviceQueryServiceImpl(
             OrganizationRepository organizationRepository,
             SpaceRepository spaceRepository,
             DeviceRepository deviceRepository,
-            DeviceAssignmentRepository deviceAssignmentRepository,
-            DeviceApiKeyHasher deviceApiKeyHasher) {
+            DeviceAssignmentRepository deviceAssignmentRepository) {
         this.organizationRepository = organizationRepository;
         this.spaceRepository = spaceRepository;
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
-        this.deviceApiKeyHasher = deviceApiKeyHasher;
     }
 
     @Override
@@ -87,7 +83,7 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Override
     @Transactional(readOnly = true)
     public Optional<Device> handle(GetDeviceByApiKeyQuery query) {
-        return deviceRepository.findByApiKeyHash(deviceApiKeyHasher.hashRaw(query.apiKey()).value());
+        return deviceRepository.findByApiKey(query.apiKey());
     }
 
     @Override

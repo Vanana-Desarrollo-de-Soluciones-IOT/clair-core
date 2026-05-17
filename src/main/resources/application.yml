@@ -53,12 +53,6 @@ jwt:
   expiration: ${JWT_EXPIRATION:3600000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
-device:
-  api-key:
-    # Pepper used for hashing device API keys before persisting (HMAC-SHA256).
-    # Override in production with a dedicated secret.
-    pepper: ${DEVICE_API_KEY_PEPPER:${JWT_SECRET}}
-
 google:
   oauth:
     client-id: ${GOOGLE_OAUTH_CLIENT_ID}
@@ -67,6 +61,13 @@ google:
 
 frontend:
   url: ${FRONTEND_URL}
+
+edge:
+  provisioning:
+    # Shared secret used by the edge service to download provisioning credentials.
+    # MUST be set in production.
+    # Must match EDGE_TO_CORE_TOKEN configured in the edge service.
+    token: ${EDGE_TO_CORE_TOKEN:}
 
 server:
   port: ${PORT:8080}

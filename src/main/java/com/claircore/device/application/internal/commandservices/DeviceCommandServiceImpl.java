@@ -133,8 +133,32 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             throw new AccessDeniedException("Device does not belong to user");
         }
 
+        // On reset/unlink, restore the device name back to the factory default.
+        Device device = assignment.getDevice();
+        device.resetNameToFactoryDefault();
+        deviceRepository.save(device);
+
         deviceAssignmentRepository.delete(assignment);
         deviceWebhookNotifier.notifyDeviceDeleted(assignment);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateDeviceNameCommand command) {
+        DeviceAssignment assignment = deviceAssignmentRepository
+            .findByDeviceId(command.deviceId())
+            .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
+
+        if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Device does not belong to user");
+        }
+
+        Device device = assignment.getDevice();
+        device.updateName(command.name());
+        deviceRepository.save(device);
+
+        // Notify downstream consumers with the latest combined view.
+        deviceWebhookNotifier.notifyDeviceChanged(assignment);
     }
 
     @Override

@@ -22,6 +22,9 @@ public class Device {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "factory_name", nullable = false)
+    private String factoryName;
+
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "hardware_id", nullable = false, unique = true))
     private HardwareId hardwareId;
@@ -41,15 +44,31 @@ public class Device {
 
     public Device(String serialNumber, String name, HardwareId hardwareId, ApiKey apiKey, DeviceType deviceType) {
         this.serialNumber = serialNumber;
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Device name must not be null or blank");
+        }
         this.name = name;
+        this.factoryName = name;
         this.hardwareId = hardwareId;
         this.apiKey = apiKey;
         this.deviceType = deviceType;
     }
 
+    public void updateName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Device name must not be null or blank");
+        }
+        this.name = name;
+    }
+
+    public void resetNameToFactoryDefault() {
+        this.name = this.factoryName;
+    }
+
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }
     public String getName() { return name; }
+    public String getFactoryName() { return factoryName; }
     public HardwareId getHardwareId() { return hardwareId; }
     public ApiKey getApiKey() { return apiKey; }
     public DeviceType getDeviceType() { return deviceType; }

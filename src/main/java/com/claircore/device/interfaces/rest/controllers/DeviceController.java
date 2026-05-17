@@ -3,6 +3,7 @@ package com.claircore.device.interfaces.rest.controllers;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
+import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
@@ -121,6 +122,23 @@ public class DeviceController {
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         deviceCommandService.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping({"/{deviceId}/name", "/{deviceId}"})
+    @Operation(summary = "Update device display name")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Device name updated"),
+        @ApiResponse(responseCode = "400", description = "Invalid request"),
+        @ApiResponse(responseCode = "403", description = "The device does not belong to the authenticated user")
+    })
+    public ResponseEntity<Void> updateDeviceName(
+            HttpServletRequest httpRequest,
+            @PathVariable UUID deviceId,
+            @Valid @RequestBody UpdateDeviceNameRequest request) {
+
+        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        deviceCommandService.handle(new UpdateDeviceNameCommand(deviceId, request.name(), new UserId(userId)));
+        return ResponseEntity.ok().build();
     }
 
     private DeviceResponse toResponse(DeviceAssignment assignment) {

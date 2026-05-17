@@ -5,7 +5,7 @@ import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
 import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,7 @@ class OrganizationCommandServiceImplTest {
     private SpaceRepository spaceRepository;
 
     @Mock
-    private DeviceRepository deviceRepository;
+    private DeviceAssignmentRepository deviceAssignmentRepository;
 
     @Mock
     private ExternalBillingService externalBillingService;
@@ -45,7 +45,7 @@ class OrganizationCommandServiceImplTest {
         UUID organizationId = UUID.randomUUID();
         Organization organization = new Organization("Home", new UserId(UUID.randomUUID()));
         when(organizationRepository.findById(organizationId)).thenReturn(Optional.of(organization));
-        when(deviceRepository.existsByOrganizationId(organizationId)).thenReturn(true);
+        when(deviceAssignmentRepository.existsByOrganizationId(organizationId)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> service.handle(new DeleteOrganizationCommand(organizationId)));
 
@@ -58,7 +58,7 @@ class OrganizationCommandServiceImplTest {
         UUID organizationId = UUID.randomUUID();
         Organization organization = new Organization("Home", new UserId(UUID.randomUUID()));
         when(organizationRepository.findById(organizationId)).thenReturn(Optional.of(organization));
-        when(deviceRepository.existsByOrganizationId(organizationId)).thenReturn(false);
+        when(deviceAssignmentRepository.existsByOrganizationId(organizationId)).thenReturn(false);
 
         service.handle(new DeleteOrganizationCommand(organizationId));
 

@@ -1,13 +1,16 @@
 package com.claircore.device.application.internal.queryservices;
 
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.queries.*;
 import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -23,14 +26,20 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     private final OrganizationRepository organizationRepository;
     private final SpaceRepository spaceRepository;
     private final DeviceRepository deviceRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
+    private final DeviceApiKeyHasher deviceApiKeyHasher;
 
     public DeviceQueryServiceImpl(
             OrganizationRepository organizationRepository,
             SpaceRepository spaceRepository,
-            DeviceRepository deviceRepository) {
+            DeviceRepository deviceRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository,
+            DeviceApiKeyHasher deviceApiKeyHasher) {
         this.organizationRepository = organizationRepository;
         this.spaceRepository = spaceRepository;
         this.deviceRepository = deviceRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
+        this.deviceApiKeyHasher = deviceApiKeyHasher;
     }
 
     @Override
@@ -78,20 +87,21 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Override
     @Transactional(readOnly = true)
     public Optional<Device> handle(GetDeviceByApiKeyQuery query) {
-        return deviceRepository.findByApiKey(query.apiKey());
+        return deviceRepository.findByApiKeyHash(deviceApiKeyHasher.hashRaw(query.apiKey()).value());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Device> handle(GetDevicesBySpaceQuery query) {
+    public Page<DeviceAssignment> handle(GetDevicesBySpaceQuery query) {
         int page = query.page() != null ? query.page() : 0;
         int size = query.size() != null ? query.size() : 20;
-        return deviceRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
+        return deviceAssignmentRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Device> handle(GetProvisionedDevicesQuery query) {
-        return deviceRepository.findAll();
+        int cappedLimit = Math.max(1, Math.min(query.limit(), 5000));
+        return deviceRepository.findAll(PageRequest.of(0, cappedLimit)).getContent();
     }
 }

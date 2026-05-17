@@ -8,5 +8,11 @@ public record HardwareId(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Hardware ID must not be null or blank");
         }
+
+        // Current supported factory formats.
+        // Keep legacy HW-0001 style to avoid breaking existing records.
+        if (!value.matches("^(CLAIR|HW)-\\d{4}$")) {
+            throw new IllegalArgumentException("Hardware ID must match CLAIR-0001");
+        }
     }
 }

@@ -53,20 +53,22 @@ public class StripeWebhookController {
 
         if ("payment_intent.succeeded".equals(event.getType())) {
             var deserializer = event.getDataObjectDeserializer();
-            PaymentIntent paymentIntent = null;
-            if (deserializer.getObject().isPresent()) {
-                paymentIntent = (PaymentIntent) deserializer.getObject().get();
-            } else {
-                try {
-                    log.info("API version mismatch detected. Attempting unsafe deserialization for payment_intent.succeeded.");
-                    paymentIntent = (PaymentIntent) deserializer.deserializeUnsafe();
-                } catch (Exception e) {
-                    log.error("Failed to deserialize PaymentIntent unsafely", e);
-                }
+            PaymentIntent paymentIntent = deserializer.getObject()
+                    .filter(PaymentIntent.class::isInstance)
+                    .map(PaymentIntent.class::cast)
+                    .orElse(null);
+
+            if (paymentIntent == null) {
+                log.error("Unable to deserialize PaymentIntent for event id {}. Stripe will retry.", event.getId());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Unable to deserialize event");
             }
 
-            if (paymentIntent != null) {
-                var userId = paymentIntent.getMetadata().get("userId");
+            var userId = paymentIntent.getMetadata() != null ? paymentIntent.getMetadata().get("userId") : null;
+            if (userId == null || userId.isBlank()) {
+                log.error("payment_intent.succeeded missing userId metadata. eventId={}, intentId={}", event.getId(), paymentIntent.getId());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing metadata");
+            }
+
                 var amount = paymentIntent.getAmount();
                 var currency = paymentIntent.getCurrency();
 
@@ -80,12 +82,10 @@ public class StripeWebhookController {
                             new Money(amount, currency)));
                     log.info("FulfillSubscriptionCommand processed successfully for payment intent id: {}", paymentIntent.getId());
                 } catch (Exception e) {
-                    log.error("Error handling FulfillSubscriptionCommand: {}", e.getMessage(), e);
-                    // We can choose to throw or return bad request depending on retry preference
+                    // Return 5xx so Stripe retries.
+                    log.error("Error handling FulfillSubscriptionCommand", e);
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Processing failed");
                 }
-            } else {
-                log.warn("payment_intent.succeeded event had null paymentIntent object");
-            }
         }
 
         return ResponseEntity.ok("Received");

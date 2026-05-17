@@ -5,7 +5,7 @@ import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
 import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,7 @@ class SpaceCommandServiceImplTest {
     private OrganizationRepository organizationRepository;
 
     @Mock
-    private DeviceRepository deviceRepository;
+    private DeviceAssignmentRepository deviceAssignmentRepository;
 
     @Mock
     private ExternalBillingService externalBillingService;
@@ -45,7 +45,7 @@ class SpaceCommandServiceImplTest {
         UUID spaceId = UUID.randomUUID();
         Space space = new Space("Living Room", UUID.randomUUID(), new UserId(UUID.randomUUID()));
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
-        when(deviceRepository.existsBySpaceId(spaceId)).thenReturn(true);
+        when(deviceAssignmentRepository.existsBySpaceId(spaceId)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> service.handle(new DeleteSpaceCommand(spaceId)));
 
@@ -57,7 +57,7 @@ class SpaceCommandServiceImplTest {
         UUID spaceId = UUID.randomUUID();
         Space space = new Space("Living Room", UUID.randomUUID(), new UserId(UUID.randomUUID()));
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
-        when(deviceRepository.existsBySpaceId(spaceId)).thenReturn(false);
+        when(deviceAssignmentRepository.existsBySpaceId(spaceId)).thenReturn(false);
 
         service.handle(new DeleteSpaceCommand(spaceId));
 

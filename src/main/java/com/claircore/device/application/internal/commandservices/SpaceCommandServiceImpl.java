@@ -8,7 +8,7 @@ import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.SpaceCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
@@ -23,17 +23,17 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
 
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
-    private final DeviceRepository deviceRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final ExternalBillingService externalBillingService;
 
     public SpaceCommandServiceImpl(
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
-            DeviceRepository deviceRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository,
             ExternalBillingService externalBillingService) {
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
-        this.deviceRepository = deviceRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.externalBillingService = externalBillingService;
     }
 
@@ -70,7 +70,7 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
 
-        if (deviceRepository.existsBySpaceId(command.spaceId())) {
+        if (deviceAssignmentRepository.existsBySpaceId(command.spaceId())) {
             throw new IllegalStateException("Cannot delete space with devices. Remove all devices first.");
         }
 

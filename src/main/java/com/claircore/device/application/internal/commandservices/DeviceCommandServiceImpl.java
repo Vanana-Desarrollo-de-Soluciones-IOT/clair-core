@@ -4,43 +4,52 @@ import com.claircore.device.application.internal.outboundservices.acl.ExternalBi
 import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
 import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.valueobjects.*;
 import com.claircore.device.domain.services.DeviceCommandService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     private final DeviceRepository deviceRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
     private final DeviceWebhookNotifier deviceWebhookNotifier;
+    private final DeviceApiKeyHasher deviceApiKeyHasher;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository,
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
-            DeviceWebhookNotifier deviceWebhookNotifier) {
+            DeviceWebhookNotifier deviceWebhookNotifier,
+            DeviceApiKeyHasher deviceApiKeyHasher) {
         this.deviceRepository = deviceRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
         this.deviceWebhookNotifier = deviceWebhookNotifier;
+        this.deviceApiKeyHasher = deviceApiKeyHasher;
     }
 
     @Override
@@ -52,7 +61,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
                 continue;
             }
-            String hardwareId = "HW-" + String.format("%04d", i);
+            String hardwareId = "CLAIR-" + String.format("%04d", i);
             if (deviceRepository.existsByHardwareId(hardwareId)) {
                 continue;
             }
@@ -60,57 +69,42 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             Device device = new Device(
                 serialNumber,
                 "Sensor " + i,
-                null,
                 new HardwareId(hardwareId),
-                ApiKey.generate(),
-                new DeviceType("air-quality-v1"),
-                ClaimToken.generate()
+                deviceApiKeyHasher.hash(ApiKey.generate()),
+                new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
             seeded.add(savedDevice);
-            deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
         }
         return seeded;
     }
 
     @Override
     @Transactional
-    public Device handle(PairDeviceCommand command) {
-        Optional<Device> existing = deviceRepository.findByHardwareId(command.hardwareId());
-        if (existing.isPresent()) {
-            Device device = existing.get();
-            if (device.getClaimToken() == null) {
+    public DeviceAssignment handle(PairDeviceCommand command) {
+        Device device = deviceRepository
+            .findByHardwareId(command.hardwareId())
+            .orElseThrow(() -> new IllegalArgumentException("Device not registered in factory inventory"));
+
+        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceId(device.getId());
+        if (existingAssignment.isPresent()) {
+            DeviceAssignment assignment = existingAssignment.get();
+            if (assignment.getOwnerUserId() != null) {
                 throw new IllegalStateException("Device already paired");
             }
-            // Re-issue claim token if still pending
-            deviceWebhookNotifier.notifyDeviceChanged(device);
-            return device;
+
+            deviceWebhookNotifier.notifyDeviceChanged(assignment);
+            return assignment;
         }
 
-        // If not pre-seeded, create on-the-fly (for flexibility, but you can enforce pre-seeding only)
-        String serialNumber = "SN-" + command.hardwareId().substring(command.hardwareId().length() - 4);
-        if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
-            throw new IllegalArgumentException("Serial number collision");
-        }
-
-        Device device = new Device(
-            serialNumber,
-            "Unnamed Sensor",
-            null,
-            new HardwareId(command.hardwareId()),
-            ApiKey.generate(),
-            new DeviceType(command.deviceType()),
-            ClaimToken.generate()
-        );
-
-        Device savedDevice = deviceRepository.save(device);
-        deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
-        return savedDevice;
+        DeviceAssignment assignment = deviceAssignmentRepository.save(new DeviceAssignment(device, ClaimToken.generate()));
+        deviceWebhookNotifier.notifyDeviceChanged(assignment);
+        return assignment;
     }
 
     @Override
     @Transactional
-    public Device handle(ClaimDeviceCommand command) {
+    public DeviceAssignment handle(ClaimDeviceCommand command) {
         Space space = spaceRepository
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
@@ -119,25 +113,57 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             throw new AccessDeniedException("Space does not belong to user");
         }
 
-        Device device = deviceRepository
+        DeviceAssignment assignment = deviceAssignmentRepository
             .findByClaimToken(command.claimToken())
             .orElseThrow(() -> new IllegalArgumentException("Invalid claim token"));
 
-        device.claimToSpace(command.spaceId());
-        Device savedDevice = deviceRepository.save(device);
-        deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
-        return savedDevice;
+        if (assignment.getOwnerUserId() != null && !assignment.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Device assignment belongs to another user");
+        }
+
+        assignment.claimToSpace(command.spaceId(), command.userId());
+        DeviceAssignment savedAssignment = deviceAssignmentRepository.save(assignment);
+        deviceWebhookNotifier.notifyDeviceChanged(savedAssignment);
+        return savedAssignment;
     }
 
     @Override
     @Transactional
-    public void handle(DeleteDeviceCommand command) {
-        Device device = deviceRepository
-            .findById(command.deviceId())
-            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+    public void handle(ResetDeviceAssignmentCommand command) {
+        DeviceAssignment assignment = deviceAssignmentRepository
+            .findByDeviceId(command.deviceId())
+            .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
-        deviceRepository.delete(device);
-        deviceWebhookNotifier.notifyDeviceDeleted(device);
+        if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Device does not belong to user");
+        }
+
+        // On reset/unlink, restore the device name back to the factory default.
+        Device device = assignment.getDevice();
+        device.resetNameToFactoryDefault();
+        deviceRepository.save(device);
+
+        deviceAssignmentRepository.delete(assignment);
+        deviceWebhookNotifier.notifyDeviceDeleted(assignment);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateDeviceNameCommand command) {
+        DeviceAssignment assignment = deviceAssignmentRepository
+            .findByDeviceId(command.deviceId())
+            .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
+
+        if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Device does not belong to user");
+        }
+
+        Device device = assignment.getDevice();
+        device.updateName(command.name());
+        deviceRepository.save(device);
+
+        // Notify downstream consumers with the latest combined view.
+        deviceWebhookNotifier.notifyDeviceChanged(assignment);
     }
 
     @Override
@@ -157,16 +183,19 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     @Override
     public Optional<Device> findByApiKey(String apiKey) {
-        return deviceRepository.findByApiKey(apiKey);
+        return deviceRepository.findByApiKeyHash(deviceApiKeyHasher.hashRaw(apiKey).value());
     }
 
     @Override
     public List<Device> findBySpaceId(UUID spaceId) {
-        return deviceRepository.findBySpaceId(spaceId);
+        // Never run an unbounded query; callers needing more should use the paged query API.
+        return deviceAssignmentRepository.findBySpaceId(spaceId, PageRequest.of(0, 1000))
+            .map(DeviceAssignment::getDevice)
+            .toList();
     }
 
     @Override
     public long countBySpaceId(UUID spaceId) {
-        return deviceRepository.countBySpaceId(spaceId);
+        return deviceAssignmentRepository.countBySpaceId(spaceId);
     }
 }

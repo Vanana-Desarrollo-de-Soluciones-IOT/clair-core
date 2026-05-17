@@ -1,6 +1,5 @@
 package com.claircore.device.application.internal.commandservices;
 
-import com.claircore.billing.domain.model.valueobjects.PlanType;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
@@ -8,7 +7,7 @@ import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.OrganizationCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
@@ -23,17 +22,17 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
 
     private final OrganizationRepository organizationRepository;
     private final SpaceRepository spaceRepository;
-    private final DeviceRepository deviceRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final ExternalBillingService externalBillingService;
 
     public OrganizationCommandServiceImpl(
             OrganizationRepository organizationRepository,
             SpaceRepository spaceRepository,
-            DeviceRepository deviceRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository,
             ExternalBillingService externalBillingService) {
         this.organizationRepository = organizationRepository;
         this.spaceRepository = spaceRepository;
-        this.deviceRepository = deviceRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.externalBillingService = externalBillingService;
     }
 
@@ -66,7 +65,7 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
 
-        if (deviceRepository.existsByOrganizationId(command.organizationId())) {
+        if (deviceAssignmentRepository.existsByOrganizationId(command.organizationId())) {
             throw new IllegalStateException(
                 "Cannot delete organization with devices. Remove all devices first."
             );

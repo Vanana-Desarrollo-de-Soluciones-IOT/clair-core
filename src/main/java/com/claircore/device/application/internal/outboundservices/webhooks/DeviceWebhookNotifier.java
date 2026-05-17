@@ -1,6 +1,7 @@
 package com.claircore.device.application.internal.outboundservices.webhooks;
 
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.interfaces.rest.resources.DeviceResponse;
 import com.claircore.device.interfaces.rest.resources.DeviceWebhookNotificationResource;
@@ -25,12 +26,12 @@ public class DeviceWebhookNotifier {
         this.deviceWebhookUrl = deviceWebhookUrl;
     }
 
-    public void notifyDeviceChanged(Device device) {
-        send("DeviceChanged", toResponse(device, device.getStatus()));
+    public void notifyDeviceChanged(DeviceAssignment assignment) {
+        send("DeviceChanged", toResponse(assignment, assignment.getStatus()));
     }
 
-    public void notifyDeviceDeleted(Device device) {
-        send("DeviceDeleted", toResponse(device, DeviceStatus.DECOMMISSIONED));
+    public void notifyDeviceDeleted(DeviceAssignment assignment) {
+        send("DeviceAssignmentDeleted", toResponse(assignment, DeviceStatus.DECOMMISSIONED));
     }
 
     private void send(String eventType, DeviceResponse device) {
@@ -49,22 +50,22 @@ public class DeviceWebhookNotifier {
         }
     }
 
-    private DeviceResponse toResponse(Device device, DeviceStatus status) {
+    private DeviceResponse toResponse(DeviceAssignment assignment, DeviceStatus status) {
+        Device device = assignment.getDevice();
         return new DeviceResponse(
             device.getId(),
             device.getSerialNumber(),
             device.getName(),
             status,
-            device.getSpaceId(),
-            device.getConfiguration(),
+            assignment.getSpaceId(),
+            assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
+            assignment.getConfiguration(),
             device.getHardwareId().value(),
-            device.getApiKey().value(),
             device.getDeviceType().value(),
-            device.getClaimToken() != null ? device.getClaimToken().value() : null,
-            device.getActivatedAt(),
-            device.getLastSeenAt(),
-            device.getAuditFields().getCreatedAt() != null ? device.getAuditFields().getCreatedAt().toInstant() : null,
-            device.getAuditFields().getUpdatedAt() != null ? device.getAuditFields().getUpdatedAt().toInstant() : null
+            assignment.getActivatedAt(),
+            assignment.getLastSeenAt(),
+            assignment.getAuditFields().getCreatedAt() != null ? assignment.getAuditFields().getCreatedAt().toInstant() : null,
+            assignment.getAuditFields().getUpdatedAt() != null ? assignment.getAuditFields().getUpdatedAt().toInstant() : null
         );
     }
 }

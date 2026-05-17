@@ -69,6 +69,9 @@ edge:
     # Must match EDGE_TO_CORE_TOKEN configured in the edge service.
     token: ${EDGE_TO_CORE_TOKEN:}
 
+  webhook:
+    devices-url: ${EDGE_WEBHOOK_DEVICES_URL:}
+
 server:
   port: ${PORT:8080}
   compression:

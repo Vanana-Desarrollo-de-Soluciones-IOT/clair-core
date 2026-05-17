@@ -140,7 +140,8 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         deviceRepository.save(device);
 
         deviceAssignmentRepository.delete(assignment);
-        deviceWebhookNotifier.notifyDeviceDeleted(assignment);
+        // Reset/unlink is not a decommission. Keep the device cached on the edge.
+        deviceWebhookNotifier.notifyDeviceUnassigned(device);
     }
 
     @Override

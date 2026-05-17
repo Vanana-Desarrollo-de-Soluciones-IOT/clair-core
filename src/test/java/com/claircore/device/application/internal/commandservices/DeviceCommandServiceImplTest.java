@@ -160,7 +160,7 @@ class DeviceCommandServiceImplTest {
 
         verify(deviceAssignmentRepository).delete(assignment);
         verify(deviceRepository, never()).delete(any(Device.class));
-        verify(deviceWebhookNotifier).notifyDeviceDeleted(assignment);
+        verify(deviceWebhookNotifier).notifyDeviceUnassigned(device);
     }
 
     private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {

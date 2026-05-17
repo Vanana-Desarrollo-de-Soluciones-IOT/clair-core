@@ -18,12 +18,15 @@ public class DeviceWebhookNotifier {
 
     private final RestClient restClient;
     private final String deviceWebhookUrl;
+    private final String edgeToken;
 
     public DeviceWebhookNotifier(
             RestClient.Builder restClientBuilder,
-            @Value("${edge.webhook.devices-url:}") String deviceWebhookUrl) {
+            @Value("${edge.webhook.devices-url:}") String deviceWebhookUrl,
+            @Value("${edge.provisioning.token:}") String edgeToken) {
         this.restClient = restClientBuilder.build();
         this.deviceWebhookUrl = deviceWebhookUrl;
+        this.edgeToken = edgeToken;
     }
 
     public void notifyDeviceChanged(DeviceAssignment assignment) {
@@ -40,13 +43,15 @@ public class DeviceWebhookNotifier {
         }
 
         try {
-            restClient.post()
-                .uri(deviceWebhookUrl)
-                .body(new DeviceWebhookNotificationResource(eventType, device))
-                .retrieve()
-                .toBodilessEntity();
+            var req = restClient.post().uri(deviceWebhookUrl);
+            if (edgeToken != null && !edgeToken.isBlank()) {
+                req = req.header("X-Edge-Token", edgeToken);
+            }
+            req.body(new DeviceWebhookNotificationResource(eventType, device))
+                    .retrieve()
+                    .toBodilessEntity();
         } catch (RuntimeException exc) {
-            LOGGER.warn("Device webhook notification failed for device {}", device.deviceId(), exc);
+            LOGGER.warn("Device webhook notification failed for device {}", device.id(), exc);
         }
     }
 
@@ -58,5 +63,14 @@ public class DeviceWebhookNotifier {
                 device.getApiKey().value(),
                 status.name()
         );
+    }
+
+    public void notifyDeviceUnassigned(Device device) {
+        send("DeviceChanged", new ProvisionedDeviceResource(
+                device.getId().toString(),
+                device.getHardwareId().value(),
+                device.getApiKey().value(),
+                DeviceStatus.OFFLINE.name()
+        ));
     }
 }

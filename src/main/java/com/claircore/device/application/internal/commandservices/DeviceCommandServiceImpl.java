@@ -56,7 +56,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
                 continue;
             }
-            String hardwareId = "HW-" + String.format("%04d", i);
+            String hardwareId = "CLAIR-" + String.format("%04d", i);
             if (deviceRepository.existsByHardwareId(hardwareId)) {
                 continue;
             }

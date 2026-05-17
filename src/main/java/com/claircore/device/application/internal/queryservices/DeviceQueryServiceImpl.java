@@ -1,10 +1,12 @@
 package com.claircore.device.application.internal.queryservices;
 
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.queries.*;
 import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
@@ -23,14 +25,17 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     private final OrganizationRepository organizationRepository;
     private final SpaceRepository spaceRepository;
     private final DeviceRepository deviceRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
 
     public DeviceQueryServiceImpl(
             OrganizationRepository organizationRepository,
             SpaceRepository spaceRepository,
-            DeviceRepository deviceRepository) {
+            DeviceRepository deviceRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository) {
         this.organizationRepository = organizationRepository;
         this.spaceRepository = spaceRepository;
         this.deviceRepository = deviceRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
     }
 
     @Override
@@ -83,10 +88,10 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Device> handle(GetDevicesBySpaceQuery query) {
+    public Page<DeviceAssignment> handle(GetDevicesBySpaceQuery query) {
         int page = query.page() != null ? query.page() : 0;
         int size = query.size() != null ? query.size() : 20;
-        return deviceRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
+        return deviceAssignmentRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
     }
 
     @Override

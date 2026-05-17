@@ -1,9 +1,11 @@
 package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
-import com.claircore.device.domain.model.commands.DeleteDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
+import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
+import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/devices")
@@ -41,10 +44,14 @@ public class DeviceController {
 
     @PostMapping("/pair")
     @Operation(summary = "Pair a physical device")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Pairing started and claim token issued"),
+        @ApiResponse(responseCode = "400", description = "Device not registered in factory inventory")
+    })
     public ResponseEntity<DeviceResponse> pairDevice(@Valid @RequestBody PairDeviceRequest request) {
         var command = new PairDeviceCommand(request.hardwareId(), request.deviceType());
-        Device device = deviceCommandService.handle(command);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(device));
+        DeviceAssignment assignment = deviceCommandService.handle(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(assignment));
     }
 
     @PostMapping("/claim")
@@ -65,8 +72,8 @@ public class DeviceController {
             new UserId(userId)
         );
 
-        Device device = deviceCommandService.handle(command);
-        return ResponseEntity.ok(toResponse(device));
+        DeviceAssignment assignment = deviceCommandService.handle(command);
+        return ResponseEntity.ok(toResponse(assignment));
     }
 
     @GetMapping
@@ -77,8 +84,8 @@ public class DeviceController {
             @RequestParam(defaultValue = "20") Integer size) {
 
         var query = new GetDevicesBySpaceQuery(spaceId, page, size);
-        Page<Device> devices = deviceQueryService.handle(query);
-        return ResponseEntity.ok(devices.map(this::toResponse));
+        Page<DeviceAssignment> assignments = deviceQueryService.handle(query);
+        return ResponseEntity.ok(assignments.map(this::toResponse));
     }
 
     @GetMapping("/provisioning")
@@ -104,10 +111,37 @@ public class DeviceController {
     }
 
     @DeleteMapping("/{deviceId}")
-    @Operation(summary = "Delete a device")
-    public ResponseEntity<Void> deleteDevice(@PathVariable UUID deviceId) {
-        deviceCommandService.handle(new DeleteDeviceCommand(deviceId));
+    @Operation(summary = "Reset a device assignment for reconfiguration")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Device assignment reset and space cleared"),
+        @ApiResponse(responseCode = "400", description = "Device not found or invalid request"),
+        @ApiResponse(responseCode = "403", description = "The device does not belong to the authenticated user")
+    })
+    public ResponseEntity<Void> deleteDevice(HttpServletRequest httpRequest, @PathVariable UUID deviceId) {
+        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        deviceCommandService.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
         return ResponseEntity.noContent().build();
+    }
+
+    private DeviceResponse toResponse(DeviceAssignment assignment) {
+        Device device = assignment.getDevice();
+        return new DeviceResponse(
+            device.getId(),
+            device.getSerialNumber(),
+            device.getName(),
+            assignment.getStatus(),
+            assignment.getSpaceId(),
+            assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
+            assignment.getConfiguration(),
+            device.getHardwareId().value(),
+            device.getApiKey().value(),
+            device.getDeviceType().value(),
+            assignment.getClaimToken() != null ? assignment.getClaimToken().value() : null,
+            assignment.getActivatedAt(),
+            assignment.getLastSeenAt(),
+            assignment.getAuditFields().getCreatedAt() != null ? assignment.getAuditFields().getCreatedAt().toInstant() : null,
+            assignment.getAuditFields().getUpdatedAt() != null ? assignment.getAuditFields().getUpdatedAt().toInstant() : null
+        );
     }
 
     private DeviceResponse toResponse(Device device) {
@@ -115,15 +149,16 @@ public class DeviceController {
             device.getId(),
             device.getSerialNumber(),
             device.getName(),
-            device.getStatus(),
-            device.getSpaceId(),
-            device.getConfiguration(),
+            DeviceStatus.OFFLINE,
+            null,
+            null,
+            Map.of(),
             device.getHardwareId().value(),
             device.getApiKey().value(),
             device.getDeviceType().value(),
-            device.getClaimToken() != null ? device.getClaimToken().value() : null,
-            device.getActivatedAt(),
-            device.getLastSeenAt(),
+            null,
+            null,
+            null,
             device.getAuditFields().getCreatedAt() != null ? device.getAuditFields().getCreatedAt().toInstant() : null,
             device.getAuditFields().getUpdatedAt() != null ? device.getAuditFields().getUpdatedAt().toInstant() : null
         );

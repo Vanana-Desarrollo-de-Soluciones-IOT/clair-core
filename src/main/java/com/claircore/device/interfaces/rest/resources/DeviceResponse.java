@@ -12,6 +12,7 @@ public record DeviceResponse(
     String name,
     DeviceStatus status,
     UUID spaceId,
+    UUID ownerUserId,
     Map<String, String> configuration,
     String hardwareId,
     String apiKey,

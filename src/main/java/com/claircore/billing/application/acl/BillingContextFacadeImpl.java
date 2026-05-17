@@ -19,10 +19,24 @@ public class BillingContextFacadeImpl implements BillingContextFacade {
         this.userPlanRepository = userPlanRepository;
     }
 
-    @Override
-    public PlanType getUserPlanType(UUID userId) {
+    private PlanType resolveUserPlanType(UUID userId) {
         return userPlanRepository.findByUserId(new UserId(userId))
                 .map(UserPlan::getPlanType)
                 .orElse(PlanType.FREEMIUM);
+    }
+
+    @Override
+    public int getMaxOrganizations(UUID userId) {
+        return resolveUserPlanType(userId).maxOrganizations();
+    }
+
+    @Override
+    public int getMaxSpaces(UUID userId) {
+        return resolveUserPlanType(userId).maxSpaces();
+    }
+
+    @Override
+    public int getMaxDevices(UUID userId) {
+        return resolveUserPlanType(userId).maxDevices();
     }
 }

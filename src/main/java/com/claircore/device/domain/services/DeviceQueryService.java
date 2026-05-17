@@ -1,6 +1,7 @@
 package com.claircore.device.domain.services;
 
 import com.claircore.device.domain.model.entities.Device;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.queries.*;
@@ -20,6 +21,6 @@ public interface DeviceQueryService {
     Optional<Device> handle(GetDeviceBySerialNumberQuery query);
     Optional<Device> handle(GetDeviceByHardwareIdQuery query);
     Optional<Device> handle(GetDeviceByApiKeyQuery query);
-    Page<Device> handle(GetDevicesBySpaceQuery query);
+    Page<DeviceAssignment> handle(GetDevicesBySpaceQuery query);
     List<Device> handle(GetProvisionedDevicesQuery query);
 }

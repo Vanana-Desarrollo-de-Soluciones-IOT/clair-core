@@ -1,10 +1,12 @@
 package com.claircore.billing.interfaces.acl;
 
-import com.claircore.billing.domain.model.valueobjects.PlanType;
-
 import java.util.UUID;
 
 public interface BillingContextFacade {
 
-    PlanType getUserPlanType(UUID userId);
+    int getMaxOrganizations(UUID userId);
+
+    int getMaxSpaces(UUID userId);
+
+    int getMaxDevices(UUID userId);
 }

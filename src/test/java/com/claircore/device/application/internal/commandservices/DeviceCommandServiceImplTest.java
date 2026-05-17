@@ -15,6 +15,7 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAs
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,6 +53,9 @@ class DeviceCommandServiceImplTest {
     @Mock
     private DeviceWebhookNotifier deviceWebhookNotifier;
 
+    @Mock
+    private DeviceApiKeyHasher deviceApiKeyHasher;
+
     @InjectMocks
     private DeviceCommandServiceImpl service;
 
@@ -60,6 +64,7 @@ class DeviceCommandServiceImplTest {
         when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
         when(deviceRepository.existsByHardwareId(any())).thenReturn(false);
         when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
+        when(deviceApiKeyHasher.hash(any())).thenReturn(new com.claircore.device.domain.model.valueobjects.ApiKeyHash("hash"));
 
         List<Device> result = service.handle(new SeedDevicesCommand(2));
 
@@ -69,10 +74,10 @@ class DeviceCommandServiceImplTest {
 
     @Test
     void pairDeviceFailsWhenHardwareNotFoundInFactoryInventory() {
-        when(deviceRepository.findByHardwareId("HW-NEW-001")).thenReturn(Optional.empty());
+        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
-            service.handle(new PairDeviceCommand("HW-NEW-001"))
+            service.handle(new PairDeviceCommand("HW-0001"))
         );
 
         verify(deviceAssignmentRepository, never()).save(any(DeviceAssignment.class));
@@ -80,12 +85,12 @@ class DeviceCommandServiceImplTest {
 
     @Test
     void pairDeviceCreatesAssignmentForFactoryDeviceWithoutAssignment() {
-        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-001");
-        when(deviceRepository.findByHardwareId("HW-001")).thenReturn(Optional.of(existing));
+        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
+        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.empty());
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
 
-        DeviceAssignment result = service.handle(new PairDeviceCommand("HW-001"));
+        DeviceAssignment result = service.handle(new PairDeviceCommand("HW-0001"));
 
         assertEquals(existing, result.getDevice());
         verify(deviceRepository, never()).save(any(Device.class));
@@ -94,14 +99,14 @@ class DeviceCommandServiceImplTest {
 
     @Test
     void pairDeviceFailsWhenAlreadyPaired() {
-        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-001");
+        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
         DeviceAssignment assignment = new DeviceAssignment(existing, ClaimToken.generate());
         assignment.claimToSpace(UUID.randomUUID(), new UserId(UUID.randomUUID()));
-        when(deviceRepository.findByHardwareId("HW-001")).thenReturn(Optional.of(existing));
+        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.of(assignment));
 
         assertThrows(IllegalStateException.class, () ->
-            service.handle(new PairDeviceCommand("HW-001"))
+            service.handle(new PairDeviceCommand("HW-0001"))
         );
     }
 
@@ -109,7 +114,7 @@ class DeviceCommandServiceImplTest {
     void claimDeviceAssignsDeviceToUserOwnedSpace() {
         UUID userId = UUID.randomUUID();
         UUID spaceId = UUID.randomUUID();
-        Device device = deviceWithId(UUID.randomUUID(), "SN-002", "HW-002");
+        Device device = deviceWithId(UUID.randomUUID(), "SN-002", "HW-0002");
         DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
         Space space = spaceWithId(spaceId, userId);
 
@@ -149,7 +154,7 @@ class DeviceCommandServiceImplTest {
         UUID userId = UUID.randomUUID();
         UUID spaceId = UUID.randomUUID();
         UUID deviceId = UUID.randomUUID();
-        Device device = deviceWithId(deviceId, "SN-003", "HW-003");
+        Device device = deviceWithId(deviceId, "SN-003", "HW-0003");
         DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
         assignment.claimToSpace(spaceId, new UserId(userId));
 
@@ -167,7 +172,7 @@ class DeviceCommandServiceImplTest {
             serialNumber,
             "Sensor",
             new com.claircore.device.domain.model.valueobjects.HardwareId(hardwareId),
-            com.claircore.device.domain.model.valueobjects.ApiKey.generate(),
+            new com.claircore.device.domain.model.valueobjects.ApiKeyHash("test-api-key-hash"),
             new com.claircore.device.domain.model.valueobjects.DeviceType("air-quality-v1")
         );
         ReflectionTestUtils.setField(device, "id", deviceId);

@@ -16,8 +16,8 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     @Query("SELECT d FROM Device d WHERE d.hardwareId.value = :hardwareId")
     Optional<Device> findByHardwareId(@Param("hardwareId") String hardwareId);
 
-    @Query("SELECT d FROM Device d WHERE d.apiKey.value = :apiKey")
-    Optional<Device> findByApiKey(@Param("apiKey") String apiKey);
+    @Query("SELECT d FROM Device d WHERE d.apiKeyHash.value = :apiKeyHash")
+    Optional<Device> findByApiKeyHash(@Param("apiKeyHash") String apiKeyHash);
 
     @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM Device d WHERE d.hardwareId.value = :hardwareId")
     boolean existsByHardwareId(@Param("hardwareId") String hardwareId);

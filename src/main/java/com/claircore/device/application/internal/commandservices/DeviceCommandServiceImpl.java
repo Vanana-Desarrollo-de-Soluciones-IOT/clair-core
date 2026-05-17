@@ -13,6 +13,7 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAs
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class DeviceCommandServiceImpl implements DeviceCommandService {
@@ -31,6 +33,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
     private final DeviceWebhookNotifier deviceWebhookNotifier;
+    private final DeviceApiKeyHasher deviceApiKeyHasher;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
@@ -38,13 +41,15 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
-            DeviceWebhookNotifier deviceWebhookNotifier) {
+            DeviceWebhookNotifier deviceWebhookNotifier,
+            DeviceApiKeyHasher deviceApiKeyHasher) {
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
         this.deviceWebhookNotifier = deviceWebhookNotifier;
+        this.deviceApiKeyHasher = deviceApiKeyHasher;
     }
 
     @Override
@@ -65,7 +70,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 serialNumber,
                 "Sensor " + i,
                 new HardwareId(hardwareId),
-                ApiKey.generate(),
+                deviceApiKeyHasher.hash(ApiKey.generate()),
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
@@ -178,12 +183,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     @Override
     public Optional<Device> findByApiKey(String apiKey) {
-        return deviceRepository.findByApiKey(apiKey);
+        return deviceRepository.findByApiKeyHash(deviceApiKeyHasher.hashRaw(apiKey).value());
     }
 
     @Override
     public List<Device> findBySpaceId(UUID spaceId) {
-        return deviceAssignmentRepository.findBySpaceId(spaceId, org.springframework.data.domain.Pageable.unpaged())
+        // Never run an unbounded query; callers needing more should use the paged query API.
+        return deviceAssignmentRepository.findBySpaceId(spaceId, PageRequest.of(0, 1000))
             .map(DeviceAssignment::getDevice)
             .toList();
     }

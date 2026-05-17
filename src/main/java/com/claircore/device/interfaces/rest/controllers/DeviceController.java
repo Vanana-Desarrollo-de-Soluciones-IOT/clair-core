@@ -49,10 +49,15 @@ public class DeviceController {
         @ApiResponse(responseCode = "201", description = "Pairing started and claim token issued"),
         @ApiResponse(responseCode = "400", description = "Device not registered in factory inventory")
     })
-    public ResponseEntity<DeviceResponse> pairDevice(@Valid @RequestBody PairDeviceRequest request) {
+    public ResponseEntity<DevicePairingResource> pairDevice(@Valid @RequestBody PairDeviceRequest request) {
         var command = new PairDeviceCommand(request.hardwareId());
         DeviceAssignment assignment = deviceCommandService.handle(command);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(assignment));
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                new DevicePairingResource(
+                        assignment.getDevice().getId(),
+                        assignment.getClaimToken() != null ? assignment.getClaimToken().value() : null
+                )
+        );
     }
 
     @PostMapping("/claim")
@@ -94,8 +99,12 @@ public class DeviceController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Master devices returned for edge cache synchronization")
     })
-    public ResponseEntity<List<DeviceResponse>> getProvisionedDevices() {
-        List<DeviceResponse> devices = deviceQueryService.handle(new GetProvisionedDevicesQuery())
+    public ResponseEntity<List<DeviceResponse>> getProvisionedDevices(
+            @RequestParam(defaultValue = "500") Integer limit) {
+
+        int cappedLimit = limit == null ? 500 : Math.max(1, Math.min(limit, 5000));
+
+        List<DeviceResponse> devices = deviceQueryService.handle(new GetProvisionedDevicesQuery(cappedLimit))
             .stream()
             .map(this::toResponse)
             .toList();
@@ -152,9 +161,7 @@ public class DeviceController {
             assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
             assignment.getConfiguration(),
             device.getHardwareId().value(),
-            device.getApiKey().value(),
             device.getDeviceType().value(),
-            assignment.getClaimToken() != null ? assignment.getClaimToken().value() : null,
             assignment.getActivatedAt(),
             assignment.getLastSeenAt(),
             assignment.getAuditFields().getCreatedAt() != null ? assignment.getAuditFields().getCreatedAt().toInstant() : null,
@@ -172,9 +179,7 @@ public class DeviceController {
             null,
             Map.of(),
             device.getHardwareId().value(),
-            device.getApiKey().value(),
             device.getDeviceType().value(),
-            null,
             null,
             null,
             device.getAuditFields().getCreatedAt() != null ? device.getAuditFields().getCreatedAt().toInstant() : null,

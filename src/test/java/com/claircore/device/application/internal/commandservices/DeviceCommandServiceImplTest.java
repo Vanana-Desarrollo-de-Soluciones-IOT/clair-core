@@ -1,6 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
+import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.SeedDevicesCommand;
 import com.claircore.device.domain.model.entities.Device;
@@ -36,6 +37,9 @@ class DeviceCommandServiceImplTest {
 
     @Mock
     private ExternalBillingService externalBillingService;
+
+    @Mock
+    private DeviceWebhookNotifier deviceWebhookNotifier;
 
     @InjectMocks
     private DeviceCommandServiceImpl service;

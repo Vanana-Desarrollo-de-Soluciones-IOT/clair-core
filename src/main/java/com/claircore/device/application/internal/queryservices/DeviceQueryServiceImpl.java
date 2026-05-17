@@ -88,4 +88,10 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
         int size = query.size() != null ? query.size() : 20;
         return deviceRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Device> handle(GetProvisionedDevicesQuery query) {
+        return deviceRepository.findAll();
+    }
 }

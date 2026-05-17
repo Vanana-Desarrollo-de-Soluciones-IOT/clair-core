@@ -7,7 +7,10 @@ import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.model.queries.GetDeviceByIdQuery;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
+import com.claircore.device.domain.model.queries.GetProvisionedDevicesQuery;
 import com.claircore.device.interfaces.rest.resources.*;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -16,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/devices")
@@ -38,15 +42,6 @@ public class DeviceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(device));
     }
 
-    @GetMapping("/{deviceId}")
-    @Operation(summary = "Get device by ID")
-    public ResponseEntity<DeviceResponse> getDevice(@PathVariable UUID deviceId) {
-        var query = new GetDeviceByIdQuery(deviceId);
-        return deviceQueryService.handle(query)
-            .map(device -> ResponseEntity.ok(toResponse(device)))
-            .orElse(ResponseEntity.notFound().build());
-    }
-
     @GetMapping
     @Operation(summary = "Get devices by space with pagination")
     public ResponseEntity<Page<DeviceResponse>> getDevices(
@@ -57,6 +52,28 @@ public class DeviceController {
         var query = new GetDevicesBySpaceQuery(spaceId, page, size);
         Page<Device> devices = deviceQueryService.handle(query);
         return ResponseEntity.ok(devices.map(this::toResponse));
+    }
+
+    @GetMapping("/provisioning")
+    @Operation(summary = "Get master devices for edge provisioning")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Master devices returned for edge cache synchronization")
+    })
+    public ResponseEntity<List<DeviceResponse>> getProvisionedDevices() {
+        List<DeviceResponse> devices = deviceQueryService.handle(new GetProvisionedDevicesQuery())
+            .stream()
+            .map(this::toResponse)
+            .toList();
+        return ResponseEntity.ok(devices);
+    }
+
+    @GetMapping("/{deviceId}")
+    @Operation(summary = "Get device by ID")
+    public ResponseEntity<DeviceResponse> getDevice(@PathVariable UUID deviceId) {
+        var query = new GetDeviceByIdQuery(deviceId);
+        return deviceQueryService.handle(query)
+            .map(device -> ResponseEntity.ok(toResponse(device)))
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{deviceId}")
@@ -80,8 +97,8 @@ public class DeviceController {
             device.getClaimToken() != null ? device.getClaimToken().value() : null,
             device.getActivatedAt(),
             device.getLastSeenAt(),
-            device.getAuditFields().getCreatedAt().toInstant(),
-            device.getAuditFields().getUpdatedAt().toInstant()
+            device.getAuditFields().getCreatedAt() != null ? device.getAuditFields().getCreatedAt().toInstant() : null,
+            device.getAuditFields().getUpdatedAt() != null ? device.getAuditFields().getUpdatedAt().toInstant() : null
         );
     }
 }

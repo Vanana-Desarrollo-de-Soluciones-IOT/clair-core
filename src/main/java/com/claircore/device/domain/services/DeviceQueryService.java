@@ -18,5 +18,7 @@ public interface DeviceQueryService {
     List<Space> handle(GetSpacesByOrganizationQuery query);
     Optional<Device> handle(GetDeviceByIdQuery query);
     Optional<Device> handle(GetDeviceBySerialNumberQuery query);
+    Optional<Device> handle(GetDeviceByHardwareIdQuery query);
+    Optional<Device> handle(GetDeviceByApiKeyQuery query);
     Page<Device> handle(GetDevicesBySpaceQuery query);
 }

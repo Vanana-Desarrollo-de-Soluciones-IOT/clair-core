@@ -1,8 +1,8 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceSerialNumberCommand;
+import com.claircore.device.domain.model.commands.PairDeviceCommand;
+import com.claircore.device.domain.model.commands.SeedDevicesCommand;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
@@ -14,13 +14,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceCommandServiceImplTest {
@@ -41,43 +41,64 @@ class DeviceCommandServiceImplTest {
     private DeviceCommandServiceImpl service;
 
     @Test
-    void updateDeviceNameSucceeds() {
-        UUID deviceId = UUID.randomUUID();
-        Device device = deviceWithId(deviceId, "ABC-1");
-        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(device));
+    void seedDevicesCreatesNonExistingOnes() {
+        when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
+        when(deviceRepository.existsByHardwareId(any())).thenReturn(false);
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
 
-        service.handle(new UpdateDeviceNameCommand(deviceId, "Thermostat"));
+        List<Device> result = service.handle(new SeedDevicesCommand(2));
 
-        verify(deviceRepository).save(device);
+        assertEquals(2, result.size());
+        verify(deviceRepository, times(2)).save(any(Device.class));
     }
 
     @Test
-    void updateDeviceSerialNumberSucceedsWhenSerialBelongsToSameDevice() {
-        UUID deviceId = UUID.randomUUID();
-        Device device = deviceWithId(deviceId, "ABC-1");
-        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(device));
-        when(deviceRepository.findBySerialNumber("ABC-1")).thenReturn(Optional.of(device));
+    void pairDeviceCreatesNewWhenHardwareNotFound() {
+        when(deviceRepository.findByHardwareId("HW-NEW-001")).thenReturn(Optional.empty());
+        when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
 
-        service.handle(new UpdateDeviceSerialNumberCommand(deviceId, "ABC-1"));
+        Device result = service.handle(new PairDeviceCommand("HW-NEW-001", "air-quality-v1"));
 
-        verify(deviceRepository).save(device);
+        assertNotNull(result);
+        assertEquals("HW-NEW-001", result.getHardwareId().value());
+        assertNotNull(result.getApiKey());
+        assertNotNull(result.getClaimToken());
+        verify(deviceRepository).save(any(Device.class));
     }
 
     @Test
-    void updateDeviceSerialNumberFailsWhenSerialBelongsToAnotherDevice() {
-        UUID deviceId = UUID.randomUUID();
-        Device device = deviceWithId(deviceId, "ABC-1");
-        Device otherDevice = deviceWithId(UUID.randomUUID(), "XYZ-1");
-        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(device));
-        when(deviceRepository.findBySerialNumber("XYZ-1")).thenReturn(Optional.of(otherDevice));
+    void pairDeviceReturnsExistingWhenStillPending() {
+        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-001");
+        when(deviceRepository.findByHardwareId("HW-001")).thenReturn(Optional.of(existing));
 
-        assertThrows(IllegalArgumentException.class, () -> service.handle(new UpdateDeviceSerialNumberCommand(deviceId, "XYZ-1")));
+        Device result = service.handle(new PairDeviceCommand("HW-001", "air-quality-v1"));
 
-        verify(deviceRepository, never()).save(device);
+        assertEquals(existing, result);
+        verify(deviceRepository, never()).save(any(Device.class));
     }
 
-    private Device deviceWithId(UUID deviceId, String serialNumber) {
-        Device device = new Device(serialNumber, "Sensor", UUID.randomUUID());
+    @Test
+    void pairDeviceFailsWhenAlreadyPaired() {
+        Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-001");
+        existing.consumeClaimToken();
+        when(deviceRepository.findByHardwareId("HW-001")).thenReturn(Optional.of(existing));
+
+        assertThrows(IllegalStateException.class, () ->
+            service.handle(new PairDeviceCommand("HW-001", "air-quality-v1"))
+        );
+    }
+
+    private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {
+        Device device = new Device(
+            serialNumber,
+            "Sensor",
+            null,
+            new com.claircore.device.domain.model.valueobjects.HardwareId(hardwareId),
+            com.claircore.device.domain.model.valueobjects.ApiKey.generate(),
+            new com.claircore.device.domain.model.valueobjects.DeviceType("air-quality-v1"),
+            com.claircore.device.domain.model.valueobjects.ClaimToken.generate()
+        );
         ReflectionTestUtils.setField(device, "id", deviceId);
         return device;
     }

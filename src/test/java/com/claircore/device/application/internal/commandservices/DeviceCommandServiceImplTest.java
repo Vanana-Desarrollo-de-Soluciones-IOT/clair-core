@@ -72,7 +72,7 @@ class DeviceCommandServiceImplTest {
         when(deviceRepository.findByHardwareId("HW-NEW-001")).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
-            service.handle(new PairDeviceCommand("HW-NEW-001", "air-quality-v1"))
+            service.handle(new PairDeviceCommand("HW-NEW-001"))
         );
 
         verify(deviceAssignmentRepository, never()).save(any(DeviceAssignment.class));
@@ -85,7 +85,7 @@ class DeviceCommandServiceImplTest {
         when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.empty());
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
 
-        DeviceAssignment result = service.handle(new PairDeviceCommand("HW-001", "air-quality-v1"));
+        DeviceAssignment result = service.handle(new PairDeviceCommand("HW-001"));
 
         assertEquals(existing, result.getDevice());
         verify(deviceRepository, never()).save(any(Device.class));
@@ -101,7 +101,7 @@ class DeviceCommandServiceImplTest {
         when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.of(assignment));
 
         assertThrows(IllegalStateException.class, () ->
-            service.handle(new PairDeviceCommand("HW-001", "air-quality-v1"))
+            service.handle(new PairDeviceCommand("HW-001"))
         );
     }
 

@@ -50,7 +50,7 @@ public class DeviceController {
         @ApiResponse(responseCode = "400", description = "Device not registered in factory inventory")
     })
     public ResponseEntity<DeviceResponse> pairDevice(@Valid @RequestBody PairDeviceRequest request) {
-        var command = new PairDeviceCommand(request.hardwareId(), request.deviceType());
+        var command = new PairDeviceCommand(request.hardwareId());
         DeviceAssignment assignment = deviceCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(assignment));
     }

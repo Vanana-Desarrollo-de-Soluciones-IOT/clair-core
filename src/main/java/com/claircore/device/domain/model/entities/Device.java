@@ -95,6 +95,19 @@ public class Device {
         this.claimToken = null;
     }
 
+    public void claimToSpace(UUID spaceId) {
+        if (this.claimToken == null) {
+            throw new IllegalStateException("Device already claimed");
+        }
+        if (spaceId == null) {
+            throw new IllegalArgumentException("Space ID must not be null");
+        }
+
+        this.spaceId = spaceId;
+        this.consumeClaimToken();
+        this.activate();
+    }
+
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }
     public String getName() { return name; }

@@ -1,6 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
+import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
 import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.Organization;
@@ -12,6 +13,7 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.Organiza
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,16 +28,19 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
+    private final DeviceWebhookNotifier deviceWebhookNotifier;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
-            ExternalBillingService externalBillingService) {
+            ExternalBillingService externalBillingService,
+            DeviceWebhookNotifier deviceWebhookNotifier) {
         this.deviceRepository = deviceRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
+        this.deviceWebhookNotifier = deviceWebhookNotifier;
     }
 
     @Override
@@ -61,7 +66,9 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 new DeviceType("air-quality-v1"),
                 ClaimToken.generate()
             );
-            seeded.add(deviceRepository.save(device));
+            Device savedDevice = deviceRepository.save(device);
+            seeded.add(savedDevice);
+            deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
         }
         return seeded;
     }
@@ -76,6 +83,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 throw new IllegalStateException("Device already paired");
             }
             // Re-issue claim token if still pending
+            deviceWebhookNotifier.notifyDeviceChanged(device);
             return device;
         }
 
@@ -95,7 +103,30 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             ClaimToken.generate()
         );
 
-        return deviceRepository.save(device);
+        Device savedDevice = deviceRepository.save(device);
+        deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
+        return savedDevice;
+    }
+
+    @Override
+    @Transactional
+    public Device handle(ClaimDeviceCommand command) {
+        Space space = spaceRepository
+            .findById(command.spaceId())
+            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+
+        if (!space.getOwnerUserId().equals(command.userId())) {
+            throw new AccessDeniedException("Space does not belong to user");
+        }
+
+        Device device = deviceRepository
+            .findByClaimToken(command.claimToken())
+            .orElseThrow(() -> new IllegalArgumentException("Invalid claim token"));
+
+        device.claimToSpace(command.spaceId());
+        Device savedDevice = deviceRepository.save(device);
+        deviceWebhookNotifier.notifyDeviceChanged(savedDevice);
+        return savedDevice;
     }
 
     @Override
@@ -106,6 +137,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             .orElseThrow(() -> new IllegalArgumentException("Device not found"));
 
         deviceRepository.delete(device);
+        deviceWebhookNotifier.notifyDeviceDeleted(device);
     }
 
     @Override

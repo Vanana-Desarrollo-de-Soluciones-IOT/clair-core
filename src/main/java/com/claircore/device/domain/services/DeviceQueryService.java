@@ -21,4 +21,5 @@ public interface DeviceQueryService {
     Optional<Device> handle(GetDeviceByHardwareIdQuery query);
     Optional<Device> handle(GetDeviceByApiKeyQuery query);
     Page<Device> handle(GetDevicesBySpaceQuery query);
+    List<Device> handle(GetProvisionedDevicesQuery query);
 }

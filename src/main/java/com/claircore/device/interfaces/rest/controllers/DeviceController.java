@@ -110,7 +110,7 @@ public class DeviceController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Devices returned for edge cache synchronization")
     })
-    public ResponseEntity<List<Map<String, Object>>> getProvisionedDevices(
+    public ResponseEntity<List<ProvisionedDeviceResource>> getProvisionedDevices(
             @RequestHeader(value = "X-Edge-Token", required = false) String providedEdgeToken,
             @RequestParam(defaultValue = "500") Integer limit) {
 
@@ -122,11 +122,11 @@ public class DeviceController {
 
         var page = deviceRepository.findProvisionedDevices(PageRequest.of(0, cappedLimit));
         var result = page.getContent().stream()
-                .map(p -> Map.<String, Object>of(
-                        "id", p.getDeviceId(),
-                        "hardwareId", p.getHardwareId(),
-                        "apiKey", p.getApiKey(),
-                        "status", p.getStatus().name()
+                .map(p -> new ProvisionedDeviceResource(
+                        p.getDeviceId().toString(),
+                        p.getHardwareId(),
+                        p.getApiKey(),
+                        p.getStatus().name()
                 ))
                 .toList();
 

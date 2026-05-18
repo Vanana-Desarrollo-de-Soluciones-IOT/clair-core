@@ -15,7 +15,6 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAs
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
-import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,8 +52,6 @@ class DeviceCommandServiceImplTest {
     @Mock
     private DeviceWebhookNotifier deviceWebhookNotifier;
 
-    @Mock
-    private DeviceApiKeyHasher deviceApiKeyHasher;
 
     @InjectMocks
     private DeviceCommandServiceImpl service;
@@ -64,7 +61,6 @@ class DeviceCommandServiceImplTest {
         when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
         when(deviceRepository.existsByHardwareId(any())).thenReturn(false);
         when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
-        when(deviceApiKeyHasher.hash(any())).thenReturn(new com.claircore.device.domain.model.valueobjects.ApiKeyHash("hash"));
 
         List<Device> result = service.handle(new SeedDevicesCommand(2));
 
@@ -164,7 +160,7 @@ class DeviceCommandServiceImplTest {
 
         verify(deviceAssignmentRepository).delete(assignment);
         verify(deviceRepository, never()).delete(any(Device.class));
-        verify(deviceWebhookNotifier).notifyDeviceDeleted(assignment);
+        verify(deviceWebhookNotifier).notifyDeviceUnassigned(device);
     }
 
     private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {
@@ -172,7 +168,7 @@ class DeviceCommandServiceImplTest {
             serialNumber,
             "Sensor",
             new com.claircore.device.domain.model.valueobjects.HardwareId(hardwareId),
-            new com.claircore.device.domain.model.valueobjects.ApiKeyHash("test-api-key-hash"),
+            com.claircore.device.domain.model.valueobjects.ApiKey.generate(),
             new com.claircore.device.domain.model.valueobjects.DeviceType("air-quality-v1")
         );
         ReflectionTestUtils.setField(device, "id", deviceId);

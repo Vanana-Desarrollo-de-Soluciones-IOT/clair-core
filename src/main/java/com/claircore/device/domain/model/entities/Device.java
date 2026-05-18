@@ -30,8 +30,8 @@ public class Device {
     private HardwareId hardwareId;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "api_key_hash", nullable = false, unique = true, length = 64))
-    private ApiKeyHash apiKeyHash;
+    @AttributeOverride(name = "value", column = @Column(name = "api_key", nullable = false, unique = true, length = 255))
+    private ApiKey apiKey;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "device_type", nullable = false))
@@ -42,7 +42,7 @@ public class Device {
 
     protected Device() {}
 
-    public Device(String serialNumber, String name, HardwareId hardwareId, ApiKeyHash apiKeyHash, DeviceType deviceType) {
+    public Device(String serialNumber, String name, HardwareId hardwareId, ApiKey apiKey, DeviceType deviceType) {
         this.serialNumber = serialNumber;
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Device name must not be null or blank");
@@ -50,12 +50,12 @@ public class Device {
         this.name = name;
         this.factoryName = name;
         this.hardwareId = hardwareId;
-        this.apiKeyHash = apiKeyHash;
+        this.apiKey = apiKey;
         this.deviceType = deviceType;
     }
 
-    public void rotateApiKeyHash(ApiKeyHash apiKeyHash) {
-        this.apiKeyHash = apiKeyHash;
+    public void rotateApiKey(ApiKey apiKey) {
+        this.apiKey = apiKey;
     }
 
     public void updateName(String name) {
@@ -74,7 +74,7 @@ public class Device {
     public String getName() { return name; }
     public String getFactoryName() { return factoryName; }
     public HardwareId getHardwareId() { return hardwareId; }
-    public ApiKeyHash getApiKeyHash() { return apiKeyHash; }
+    public ApiKey getApiKey() { return apiKey; }
     public DeviceType getDeviceType() { return deviceType; }
     public DeviceAudit getAuditFields() { return auditFields; }
 

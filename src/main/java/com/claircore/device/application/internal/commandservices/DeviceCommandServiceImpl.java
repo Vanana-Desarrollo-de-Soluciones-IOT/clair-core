@@ -13,7 +13,6 @@ import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAs
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
-import com.claircore.device.infrastructure.security.DeviceApiKeyHasher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,7 +32,6 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
     private final DeviceWebhookNotifier deviceWebhookNotifier;
-    private final DeviceApiKeyHasher deviceApiKeyHasher;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
@@ -41,15 +39,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
-            DeviceWebhookNotifier deviceWebhookNotifier,
-            DeviceApiKeyHasher deviceApiKeyHasher) {
+            DeviceWebhookNotifier deviceWebhookNotifier) {
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
         this.deviceWebhookNotifier = deviceWebhookNotifier;
-        this.deviceApiKeyHasher = deviceApiKeyHasher;
     }
 
     @Override
@@ -70,7 +66,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 serialNumber,
                 "Sensor " + i,
                 new HardwareId(hardwareId),
-                deviceApiKeyHasher.hash(ApiKey.generate()),
+                ApiKey.generate(),
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
@@ -144,7 +140,8 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         deviceRepository.save(device);
 
         deviceAssignmentRepository.delete(assignment);
-        deviceWebhookNotifier.notifyDeviceDeleted(assignment);
+        // Reset/unlink is not a decommission. Keep the device cached on the edge.
+        deviceWebhookNotifier.notifyDeviceUnassigned(device);
     }
 
     @Override
@@ -183,7 +180,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     @Override
     public Optional<Device> findByApiKey(String apiKey) {
-        return deviceRepository.findByApiKeyHash(deviceApiKeyHasher.hashRaw(apiKey).value());
+        return deviceRepository.findByApiKey(apiKey);
     }
 
     @Override

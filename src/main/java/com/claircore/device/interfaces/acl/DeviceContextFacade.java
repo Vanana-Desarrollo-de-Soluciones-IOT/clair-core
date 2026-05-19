@@ -6,4 +6,5 @@ import java.util.UUID;
 public interface DeviceContextFacade {
 
     Optional<UUID> findDeviceIdByApiKey(String apiKey);
+    void markDeviceSeen(UUID deviceId);
 }

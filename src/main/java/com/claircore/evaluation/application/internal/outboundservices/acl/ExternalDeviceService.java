@@ -21,4 +21,11 @@ public class ExternalDeviceService {
                 .findDeviceIdByApiKey(apiKey)
                 .map(DeviceId::new);
     }
+
+    public void markDeviceSeen(DeviceId deviceId) {
+        if (deviceId == null) {
+            throw new IllegalArgumentException("Device ID must not be null");
+        }
+        deviceContextFacade.markDeviceSeen(deviceId.value());
+    }
 }

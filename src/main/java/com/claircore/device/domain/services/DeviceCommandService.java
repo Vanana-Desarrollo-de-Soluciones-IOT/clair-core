@@ -1,6 +1,7 @@
 package com.claircore.device.domain.services;
 
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
+import com.claircore.device.domain.model.commands.MarkDeviceSeenCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.commands.SeedDevicesCommand;
@@ -18,6 +19,7 @@ public interface DeviceCommandService {
     DeviceAssignment handle(ClaimDeviceCommand command);
     void handle(ResetDeviceAssignmentCommand command);
     void handle(UpdateDeviceNameCommand command);
+    void handle(MarkDeviceSeenCommand command);
     Optional<Device> findById(UUID id);
     Optional<Device> findBySerialNumber(String serialNumber);
     Optional<Device> findByHardwareId(String hardwareId);

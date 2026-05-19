@@ -93,6 +93,25 @@ public class DeviceAssignment {
         this.lastSeenAt = Instant.now();
     }
 
+    public void markOnline() {
+        this.status = DeviceStatus.ONLINE;
+        markLastSeen();
+    }
+
+    public void markStandby() {
+        this.status = DeviceStatus.STANDBY;
+        markLastSeen();
+    }
+
+    public void markOffline() {
+        this.status = DeviceStatus.OFFLINE;
+    }
+
+    public void markError() {
+        this.status = DeviceStatus.ERROR;
+        markLastSeen();
+    }
+
     public UUID getId() { return id; }
     public Device getDevice() { return device; }
     public UserId getOwnerUserId() { return ownerUserId; }

@@ -165,6 +165,20 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     }
 
     @Override
+    @Transactional
+    public void handle(MarkDeviceSeenCommand command) {
+        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceId(command.deviceId());
+        if (existingAssignment.isEmpty()) {
+            return;
+        }
+
+        DeviceAssignment assignment = existingAssignment.get();
+        assignment.markOnline();
+        DeviceAssignment savedAssignment = deviceAssignmentRepository.save(assignment);
+        deviceWebhookNotifier.notifyDeviceChanged(savedAssignment);
+    }
+
+    @Override
     public Optional<Device> findById(UUID id) {
         return deviceRepository.findById(id);
     }

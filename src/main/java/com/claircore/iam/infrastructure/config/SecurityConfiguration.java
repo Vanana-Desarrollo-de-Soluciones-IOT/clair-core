@@ -69,6 +69,7 @@ public class SecurityConfiguration {
                                 "/api/v1/subscriptions/checkout-session",
                                 "/api/v1/subscriptions/payment-intent",
                                 "/api/v1/webhooks/stripe",
+                                "/api/v1/devices/provisioning",
                                 "/favicon.ico",
                                 "/error"
                         ).permitAll()

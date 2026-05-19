@@ -26,7 +26,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/evaluations")
-@Tag(name = "Evaluations", description = "Telemetry evaluation and threshold analysis endpoints")
+@Tag(name = "Evaluations", description = "Telemetry storage endpoints")
 public class TelemetryEvaluationController {
 
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
@@ -44,9 +44,9 @@ public class TelemetryEvaluationController {
     }
 
     @PostMapping("/telemetry")
-    @Operation(summary = "Receive and evaluate telemetry from an edge device")
+    @Operation(summary = "Receive and store telemetry from an edge device")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Telemetry evaluated and stored"),
+            @ApiResponse(responseCode = "201", description = "Telemetry stored"),
             @ApiResponse(responseCode = "400", description = "Invalid telemetry data"),
             @ApiResponse(responseCode = "401", description = "Invalid or missing API key")
     })
@@ -57,18 +57,55 @@ public class TelemetryEvaluationController {
         var deviceId = externalDeviceService.fetchDeviceIdByApiKey(apiKey)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid API key"));
 
+        var recordedAt = request.created_at() != null && !request.created_at().isBlank()
+                ? Instant.parse(request.created_at())
+                : Instant.now();
+
         var command = new EvaluateTelemetryCommand(
                 deviceId,
-                new Co2Level(request.co2()),
-                new Pm25Level(request.pm25()),
-                new Pm10Level(request.pm10()),
-                new Temperature(request.temperature()),
-                new Humidity(request.humidity()),
-                request.airQualityValid(),
-                request.pmValid(),
+                request.timestamp(),
+                request.uptime(),
+                new AirQuality(
+                        request.airQuality().co2(),
+                        request.airQuality().temperature(),
+                        request.airQuality().humidity(),
+                        request.airQuality().valid()
+                ),
+                new ParticulateMatter(
+                        request.particulateMatter().pm1_0(),
+                        request.particulateMatter().pm2_5(),
+                        request.particulateMatter().pm10(),
+                        request.particulateMatter().valid()
+                ),
+                new Connectivity(
+                        request.connectivity().status(),
+                        request.connectivity().ssid(),
+                        request.connectivity().ip(),
+                        request.connectivity().rssi(),
+                        request.connectivity().mac(),
+                        request.connectivity().channel()
+                ),
+                new DeviceHealth(
+                        request.deviceHealth().freeHeap(),
+                        request.deviceHealth().minFreeHeap(),
+                        request.deviceHealth().heapSize(),
+                        request.deviceHealth().maxAllocHeap(),
+                        request.deviceHealth().scd41Status(),
+                        request.deviceHealth().pms5003Status(),
+                        request.deviceHealth().lastValidAirQualitySec(),
+                        request.deviceHealth().lastValidPMSec()
+                ),
+                new DeviceInfo(
+                        request.deviceInfo().chipModel(),
+                        request.deviceInfo().chipRevision(),
+                        request.deviceInfo().cpuFreqMHz(),
+                        request.deviceInfo().flashSize(),
+                        request.deviceInfo().sketchSize(),
+                        request.deviceInfo().freeSketchSpace()
+                ),
                 request.status(),
                 request.statusCode(),
-                request.recordedAt() != null ? request.recordedAt() : Instant.now()
+                recordedAt
         );
 
         TelemetryEvaluation evaluation = telemetryEvaluationCommandService.handle(command);
@@ -77,10 +114,7 @@ public class TelemetryEvaluationController {
     }
 
     @GetMapping("/devices/{deviceId}")
-    @Operation(summary = "Get evaluated telemetry records for a device")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Evaluations returned")
-    })
+    @Operation(summary = "Get stored telemetry records for a device")
     public ResponseEntity<Page<TelemetryEvaluationResponse>> getEvaluationsByDevice(
             @PathVariable UUID deviceId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -92,10 +126,10 @@ public class TelemetryEvaluationController {
     }
 
     @GetMapping("/devices/{deviceId}/latest")
-    @Operation(summary = "Get the latest evaluation for a device")
+    @Operation(summary = "Get the latest telemetry record for a device")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Latest evaluation returned"),
-            @ApiResponse(responseCode = "404", description = "No evaluations found for device")
+            @ApiResponse(responseCode = "200", description = "Latest record returned"),
+            @ApiResponse(responseCode = "404", description = "No records found for device")
     })
     public ResponseEntity<TelemetryEvaluationResponse> getLatestEvaluationByDevice(
             @PathVariable UUID deviceId

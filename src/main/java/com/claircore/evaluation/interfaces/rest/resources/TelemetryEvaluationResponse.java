@@ -1,14 +1,11 @@
 package com.claircore.evaluation.interfaces.rest.resources;
 
-import com.claircore.evaluation.domain.model.valueobjects.AirQualityStatus;
-import com.claircore.evaluation.domain.model.valueobjects.HealthState;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
-@Schema(description = "Response representing an evaluated telemetry record")
+@Schema(description = "Response representing a stored telemetry record")
 public record TelemetryEvaluationResponse(
         @Schema(description = "Evaluation ID", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
         UUID id,
@@ -16,45 +13,84 @@ public record TelemetryEvaluationResponse(
         @Schema(description = "Device ID", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
         UUID deviceId,
 
-        @Schema(description = "CO2 concentration in ppm", example = "420.0")
-        Double co2,
+        @Schema(description = "Device uptime timestamp in milliseconds", example = "20041")
+        Long deviceTimestamp,
 
-        @Schema(description = "PM2.5 concentration in µg/m³", example = "27.0")
-        Double pm25,
+        @Schema(description = "System uptime in seconds", example = "30")
+        Integer uptimeSeconds,
 
-        @Schema(description = "PM10 concentration in µg/m³", example = "35.0")
-        Double pm10,
+        @Schema(description = "Air quality sensor data")
+        AirQualityResponse airQuality,
 
-        @Schema(description = "Temperature in Celsius", example = "24.99")
-        Double temperature,
+        @Schema(description = "Particulate matter sensor data")
+        ParticulateMatterResponse particulateMatter,
 
-        @Schema(description = "Relative humidity in percent", example = "50.0")
-        Double humidity,
+        @Schema(description = "WiFi connectivity status")
+        ConnectivityResponse connectivity,
 
-        @Schema(description = "Air quality sensor validity", example = "true")
-        Boolean airQualityValid,
+        @Schema(description = "Device health metrics")
+        DeviceHealthResponse deviceHealth,
 
-        @Schema(description = "Particulate matter sensor validity", example = "true")
-        Boolean pmValid,
+        @Schema(description = "Hardware information")
+        DeviceInfoResponse deviceInfo,
 
-        @Schema(description = "Device status string", example = "Optimal")
+        @Schema(description = "Overall device status", example = "Optimal")
         String status,
 
-        @Schema(description = "Device status code", example = "0")
+        @Schema(description = "Numeric status code", example = "0")
         Integer statusCode,
-
-        @Schema(description = "Computed air quality status")
-        AirQualityStatus airQualityStatus,
-
-        @Schema(description = "Computed health state")
-        HealthState healthState,
-
-        @Schema(description = "List of threshold breaches detected")
-        List<ThresholdBreachResource> thresholdBreaches,
 
         @Schema(description = "When the reading was recorded", example = "2026-05-16T22:30:00Z")
         Instant recordedAt,
 
-        @Schema(description = "When the evaluation was created", example = "2026-05-16T22:30:05Z")
+        @Schema(description = "When the record was created", example = "2026-05-16T22:30:05Z")
         Instant createdAt
-) {}
+) {
+    @Schema(description = "Air quality sensor data")
+    public record AirQualityResponse(
+            Double co2,
+            Double temperature,
+            Double humidity,
+            Boolean valid
+    ) {}
+
+    @Schema(description = "Particulate matter sensor data")
+    public record ParticulateMatterResponse(
+            Integer pm1_0,
+            Integer pm2_5,
+            Integer pm10,
+            Boolean valid
+    ) {}
+
+    @Schema(description = "WiFi connectivity status")
+    public record ConnectivityResponse(
+            String status,
+            String ssid,
+            String ip,
+            Integer rssi,
+            String mac,
+            Integer channel
+    ) {}
+
+    @Schema(description = "Device health metrics")
+    public record DeviceHealthResponse(
+            Integer freeHeap,
+            Integer minFreeHeap,
+            Integer heapSize,
+            Integer maxAllocHeap,
+            String scd41Status,
+            String pms5003Status,
+            Integer lastValidAirQualitySec,
+            Integer lastValidPMSec
+    ) {}
+
+    @Schema(description = "Hardware information")
+    public record DeviceInfoResponse(
+            String chipModel,
+            Integer chipRevision,
+            Integer cpuFreqMHz,
+            Integer flashSize,
+            Integer sketchSize,
+            Integer freeSketchSpace
+    ) {}
+}

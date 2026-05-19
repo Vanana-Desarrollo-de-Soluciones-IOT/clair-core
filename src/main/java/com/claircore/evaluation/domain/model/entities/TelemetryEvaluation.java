@@ -6,8 +6,6 @@ import jakarta.persistence.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -24,48 +22,59 @@ public class TelemetryEvaluation {
     private DeviceId deviceId;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "co2_ppm", nullable = false))
-    private Co2Level co2;
+    @AttributeOverride(name = "co2", column = @Column(name = "aq_co2", nullable = false))
+    @AttributeOverride(name = "temperature", column = @Column(name = "aq_temperature", nullable = false))
+    @AttributeOverride(name = "humidity", column = @Column(name = "aq_humidity", nullable = false))
+    @AttributeOverride(name = "valid", column = @Column(name = "aq_valid", nullable = false))
+    private AirQuality airQuality;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "pm25_ug_m3", nullable = false))
-    private Pm25Level pm25;
+    @AttributeOverride(name = "pm1_0", column = @Column(name = "pm_pm1_0", nullable = false))
+    @AttributeOverride(name = "pm2_5", column = @Column(name = "pm_pm2_5", nullable = false))
+    @AttributeOverride(name = "pm10", column = @Column(name = "pm_pm10", nullable = false))
+    @AttributeOverride(name = "valid", column = @Column(name = "pm_valid", nullable = false))
+    private ParticulateMatter particulateMatter;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "pm10_ug_m3", nullable = false))
-    private Pm10Level pm10;
+    @AttributeOverride(name = "status", column = @Column(name = "conn_status", nullable = false))
+    @AttributeOverride(name = "ssid", column = @Column(name = "conn_ssid", nullable = false))
+    @AttributeOverride(name = "ip", column = @Column(name = "conn_ip", nullable = false))
+    @AttributeOverride(name = "rssi", column = @Column(name = "conn_rssi", nullable = false))
+    @AttributeOverride(name = "mac", column = @Column(name = "conn_mac", nullable = false))
+    @AttributeOverride(name = "channel", column = @Column(name = "conn_channel", nullable = false))
+    private Connectivity connectivity;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "temperature_celsius", nullable = false))
-    private Temperature temperature;
+    @AttributeOverride(name = "freeHeap", column = @Column(name = "dh_free_heap", nullable = false))
+    @AttributeOverride(name = "minFreeHeap", column = @Column(name = "dh_min_free_heap", nullable = false))
+    @AttributeOverride(name = "heapSize", column = @Column(name = "dh_heap_size", nullable = false))
+    @AttributeOverride(name = "maxAllocHeap", column = @Column(name = "dh_max_alloc_heap", nullable = false))
+    @AttributeOverride(name = "scd41Status", column = @Column(name = "dh_scd41_status", nullable = false))
+    @AttributeOverride(name = "pms5003Status", column = @Column(name = "dh_pms5003_status", nullable = false))
+    @AttributeOverride(name = "lastValidAirQualitySec", column = @Column(name = "dh_last_valid_aq_sec", nullable = false))
+    @AttributeOverride(name = "lastValidPMSec", column = @Column(name = "dh_last_valid_pm_sec", nullable = false))
+    private DeviceHealth deviceHealth;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "humidity_percent", nullable = false))
-    private Humidity humidity;
+    @AttributeOverride(name = "chipModel", column = @Column(name = "di_chip_model", nullable = false))
+    @AttributeOverride(name = "chipRevision", column = @Column(name = "di_chip_revision", nullable = false))
+    @AttributeOverride(name = "cpuFreqMHz", column = @Column(name = "di_cpu_freq_mhz", nullable = false))
+    @AttributeOverride(name = "flashSize", column = @Column(name = "di_flash_size", nullable = false))
+    @AttributeOverride(name = "sketchSize", column = @Column(name = "di_sketch_size", nullable = false))
+    @AttributeOverride(name = "freeSketchSpace", column = @Column(name = "di_free_sketch_space", nullable = false))
+    private DeviceInfo deviceInfo;
 
-    @Column(name = "air_quality_valid", nullable = false)
-    private Boolean airQualityValid;
+    @Column(name = "device_timestamp", nullable = false)
+    private Long deviceTimestamp;
 
-    @Column(name = "pm_valid", nullable = false)
-    private Boolean pmValid;
+    @Column(name = "uptime_seconds", nullable = false)
+    private Integer uptimeSeconds;
 
     @Column(nullable = false)
     private String status;
 
     @Column(name = "status_code", nullable = false)
     private Integer statusCode;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "air_quality_status", nullable = false, length = 20)
-    private AirQualityStatus airQualityStatus;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "health_state", nullable = false, length = 20)
-    private HealthState healthState;
-
-    @ElementCollection
-    @CollectionTable(name = "evaluation_threshold_breaches", joinColumns = @JoinColumn(name = "evaluation_id"))
-    private List<ThresholdBreach> thresholdBreaches = new ArrayList<>();
 
     @Column(name = "recorded_at", nullable = false)
     private Instant recordedAt;
@@ -77,13 +86,13 @@ public class TelemetryEvaluation {
 
     public TelemetryEvaluation(
             DeviceId deviceId,
-            Co2Level co2,
-            Pm25Level pm25,
-            Pm10Level pm10,
-            Temperature temperature,
-            Humidity humidity,
-            Boolean airQualityValid,
-            Boolean pmValid,
+            Long deviceTimestamp,
+            Integer uptimeSeconds,
+            AirQuality airQuality,
+            ParticulateMatter particulateMatter,
+            Connectivity connectivity,
+            DeviceHealth deviceHealth,
+            DeviceInfo deviceInfo,
             String status,
             Integer statusCode,
             Instant recordedAt
@@ -91,138 +100,61 @@ public class TelemetryEvaluation {
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
-        if (co2 == null) {
-            throw new IllegalArgumentException("CO2 level must not be null");
+        if (deviceTimestamp == null) {
+            throw new IllegalArgumentException("deviceTimestamp must not be null");
         }
-        if (pm25 == null) {
-            throw new IllegalArgumentException("PM2.5 level must not be null");
+        if (uptimeSeconds == null) {
+            throw new IllegalArgumentException("uptimeSeconds must not be null");
         }
-        if (pm10 == null) {
-            throw new IllegalArgumentException("PM10 level must not be null");
+        if (airQuality == null) {
+            throw new IllegalArgumentException("airQuality must not be null");
         }
-        if (temperature == null) {
-            throw new IllegalArgumentException("Temperature must not be null");
+        if (particulateMatter == null) {
+            throw new IllegalArgumentException("particulateMatter must not be null");
         }
-        if (humidity == null) {
-            throw new IllegalArgumentException("Humidity must not be null");
+        if (connectivity == null) {
+            throw new IllegalArgumentException("connectivity must not be null");
         }
-        if (airQualityValid == null) {
-            throw new IllegalArgumentException("Air quality valid flag must not be null");
+        if (deviceHealth == null) {
+            throw new IllegalArgumentException("deviceHealth must not be null");
         }
-        if (pmValid == null) {
-            throw new IllegalArgumentException("PM valid flag must not be null");
+        if (deviceInfo == null) {
+            throw new IllegalArgumentException("deviceInfo must not be null");
         }
         if (status == null || status.isBlank()) {
-            throw new IllegalArgumentException("Status must not be null or blank");
+            throw new IllegalArgumentException("status must not be null or blank");
         }
         if (statusCode == null) {
-            throw new IllegalArgumentException("Status code must not be null");
+            throw new IllegalArgumentException("statusCode must not be null");
         }
         if (recordedAt == null) {
-            throw new IllegalArgumentException("Recorded at must not be null");
+            throw new IllegalArgumentException("recordedAt must not be null");
         }
 
         this.deviceId = deviceId;
-        this.co2 = co2;
-        this.pm25 = pm25;
-        this.pm10 = pm10;
-        this.temperature = temperature;
-        this.humidity = humidity;
-        this.airQualityValid = airQualityValid;
-        this.pmValid = pmValid;
+        this.deviceTimestamp = deviceTimestamp;
+        this.uptimeSeconds = uptimeSeconds;
+        this.airQuality = airQuality;
+        this.particulateMatter = particulateMatter;
+        this.connectivity = connectivity;
+        this.deviceHealth = deviceHealth;
+        this.deviceInfo = deviceInfo;
         this.status = status;
         this.statusCode = statusCode;
         this.recordedAt = recordedAt;
-
-        this.thresholdBreaches = computeThresholdBreaches();
-        this.airQualityStatus = computeAirQualityStatus();
-        this.healthState = computeHealthState();
-    }
-
-    private List<ThresholdBreach> computeThresholdBreaches() {
-        List<ThresholdBreach> breaches = new ArrayList<>();
-
-        double co2Value = this.co2.value();
-        if (co2Value > 2000) {
-            breaches.add(new ThresholdBreach("co2", co2Value, 2000.0));
-        } else if (co2Value > 1000) {
-            breaches.add(new ThresholdBreach("co2", co2Value, 1000.0));
-        }
-
-        double pm25Value = this.pm25.value();
-        if (pm25Value > 75) {
-            breaches.add(new ThresholdBreach("pm25", pm25Value, 75.0));
-        } else if (pm25Value > 35) {
-            breaches.add(new ThresholdBreach("pm25", pm25Value, 35.0));
-        }
-
-        double pm10Value = this.pm10.value();
-        if (pm10Value > 250) {
-            breaches.add(new ThresholdBreach("pm10", pm10Value, 250.0));
-        } else if (pm10Value > 150) {
-            breaches.add(new ThresholdBreach("pm10", pm10Value, 150.0));
-        }
-
-        return breaches;
-    }
-
-    private AirQualityStatus computeAirQualityStatus() {
-        double co2Value = this.co2.value();
-        double pm25Value = this.pm25.value();
-        double pm10Value = this.pm10.value();
-
-        boolean hasHazardous = co2Value > 2000 || pm25Value > 75 || pm10Value > 250;
-        boolean hasUnhealthy = co2Value > 1000 || pm25Value > 35 || pm10Value > 150;
-
-        if (hasHazardous) {
-            return AirQualityStatus.HAZARDOUS;
-        }
-        if (hasUnhealthy) {
-            return AirQualityStatus.UNHEALTHY;
-        }
-        return AirQualityStatus.GOOD;
-    }
-
-    private HealthState computeHealthState() {
-        boolean hasCritical = thresholdBreaches.stream()
-                .anyMatch(b -> {
-                    return switch (b.metric()) {
-                        case "co2" -> b.value() > 2000;
-                        case "pm25" -> b.value() > 75;
-                        case "pm10" -> b.value() > 250;
-                        default -> false;
-                    };
-                });
-
-        if (hasCritical) {
-            return HealthState.CRITICAL;
-        }
-
-        boolean hasWarning = !thresholdBreaches.isEmpty();
-        boolean sensorsInvalid = !this.airQualityValid || !this.pmValid;
-        boolean deviceError = this.statusCode != 0;
-
-        if (hasWarning || sensorsInvalid || deviceError) {
-            return HealthState.DEGRADED;
-        }
-
-        return HealthState.OPTIMAL;
     }
 
     public UUID getId() { return id; }
     public DeviceId getDeviceId() { return deviceId; }
-    public Co2Level getCo2() { return co2; }
-    public Pm25Level getPm25() { return pm25; }
-    public Pm10Level getPm10() { return pm10; }
-    public Temperature getTemperature() { return temperature; }
-    public Humidity getHumidity() { return humidity; }
-    public Boolean getAirQualityValid() { return airQualityValid; }
-    public Boolean getPmValid() { return pmValid; }
+    public AirQuality getAirQuality() { return airQuality; }
+    public ParticulateMatter getParticulateMatter() { return particulateMatter; }
+    public Connectivity getConnectivity() { return connectivity; }
+    public DeviceHealth getDeviceHealth() { return deviceHealth; }
+    public DeviceInfo getDeviceInfo() { return deviceInfo; }
+    public Long getDeviceTimestamp() { return deviceTimestamp; }
+    public Integer getUptimeSeconds() { return uptimeSeconds; }
     public String getStatus() { return status; }
     public Integer getStatusCode() { return statusCode; }
-    public AirQualityStatus getAirQualityStatus() { return airQualityStatus; }
-    public HealthState getHealthState() { return healthState; }
-    public List<ThresholdBreach> getThresholdBreaches() { return thresholdBreaches; }
     public Instant getRecordedAt() { return recordedAt; }
     public EvaluationAudit getAuditFields() { return auditFields; }
 

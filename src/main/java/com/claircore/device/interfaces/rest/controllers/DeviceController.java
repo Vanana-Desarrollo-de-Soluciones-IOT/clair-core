@@ -126,6 +126,7 @@ public class DeviceController {
                         p.getDeviceId().toString(),
                         p.getHardwareId(),
                         p.getApiKey(),
+                        p.getDeviceSecret(),
                         p.getStatus().name()
                 ))
                 .toList();

@@ -61,6 +61,7 @@ public class DeviceWebhookNotifier {
                 device.getId().toString(),
                 device.getHardwareId().value(),
                 device.getApiKey().value(),
+                device.getDeviceSecret().value(),
                 status.name()
         );
     }
@@ -70,6 +71,7 @@ public class DeviceWebhookNotifier {
                 device.getId().toString(),
                 device.getHardwareId().value(),
                 device.getApiKey().value(),
+                device.getDeviceSecret().value(),
                 DeviceStatus.OFFLINE.name()
         ));
     }

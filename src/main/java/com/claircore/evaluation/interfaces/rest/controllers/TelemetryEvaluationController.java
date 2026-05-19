@@ -57,9 +57,14 @@ public class TelemetryEvaluationController {
         var deviceId = externalDeviceService.fetchDeviceIdByApiKey(apiKey)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid API key"));
 
-        var recordedAt = request.created_at() != null && !request.created_at().isBlank()
-                ? Instant.parse(request.created_at())
-                : Instant.now();
+        var recordedAt = Instant.now();
+        if (request.created_at() != null && !request.created_at().isBlank()) {
+            try {
+                recordedAt = Instant.parse(request.created_at());
+            } catch (java.time.format.DateTimeParseException e) {
+                // Device sent an unparsable timestamp (e.g. "20"); use server time
+            }
+        }
 
         var command = new EvaluateTelemetryCommand(
                 deviceId,

@@ -169,6 +169,7 @@ class DeviceCommandServiceImplTest {
             "Sensor",
             new com.claircore.device.domain.model.valueobjects.HardwareId(hardwareId),
             com.claircore.device.domain.model.valueobjects.ApiKey.generate(),
+            com.claircore.device.domain.model.valueobjects.DeviceSecret.generate(),
             new com.claircore.device.domain.model.valueobjects.DeviceType("air-quality-v1")
         );
         ReflectionTestUtils.setField(device, "id", deviceId);

@@ -67,6 +67,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 "Sensor " + i,
                 new HardwareId(hardwareId),
                 ApiKey.generate(),
+                DeviceSecret.generate(),
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);

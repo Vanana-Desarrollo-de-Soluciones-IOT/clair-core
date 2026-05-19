@@ -10,6 +10,8 @@ public record ProvisionedDeviceResource(
         String hardwareId,
         @Schema(description = "Device API key used by the edge in X-API-Key")
         String apiKey,
+        @Schema(description = "Device secret used by the physical embedded device to authenticate with the edge")
+        String deviceSecret,
         @Schema(description = "Lifecycle status")
         String status
 ) {}

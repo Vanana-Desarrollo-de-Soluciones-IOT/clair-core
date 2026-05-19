@@ -32,6 +32,8 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
                 command.airQuality(),
                 command.particulateMatter(),
                 command.connectivity(),
+                command.location(),
+                command.healthStatus(),
                 command.status(),
                 command.recordedAt()
         );

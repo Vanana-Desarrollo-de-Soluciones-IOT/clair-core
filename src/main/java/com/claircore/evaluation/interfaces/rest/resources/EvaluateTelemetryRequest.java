@@ -1,6 +1,8 @@
 package com.claircore.evaluation.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -23,6 +25,12 @@ public record EvaluateTelemetryRequest(
 
         @Schema(description = "WiFi connectivity status")
         @NotNull ConnectivityRequest connectivity,
+
+        @Schema(description = "Device location")
+        @NotNull LocationRequest location,
+
+        @Schema(description = "Device health status percentage", example = "100")
+        @NotNull @Min(0) @Max(100) Integer healthStatus,
 
         @Schema(description = "Overall device status", example = "Optimal")
         @NotBlank String status,
@@ -57,6 +65,18 @@ public record EvaluateTelemetryRequest(
     @Schema(description = "WiFi connectivity status")
     public record ConnectivityRequest(
             @Schema(description = "Connection status", example = "connected")
-            @NotBlank String status
+            @NotBlank String status,
+
+            @Schema(description = "WiFi network name", example = "Wokwi-GUEST")
+            String network,
+
+            @Schema(description = "Signal strength in dBm", example = "-65")
+            Integer signalStrength
+    ) {}
+
+    @Schema(description = "Location data")
+    public record LocationRequest(
+            @Schema(description = "Country", example = "PERU")
+            String country
     ) {}
 }

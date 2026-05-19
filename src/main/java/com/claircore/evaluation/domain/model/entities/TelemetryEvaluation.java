@@ -35,7 +35,13 @@ public class TelemetryEvaluation {
 
     @Embedded
     @AttributeOverride(name = "status", column = @Column(name = "conn_status", nullable = false))
+    @AttributeOverride(name = "network", column = @Column(name = "conn_network"))
+    @AttributeOverride(name = "signalStrength", column = @Column(name = "conn_signal_strength"))
     private Connectivity connectivity;
+
+    @Embedded
+    @AttributeOverride(name = "country", column = @Column(name = "location_country"))
+    private Location location;
 
     @Column(name = "device_time", nullable = false)
     private String deviceTime;
@@ -45,6 +51,9 @@ public class TelemetryEvaluation {
 
     @Column(nullable = false)
     private String status;
+
+    @Column(name = "health_status", nullable = false)
+    private Integer healthStatus;
 
     @Column(name = "recorded_at", nullable = false)
     private Instant recordedAt;
@@ -61,6 +70,8 @@ public class TelemetryEvaluation {
             AirQuality airQuality,
             ParticulateMatter particulateMatter,
             Connectivity connectivity,
+            Location location,
+            Integer healthStatus,
             String status,
             Instant recordedAt
     ) {
@@ -82,6 +93,12 @@ public class TelemetryEvaluation {
         if (connectivity == null) {
             throw new IllegalArgumentException("connectivity must not be null");
         }
+        if (location == null) {
+            throw new IllegalArgumentException("location must not be null");
+        }
+        if (healthStatus == null || healthStatus < 0 || healthStatus > 100) {
+            throw new IllegalArgumentException("healthStatus must be between 0 and 100");
+        }
         if (status == null || status.isBlank()) {
             throw new IllegalArgumentException("status must not be null or blank");
         }
@@ -95,6 +112,8 @@ public class TelemetryEvaluation {
         this.airQuality = airQuality;
         this.particulateMatter = particulateMatter;
         this.connectivity = connectivity;
+        this.location = location;
+        this.healthStatus = healthStatus;
         this.status = status;
         this.recordedAt = recordedAt;
     }
@@ -104,8 +123,10 @@ public class TelemetryEvaluation {
     public AirQuality getAirQuality() { return airQuality; }
     public ParticulateMatter getParticulateMatter() { return particulateMatter; }
     public Connectivity getConnectivity() { return connectivity; }
+    public Location getLocation() { return location; }
     public String getDeviceTime() { return deviceTime; }
     public String getUptime() { return uptime; }
+    public Integer getHealthStatus() { return healthStatus; }
     public String getStatus() { return status; }
     public Instant getRecordedAt() { return recordedAt; }
     public EvaluationAudit getAuditFields() { return auditFields; }

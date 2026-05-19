@@ -28,6 +28,12 @@ public record TelemetryEvaluationResponse(
         @Schema(description = "WiFi connectivity status")
         ConnectivityResponse connectivity,
 
+        @Schema(description = "Device location")
+        LocationResponse location,
+
+        @Schema(description = "Device health status percentage", example = "100")
+        Integer healthStatus,
+
         @Schema(description = "Overall device status", example = "Optimal")
         String status,
 
@@ -53,6 +59,13 @@ public record TelemetryEvaluationResponse(
 
     @Schema(description = "WiFi connectivity status")
     public record ConnectivityResponse(
-            String status
+            String status,
+            String network,
+            Integer signalStrength
+    ) {}
+
+    @Schema(description = "Location data")
+    public record LocationResponse(
+            String country
     ) {}
 }

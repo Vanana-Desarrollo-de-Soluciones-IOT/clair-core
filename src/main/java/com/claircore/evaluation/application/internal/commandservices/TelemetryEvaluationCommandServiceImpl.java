@@ -21,15 +21,12 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
     public TelemetryEvaluation handle(EvaluateTelemetryCommand command) {
         var evaluation = new TelemetryEvaluation(
                 command.deviceId(),
-                command.deviceTimestamp(),
-                command.uptimeSeconds(),
+                command.deviceTime(),
+                command.uptime(),
                 command.airQuality(),
                 command.particulateMatter(),
                 command.connectivity(),
-                command.deviceHealth(),
-                command.deviceInfo(),
                 command.status(),
-                command.statusCode(),
                 command.recordedAt()
         );
 

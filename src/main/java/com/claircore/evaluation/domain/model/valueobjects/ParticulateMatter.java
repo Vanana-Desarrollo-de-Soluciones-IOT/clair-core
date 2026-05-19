@@ -6,8 +6,7 @@ import jakarta.persistence.Embeddable;
 public record ParticulateMatter(
         Integer pm1_0,
         Integer pm2_5,
-        Integer pm10,
-        Boolean valid
+        Integer pm10
 ) {
     public ParticulateMatter {
         if (pm1_0 == null) {
@@ -18,9 +17,6 @@ public record ParticulateMatter(
         }
         if (pm10 == null) {
             throw new IllegalArgumentException("pm10 must not be null");
-        }
-        if (valid == null) {
-            throw new IllegalArgumentException("valid must not be null");
         }
     }
 }

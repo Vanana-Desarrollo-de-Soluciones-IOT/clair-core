@@ -11,32 +11,22 @@ public class TelemetryEvaluationTransform {
         var aq = e.getAirQuality();
         var pm = e.getParticulateMatter();
         var conn = e.getConnectivity();
-        var dh = e.getDeviceHealth();
-        var di = e.getDeviceInfo();
 
         return new TelemetryEvaluationResponse(
                 e.getId(),
                 e.getDeviceId().value(),
-                e.getDeviceTimestamp(),
-                e.getUptimeSeconds(),
+                e.getDeviceTime(),
+                e.getUptime(),
                 new TelemetryEvaluationResponse.AirQualityResponse(
-                        aq.co2(), aq.temperature(), aq.humidity(), aq.valid()
+                        aq.co2(), aq.temperature(), aq.humidity()
                 ),
                 new TelemetryEvaluationResponse.ParticulateMatterResponse(
-                        pm.pm1_0(), pm.pm2_5(), pm.pm10(), pm.valid()
+                        pm.pm1_0(), pm.pm2_5(), pm.pm10()
                 ),
                 new TelemetryEvaluationResponse.ConnectivityResponse(
-                        conn.status(), conn.ssid(), conn.ip(), conn.rssi(), conn.mac(), conn.channel()
-                ),
-                new TelemetryEvaluationResponse.DeviceHealthResponse(
-                        dh.freeHeap(), dh.minFreeHeap(), dh.heapSize(), dh.maxAllocHeap(),
-                        dh.scd41Status(), dh.pms5003Status(), dh.lastValidAirQualitySec(), dh.lastValidPMSec()
-                ),
-                new TelemetryEvaluationResponse.DeviceInfoResponse(
-                        di.chipModel(), di.chipRevision(), di.cpuFreqMHz(), di.flashSize(), di.sketchSize(), di.freeSketchSpace()
+                        conn.status()
                 ),
                 e.getStatus(),
-                e.getStatusCode(),
                 e.getRecordedAt(),
                 e.getAuditFields().getCreatedAt() != null
                         ? e.getAuditFields().getCreatedAt().toInstant()

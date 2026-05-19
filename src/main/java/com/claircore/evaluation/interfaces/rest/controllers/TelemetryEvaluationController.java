@@ -44,7 +44,7 @@ public class TelemetryEvaluationController {
     }
 
     @PostMapping("/telemetry")
-    @Operation(summary = "Receive and store telemetry from an edge device")
+    @Operation(summary = "Receive and store optimized telemetry from an edge device")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Telemetry stored"),
             @ApiResponse(responseCode = "400", description = "Invalid telemetry data"),
@@ -62,7 +62,7 @@ public class TelemetryEvaluationController {
             try {
                 recordedAt = Instant.parse(request.created_at());
             } catch (java.time.format.DateTimeParseException e) {
-                // Device sent an unparsable timestamp (e.g. "20"); use server time
+                // Device sent an unparsable timestamp; use server time
             }
         }
 
@@ -73,43 +73,17 @@ public class TelemetryEvaluationController {
                 new AirQuality(
                         request.airQuality().co2(),
                         request.airQuality().temperature(),
-                        request.airQuality().humidity(),
-                        request.airQuality().valid()
+                        request.airQuality().humidity()
                 ),
                 new ParticulateMatter(
                         request.particulateMatter().pm1_0(),
                         request.particulateMatter().pm2_5(),
-                        request.particulateMatter().pm10(),
-                        request.particulateMatter().valid()
+                        request.particulateMatter().pm10()
                 ),
                 new Connectivity(
-                        request.connectivity().status(),
-                        request.connectivity().ssid(),
-                        request.connectivity().ip(),
-                        request.connectivity().rssi(),
-                        request.connectivity().mac(),
-                        request.connectivity().channel()
-                ),
-                new DeviceHealth(
-                        request.deviceHealth().freeHeap(),
-                        request.deviceHealth().minFreeHeap(),
-                        request.deviceHealth().heapSize(),
-                        request.deviceHealth().maxAllocHeap(),
-                        request.deviceHealth().scd41Status(),
-                        request.deviceHealth().pms5003Status(),
-                        request.deviceHealth().lastValidAirQualitySec(),
-                        request.deviceHealth().lastValidPMSec()
-                ),
-                new DeviceInfo(
-                        request.deviceInfo().chipModel(),
-                        request.deviceInfo().chipRevision(),
-                        request.deviceInfo().cpuFreqMHz(),
-                        request.deviceInfo().flashSize(),
-                        request.deviceInfo().sketchSize(),
-                        request.deviceInfo().freeSketchSpace()
+                        request.connectivity().status()
                 ),
                 request.status(),
-                request.statusCode(),
                 recordedAt
         );
 

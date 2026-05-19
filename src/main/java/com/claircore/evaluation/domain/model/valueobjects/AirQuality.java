@@ -6,8 +6,7 @@ import jakarta.persistence.Embeddable;
 public record AirQuality(
         Double co2,
         Double temperature,
-        Double humidity,
-        Boolean valid
+        Double humidity
 ) {
     public AirQuality {
         if (co2 == null) {
@@ -18,9 +17,6 @@ public record AirQuality(
         }
         if (humidity == null) {
             throw new IllegalArgumentException("humidity must not be null");
-        }
-        if (valid == null) {
-            throw new IllegalArgumentException("valid must not be null");
         }
     }
 }

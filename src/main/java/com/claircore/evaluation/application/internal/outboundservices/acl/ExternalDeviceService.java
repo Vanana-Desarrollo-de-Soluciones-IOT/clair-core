@@ -5,7 +5,6 @@ import com.claircore.evaluation.domain.model.valueobjects.DeviceId;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class ExternalDeviceService {
@@ -20,12 +19,5 @@ public class ExternalDeviceService {
         return deviceContextFacade
                 .findDeviceIdByApiKey(apiKey)
                 .map(DeviceId::new);
-    }
-
-    public void markDeviceSeen(DeviceId deviceId) {
-        if (deviceId == null) {
-            throw new IllegalArgumentException("Device ID must not be null");
-        }
-        deviceContextFacade.markDeviceSeen(deviceId.value());
     }
 }

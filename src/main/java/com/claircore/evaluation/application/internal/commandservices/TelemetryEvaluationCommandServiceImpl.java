@@ -3,7 +3,6 @@ package com.claircore.evaluation.application.internal.commandservices;
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
 import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
 import com.claircore.evaluation.domain.services.TelemetryEvaluationCommandService;
-import com.claircore.evaluation.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.evaluation.infrastructure.persistence.jpa.repositories.TelemetryEvaluationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,14 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluationCommandService {
 
     private final TelemetryEvaluationRepository telemetryEvaluationRepository;
-    private final ExternalDeviceService externalDeviceService;
 
-    public TelemetryEvaluationCommandServiceImpl(
-            TelemetryEvaluationRepository telemetryEvaluationRepository,
-            ExternalDeviceService externalDeviceService
-    ) {
+    public TelemetryEvaluationCommandServiceImpl(TelemetryEvaluationRepository telemetryEvaluationRepository) {
         this.telemetryEvaluationRepository = telemetryEvaluationRepository;
-        this.externalDeviceService = externalDeviceService;
     }
 
     @Override
@@ -38,8 +32,6 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
                 command.recordedAt()
         );
 
-        TelemetryEvaluation savedEvaluation = telemetryEvaluationRepository.save(evaluation);
-        externalDeviceService.markDeviceSeen(command.deviceId());
-        return savedEvaluation;
+        return telemetryEvaluationRepository.save(evaluation);
     }
 }

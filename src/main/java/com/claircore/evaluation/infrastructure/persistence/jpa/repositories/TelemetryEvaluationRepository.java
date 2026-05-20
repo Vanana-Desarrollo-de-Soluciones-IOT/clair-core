@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -18,5 +18,5 @@ public interface TelemetryEvaluationRepository extends JpaRepository<TelemetryEv
     Page<TelemetryEvaluation> findByDeviceId(@Param("deviceId") UUID deviceId, Pageable pageable);
 
     @Query("SELECT te FROM TelemetryEvaluation te WHERE te.deviceId.value = :deviceId ORDER BY te.recordedAt DESC")
-    Optional<TelemetryEvaluation> findTopByDeviceId(@Param("deviceId") UUID deviceId);
+    List<TelemetryEvaluation> findLatestByDeviceId(@Param("deviceId") UUID deviceId, Pageable pageable);
 }

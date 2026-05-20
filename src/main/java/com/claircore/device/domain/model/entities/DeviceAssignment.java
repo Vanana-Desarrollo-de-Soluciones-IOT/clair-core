@@ -112,6 +112,16 @@ public class DeviceAssignment {
         markLastSeen();
     }
 
+    public void updatePresence(DeviceStatus status, Instant occurredAt) {
+        if (status == null) {
+            throw new IllegalArgumentException("Device status must not be null");
+        }
+        this.status = status;
+        if (status != DeviceStatus.OFFLINE) {
+            this.lastSeenAt = occurredAt != null ? occurredAt : Instant.now();
+        }
+    }
+
     public UUID getId() { return id; }
     public Device getDevice() { return device; }
     public UserId getOwnerUserId() { return ownerUserId; }

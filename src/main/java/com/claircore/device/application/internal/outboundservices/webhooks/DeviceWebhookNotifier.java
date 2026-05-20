@@ -17,15 +17,17 @@ public class DeviceWebhookNotifier {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceWebhookNotifier.class);
 
     private final RestClient restClient;
-    private final String deviceWebhookUrl;
+    private final String deviceWebhookBaseUrl;
     private final String edgeToken;
+
+    private static final String DEVICES_WEBHOOK_PATH = "/api/v1/provisioning/devices/events";
 
     public DeviceWebhookNotifier(
             RestClient.Builder restClientBuilder,
-            @Value("${edge.webhook.devices-url:}") String deviceWebhookUrl,
+            @Value("${edge.webhook.devices-url:}") String deviceWebhookBaseUrl,
             @Value("${edge.provisioning.token:}") String edgeToken) {
         this.restClient = restClientBuilder.build();
-        this.deviceWebhookUrl = deviceWebhookUrl;
+        this.deviceWebhookBaseUrl = deviceWebhookBaseUrl;
         this.edgeToken = edgeToken;
     }
 
@@ -38,12 +40,17 @@ public class DeviceWebhookNotifier {
     }
 
     private void send(String eventType, ProvisionedDeviceResource device) {
-        if (deviceWebhookUrl == null || deviceWebhookUrl.isBlank()) {
+        if (deviceWebhookBaseUrl == null || deviceWebhookBaseUrl.isBlank()) {
             return;
         }
 
         try {
-            var req = restClient.post().uri(deviceWebhookUrl);
+            var url = deviceWebhookBaseUrl;
+            if (url.endsWith("/")) {
+                url = url.substring(0, url.length() - 1);
+            }
+
+            var req = restClient.post().uri(url + DEVICES_WEBHOOK_PATH);
             if (edgeToken != null && !edgeToken.isBlank()) {
                 req = req.header("X-Edge-Token", edgeToken);
             }

@@ -11,6 +11,7 @@ public class TelemetryEvaluationTransform {
         var aq = e.getAirQuality();
         var pm = e.getParticulateMatter();
         var conn = e.getConnectivity();
+        var loc = e.getLocation();
 
         return new TelemetryEvaluationResponse(
                 e.getId(),
@@ -24,8 +25,14 @@ public class TelemetryEvaluationTransform {
                         pm.pm1_0(), pm.pm2_5(), pm.pm10()
                 ),
                 new TelemetryEvaluationResponse.ConnectivityResponse(
-                        conn.status()
+                        conn.status(),
+                        conn.network(),
+                        conn.signalStrength()
                 ),
+                new TelemetryEvaluationResponse.LocationResponse(
+                        loc.country()
+                ),
+                e.getHealthStatus(),
                 e.getStatus(),
                 e.getRecordedAt(),
                 e.getAuditFields().getCreatedAt() != null

@@ -50,7 +50,7 @@ JWT_REFRESH_EXPIRATION=604800000
 EDGE_TO_CORE_TOKEN=change-me-long-random-secret
 
 # clair-core -> edge webhook (device change events)
-EDGE_WEBHOOK_DEVICES_URL=http://127.0.0.1:5000/api/v1/provisioning/devices/events
+EDGE_WEBHOOK_DEVICES_URL=http://127.0.0.1:5000
 
 # CORS — tu web app Angular
 CORS_ALLOWED_ORIGINS=http://localhost:4200

@@ -70,6 +70,8 @@ public class SecurityConfiguration {
                                 "/api/v1/subscriptions/payment-intent",
                                 "/api/v1/webhooks/stripe",
                         "/api/v1/devices/provisioning",
+                        "/api/v1/devices/commands/pending",
+                        "/api/v1/devices/*/commands/*/ack",
                         "/api/v1/evaluations/telemetry",
                         "/favicon.ico",
                                 "/error"
@@ -87,7 +89,7 @@ public class SecurityConfiguration {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "X-API-Key"));
+                configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "X-API-Key", "X-Edge-Token"));
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

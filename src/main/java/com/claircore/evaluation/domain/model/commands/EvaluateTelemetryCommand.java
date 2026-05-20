@@ -11,6 +11,8 @@ public record EvaluateTelemetryCommand(
         AirQuality airQuality,
         ParticulateMatter particulateMatter,
         Connectivity connectivity,
+        Location location,
+        Integer healthStatus,
         String status,
         Instant recordedAt
 ) {
@@ -32,6 +34,12 @@ public record EvaluateTelemetryCommand(
         }
         if (connectivity == null) {
             throw new IllegalArgumentException("connectivity must not be null");
+        }
+        if (location == null) {
+            throw new IllegalArgumentException("location must not be null");
+        }
+        if (healthStatus == null || healthStatus < 0 || healthStatus > 100) {
+            throw new IllegalArgumentException("healthStatus must be between 0 and 100");
         }
         if (status == null || status.isBlank()) {
             throw new IllegalArgumentException("status must not be null or blank");

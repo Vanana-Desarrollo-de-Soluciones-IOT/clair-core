@@ -81,8 +81,12 @@ public class TelemetryEvaluationController {
                         request.particulateMatter().pm10()
                 ),
                 new Connectivity(
-                        request.connectivity().status()
+                        request.connectivity().status(),
+                        request.connectivity().network(),
+                        request.connectivity().signalStrength()
                 ),
+                new Location(request.location().country()),
+                request.healthStatus(),
                 request.status(),
                 recordedAt
         );

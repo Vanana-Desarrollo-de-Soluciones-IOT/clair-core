@@ -5,7 +5,6 @@ import com.claircore.evaluation.domain.model.valueobjects.DeviceId;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class ExternalDeviceService {

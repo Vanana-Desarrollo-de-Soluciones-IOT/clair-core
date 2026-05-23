@@ -50,7 +50,8 @@ public class TelemetryRecordedKafkaConsumer {
             event = objectMapper.readValue(payload, TelemetryRecordedIntegrationEvent.class);
         } catch (Exception e) {
             LOGGER.error("Failed to deserialize telemetry event payload: {}", payload, e);
-            return;
+            // Let the error handler drive retries/DLQ; do not commit the offset.
+            throw new IllegalArgumentException("Invalid telemetry event payload", e);
         }
 
         LOGGER.info("Consuming telemetry record for device {}", event.deviceId());
@@ -78,6 +79,8 @@ public class TelemetryRecordedKafkaConsumer {
             telemetryEvaluationCommandService.handle(command);
         } catch (Exception e) {
             LOGGER.error("Failed to process telemetry event for device {}", event.deviceId(), e);
+            // Force a retry/DLQ instead of silently advancing the offset.
+            throw e;
         }
     }
 

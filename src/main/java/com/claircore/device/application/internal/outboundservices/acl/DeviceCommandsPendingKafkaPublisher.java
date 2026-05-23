@@ -5,8 +5,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
+import com.claircore.shared.infrastructure.persistence.jpa.outbox.OutboxMessage;
+import com.claircore.shared.infrastructure.persistence.jpa.outbox.OutboxMessageRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Kafka publisher that emits DeviceCommandIssued integration events
@@ -17,20 +20,26 @@ public class DeviceCommandsPendingKafkaPublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCommandsPendingKafkaPublisher.class);
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxMessageRepository outboxMessageRepository;
     private final ObjectMapper objectMapper;
 
-    public DeviceCommandsPendingKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
-        this.kafkaTemplate = kafkaTemplate;
+    public DeviceCommandsPendingKafkaPublisher(OutboxMessageRepository outboxMessageRepository, ObjectMapper objectMapper) {
+        this.outboxMessageRepository = outboxMessageRepository;
         this.objectMapper = objectMapper;
     }
 
+    @Transactional
     public void publish(DeviceCommandIssuedIntegrationEvent event) {
         LOGGER.info("Publishing pending command {} to Kafka for device {}", event.commandId(), event.deviceId());
         try {
-            kafkaTemplate.send(DeviceKafkaTopics.COMMANDS_PENDING.name(), event.deviceId(), toJson(event));
+            outboxMessageRepository.save(new OutboxMessage(
+                    DeviceKafkaTopics.COMMANDS_PENDING.name(),
+                    event.deviceId(),
+                    toJson(event)
+            ));
         } catch (Exception e) {
             LOGGER.error("Failed to publish pending command {}", event.commandId(), e);
+            throw new IllegalStateException("Failed to publish pending device command integration event", e);
         }
     }
 

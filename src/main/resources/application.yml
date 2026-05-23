@@ -88,6 +88,28 @@ resilience4j:
         slowCallDurationThreshold: 2s
         failureRateThreshold: 50
         waitDurationInOpenState: 20s
+      kafkaPublisher:
+        slidingWindowSize: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+      redisRepository:
+        slidingWindowSize: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 200ms
+  retry:
+    instances:
+      kafkaPublisher:
+        maxAttempts: 3
+        waitDuration: 200ms
+      redisRepository:
+        maxAttempts: 3
+        waitDuration: 100ms
 
 # Stripe Configuration
 stripe:

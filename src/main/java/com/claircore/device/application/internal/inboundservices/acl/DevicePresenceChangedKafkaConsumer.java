@@ -44,7 +44,8 @@ public class DevicePresenceChangedKafkaConsumer {
             event = objectMapper.readValue(payload, DevicePresenceChangedIntegrationEvent.class);
         } catch (Exception e) {
             LOGGER.error("Failed to deserialize presence payload: {}", payload, e);
-            return;
+            // Let the error handler drive retries/DLQ; do not commit the offset.
+            throw new IllegalArgumentException("Invalid presence event payload", e);
         }
 
         LOGGER.info("Consuming presence change for device {} -> {}", event.deviceId(), event.status());
@@ -60,6 +61,8 @@ public class DevicePresenceChangedKafkaConsumer {
             devicePresenceCommandService.handle(command);
         } catch (Exception e) {
             LOGGER.error("Failed to process presence change for device {}", event.deviceId(), e);
+            // Force a retry/DLQ instead of silently advancing the offset.
+            throw e;
         }
     }
 }

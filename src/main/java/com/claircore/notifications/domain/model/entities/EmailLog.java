@@ -7,10 +7,11 @@ import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.util.UUID;
 
 @Entity
 @Table(name = "email_logs")
@@ -20,8 +21,9 @@ public class EmailLog extends AuditableModel {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    @Column(nullable = false, updatable = false)
+    private UUID id;
 
     @Embedded
     private EmailRecipient recipientEmail;
@@ -56,7 +58,7 @@ public class EmailLog extends AuditableModel {
         return new EmailLog(recipientEmail, subject, content, false, errorMessage);
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 

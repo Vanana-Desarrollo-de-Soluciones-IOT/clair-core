@@ -42,7 +42,8 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
             event = objectMapper.readValue(payload, DeviceCommandAcknowledgedIntegrationEvent.class);
         } catch (Exception e) {
             LOGGER.error("Failed to deserialize command ACK payload: {}", payload, e);
-            return;
+            // Let the error handler drive retries/DLQ; do not commit the offset.
+            throw new IllegalArgumentException("Invalid command ACK payload", e);
         }
 
         LOGGER.info("Consuming command ACK for command {}", event.commandId());
@@ -58,6 +59,8 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
             deviceControlCommandService.handle(command);
         } catch (Exception e) {
             LOGGER.error("Failed to process command ACK for command {}", event.commandId(), e);
+            // Force a retry/DLQ instead of silently advancing the offset.
+            throw e;
         }
     }
 }

@@ -8,10 +8,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+
+import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 
 /**
  * Kafka consumer that processes CommandAcknowledged integration events
@@ -24,11 +28,13 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
 
     private final DeviceControlCommandService deviceControlCommandService;
     private final ObjectMapper objectMapper;
+    private final KafkaInboxService kafkaInboxService;
 
-    public DeviceCommandAcknowledgedKafkaConsumer(DeviceControlCommandService deviceControlCommandService, ObjectMapper objectMapper) {
+    public DeviceCommandAcknowledgedKafkaConsumer(DeviceControlCommandService deviceControlCommandService, ObjectMapper objectMapper, KafkaInboxService kafkaInboxService) {
         this.deviceControlCommandService = deviceControlCommandService;
         // Edge currently publishes snake_case keys.
         this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        this.kafkaInboxService = kafkaInboxService;
     }
 
     @KafkaListener(
@@ -36,7 +42,13 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
             groupId = "core-device-commands-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(String payload) {
+    @Transactional
+    public void consume(ConsumerRecord<String, String> record) {
+        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+            return;
+        }
+
+        String payload = record.value();
         DeviceCommandAcknowledgedIntegrationEvent event;
         try {
             event = objectMapper.readValue(payload, DeviceCommandAcknowledgedIntegrationEvent.class);
@@ -57,6 +69,8 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
             );
 
             deviceControlCommandService.handle(command);
+
+            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process command ACK for command {}", event.commandId(), e);
             // Force a retry/DLQ instead of silently advancing the offset.

@@ -9,12 +9,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+
+import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 
 /**
  * Kafka consumer that processes TelemetryRecorded integration events
@@ -28,15 +32,18 @@ public class TelemetryRecordedKafkaConsumer {
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
     private final ObjectMapper objectMapper;
     private final ExternalDeviceService externalDeviceService;
+    private final KafkaInboxService kafkaInboxService;
 
     public TelemetryRecordedKafkaConsumer(
             TelemetryEvaluationCommandService telemetryEvaluationCommandService,
             ObjectMapper objectMapper,
-            ExternalDeviceService externalDeviceService) {
+            ExternalDeviceService externalDeviceService,
+            KafkaInboxService kafkaInboxService) {
         this.telemetryEvaluationCommandService = telemetryEvaluationCommandService;
         // Edge currently publishes snake_case keys.
         this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         this.externalDeviceService = externalDeviceService;
+        this.kafkaInboxService = kafkaInboxService;
     }
 
     @KafkaListener(
@@ -44,7 +51,13 @@ public class TelemetryRecordedKafkaConsumer {
             groupId = "core-evaluation-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(String payload) {
+    @Transactional
+    public void consume(ConsumerRecord<String, String> record) {
+        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+            return;
+        }
+
+        String payload = record.value();
         TelemetryRecordedIntegrationEvent event;
         try {
             event = objectMapper.readValue(payload, TelemetryRecordedIntegrationEvent.class);
@@ -60,6 +73,8 @@ public class TelemetryRecordedKafkaConsumer {
             UUID resolvedDeviceId = resolveDeviceId(event.deviceId()).orElse(null);
             if (resolvedDeviceId == null) {
                 LOGGER.warn("Skipping telemetry event: unknown device identifier {}", event.deviceId());
+                // Skip is intentional; do not retry forever.
+                kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
                 return;
             }
 
@@ -77,6 +92,8 @@ public class TelemetryRecordedKafkaConsumer {
             );
 
             telemetryEvaluationCommandService.handle(command);
+
+            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process telemetry event for device {}", event.deviceId(), e);
             // Force a retry/DLQ instead of silently advancing the offset.

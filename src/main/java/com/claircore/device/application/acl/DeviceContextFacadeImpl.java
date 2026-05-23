@@ -1,6 +1,7 @@
 package com.claircore.device.application.acl;
 
 import com.claircore.device.domain.model.queries.GetDeviceByApiKeyQuery;
+import com.claircore.device.domain.model.queries.GetDeviceByHardwareIdQuery;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,13 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     @Override
     public Optional<UUID> findDeviceIdByApiKey(String apiKey) {
         var query = new GetDeviceByApiKeyQuery(apiKey);
+        return deviceQueryService.handle(query)
+                .map(device -> device.getId());
+    }
+
+    @Override
+    public Optional<UUID> findDeviceIdByHardwareId(String hardwareId) {
+        var query = new GetDeviceByHardwareIdQuery(hardwareId);
         return deviceQueryService.handle(query)
                 .map(device -> device.getId());
     }

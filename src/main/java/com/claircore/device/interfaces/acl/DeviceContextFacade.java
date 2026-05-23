@@ -6,4 +6,6 @@ import java.util.UUID;
 public interface DeviceContextFacade {
 
     Optional<UUID> findDeviceIdByApiKey(String apiKey);
+
+    Optional<UUID> findDeviceIdByHardwareId(String hardwareId);
 }

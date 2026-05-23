@@ -4,6 +4,7 @@ import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
 import com.claircore.evaluation.domain.model.valueobjects.*;
 import com.claircore.evaluation.domain.services.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.infrastructure.kafka.EvaluationKafkaTopics;
+import com.claircore.evaluation.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
@@ -12,6 +13,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Kafka consumer that processes TelemetryRecorded integration events
@@ -24,11 +27,16 @@ public class TelemetryRecordedKafkaConsumer {
 
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
     private final ObjectMapper objectMapper;
+    private final ExternalDeviceService externalDeviceService;
 
-    public TelemetryRecordedKafkaConsumer(TelemetryEvaluationCommandService telemetryEvaluationCommandService, ObjectMapper objectMapper) {
+    public TelemetryRecordedKafkaConsumer(
+            TelemetryEvaluationCommandService telemetryEvaluationCommandService,
+            ObjectMapper objectMapper,
+            ExternalDeviceService externalDeviceService) {
         this.telemetryEvaluationCommandService = telemetryEvaluationCommandService;
         // Edge currently publishes snake_case keys.
         this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        this.externalDeviceService = externalDeviceService;
     }
 
     @KafkaListener(
@@ -48,8 +56,14 @@ public class TelemetryRecordedKafkaConsumer {
         LOGGER.info("Consuming telemetry record for device {}", event.deviceId());
 
         try {
+            UUID resolvedDeviceId = resolveDeviceId(event.deviceId()).orElse(null);
+            if (resolvedDeviceId == null) {
+                LOGGER.warn("Skipping telemetry event: unknown device identifier {}", event.deviceId());
+                return;
+            }
+
             var command = new EvaluateTelemetryCommand(
-                    new com.claircore.evaluation.domain.model.valueobjects.DeviceId(java.util.UUID.fromString(event.deviceId())),
+                    new com.claircore.evaluation.domain.model.valueobjects.DeviceId(resolvedDeviceId),
                     event.deviceTime(),
                     String.valueOf(event.uptimeSeconds()),
                     new AirQuality(event.co2(), event.temperature(), event.humidity()),
@@ -64,6 +78,18 @@ public class TelemetryRecordedKafkaConsumer {
             telemetryEvaluationCommandService.handle(command);
         } catch (Exception e) {
             LOGGER.error("Failed to process telemetry event for device {}", event.deviceId(), e);
+        }
+    }
+
+    private Optional<UUID> resolveDeviceId(String deviceIdOrHardwareId) {
+        if (deviceIdOrHardwareId == null || deviceIdOrHardwareId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(UUID.fromString(deviceIdOrHardwareId));
+        } catch (IllegalArgumentException ignored) {
+            // Edge historically sent hardwareId in the device_id field.
+            return externalDeviceService.findDeviceIdByHardwareId(deviceIdOrHardwareId);
         }
     }
 }

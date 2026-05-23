@@ -1,5 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
+import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandIssuedIntegrationEvent;
+import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingKafkaPublisher;
 import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.CreateDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.DispatchPendingDeviceCommandsCommand;
@@ -14,6 +16,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -21,13 +24,16 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
 
     private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final DeviceCommandRepository deviceCommandRepository;
+    private final DeviceCommandsPendingKafkaPublisher deviceCommandsPendingKafkaPublisher;
 
     public DeviceControlCommandServiceImpl(
             DeviceAssignmentRepository deviceAssignmentRepository,
-            DeviceCommandRepository deviceCommandRepository
+            DeviceCommandRepository deviceCommandRepository,
+            DeviceCommandsPendingKafkaPublisher deviceCommandsPendingKafkaPublisher
     ) {
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.deviceCommandRepository = deviceCommandRepository;
+        this.deviceCommandsPendingKafkaPublisher = deviceCommandsPendingKafkaPublisher;
     }
 
     @Override
@@ -42,7 +48,18 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
         }
 
         DeviceCommand deviceCommand = new DeviceCommand(assignment.getDevice(), command.type(), command.payload());
-        return deviceCommandRepository.save(deviceCommand);
+        DeviceCommand saved = deviceCommandRepository.save(deviceCommand);
+
+        deviceCommandsPendingKafkaPublisher.publish(new DeviceCommandIssuedIntegrationEvent(
+                saved.getId().toString(),
+                assignment.getDevice().getId().toString(),
+                assignment.getDevice().getHardwareId().value(),
+                saved.getType().name(),
+                saved.getPayload(),
+                Instant.now().toString()
+        ));
+
+        return saved;
     }
 
     @Override

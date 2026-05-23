@@ -34,10 +34,6 @@ public class Device {
     private ApiKey apiKey;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "device_secret", nullable = false, unique = true, length = 255))
-    private DeviceSecret deviceSecret;
-
-    @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "device_type", nullable = false))
     private DeviceType deviceType;
 
@@ -46,7 +42,7 @@ public class Device {
 
     protected Device() {}
 
-    public Device(String serialNumber, String name, HardwareId hardwareId, ApiKey apiKey, DeviceSecret deviceSecret, DeviceType deviceType) {
+    public Device(String serialNumber, String name, HardwareId hardwareId, ApiKey apiKey, DeviceType deviceType) {
         this.serialNumber = serialNumber;
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Device name must not be null or blank");
@@ -55,7 +51,6 @@ public class Device {
         this.factoryName = name;
         this.hardwareId = hardwareId;
         this.apiKey = apiKey;
-        this.deviceSecret = deviceSecret;
         this.deviceType = deviceType;
     }
 
@@ -80,7 +75,6 @@ public class Device {
     public String getFactoryName() { return factoryName; }
     public HardwareId getHardwareId() { return hardwareId; }
     public ApiKey getApiKey() { return apiKey; }
-    public DeviceSecret getDeviceSecret() { return deviceSecret; }
     public DeviceType getDeviceType() { return deviceType; }
     public DeviceAudit getAuditFields() { return auditFields; }
 

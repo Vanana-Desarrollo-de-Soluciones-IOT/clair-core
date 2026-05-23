@@ -12,7 +12,6 @@ import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.interfaces.rest.resources.*;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,14 +21,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.beans.factory.annotation.Value;
-
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,18 +35,12 @@ public class DeviceController {
 
     private final DeviceCommandService deviceCommandService;
     private final DeviceQueryService deviceQueryService;
-    private final DeviceRepository deviceRepository;
-
-    @Value("${edge.provisioning.token:}")
-    private String edgeToken;
 
     public DeviceController(
             DeviceCommandService deviceCommandService,
-            DeviceQueryService deviceQueryService,
-            DeviceRepository deviceRepository) {
+            DeviceQueryService deviceQueryService) {
         this.deviceCommandService = deviceCommandService;
         this.deviceQueryService = deviceQueryService;
-        this.deviceRepository = deviceRepository;
     }
 
     @PostMapping("/pair")
@@ -103,35 +92,6 @@ public class DeviceController {
         var query = new GetDevicesBySpaceQuery(spaceId, page, size);
         Page<DeviceAssignment> assignments = deviceQueryService.handle(query);
         return ResponseEntity.ok(assignments.map(this::toResponse));
-    }
-
-    @GetMapping("/provisioning")
-    @Operation(summary = "Get devices for edge provisioning")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Devices returned for edge cache synchronization")
-    })
-    public ResponseEntity<List<ProvisionedDeviceResource>> getProvisionedDevices(
-            @RequestHeader(value = "X-Edge-Token", required = false) String providedEdgeToken,
-            @RequestParam(defaultValue = "500") Integer limit) {
-
-        if (edgeToken == null || edgeToken.isBlank() || providedEdgeToken == null || !edgeToken.equals(providedEdgeToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        int cappedLimit = limit == null ? 500 : Math.max(1, Math.min(limit, 5000));
-
-        var page = deviceRepository.findProvisionedDevices(PageRequest.of(0, cappedLimit));
-        var result = page.getContent().stream()
-                .map(p -> new ProvisionedDeviceResource(
-                        p.getDeviceId().toString(),
-                        p.getHardwareId(),
-                        p.getApiKey(),
-                        p.getDeviceSecret(),
-                        p.getStatus().name()
-                ))
-                .toList();
-
-        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{deviceId}")

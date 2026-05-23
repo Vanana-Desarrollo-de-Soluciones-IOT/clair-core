@@ -1,5 +1,6 @@
 package com.claircore.analytics.application.internal.inboundservices.acl;
 
+import com.claircore.analytics.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.analytics.domain.model.commands.ProcessTelemetryAnalyticCommand;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.services.KpiLiveMetricsCommandService;
@@ -20,13 +21,16 @@ public class TelemetryAnalyticKafkaConsumer {
 
     private final KpiLiveMetricsCommandService kpiLiveMetricsCommandService;
     private final ObjectMapper objectMapper;
+    private final ExternalDeviceService externalDeviceService;
 
     public TelemetryAnalyticKafkaConsumer(
             KpiLiveMetricsCommandService kpiLiveMetricsCommandService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ExternalDeviceService externalDeviceService
     ) {
         this.kpiLiveMetricsCommandService = kpiLiveMetricsCommandService;
         this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        this.externalDeviceService = externalDeviceService;
     }
 
     @KafkaListener(
@@ -74,7 +78,7 @@ public class TelemetryAnalyticKafkaConsumer {
         try {
             return UUID.fromString(deviceId);
         } catch (IllegalArgumentException e) {
-            return null;
+            return externalDeviceService.findDeviceIdByHardwareId(deviceId).orElse(null);
         }
     }
 }

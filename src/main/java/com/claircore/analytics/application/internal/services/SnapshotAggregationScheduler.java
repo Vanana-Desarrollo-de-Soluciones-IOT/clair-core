@@ -34,11 +34,15 @@ public class SnapshotAggregationScheduler {
         this.aqiCalculationDomainService = aqiCalculationDomainService;
     }
 
+    //@Scheduled(fixedRate = 5000)//
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void aggregateHourlySnapshots() {
-        Instant windowEnd = Instant.now().truncatedTo(ChronoUnit.HOURS);
-        Instant windowStart = windowEnd.minus(Duration.ofHours(1));
+
+        System.out.println("Run 5 segundos");
+        // Cambiamos la ventana de tiempo para mirar los últimos 5 minutos en lugar de la hora pasada
+        Instant windowEnd = Instant.now();
+        Instant windowStart = windowEnd.minus(Duration.ofMinutes(5));
 
         String sql = """
                 SELECT device_id,
@@ -58,7 +62,11 @@ public class SnapshotAggregationScheduler {
         );
 
         for (Map<String, Object> row : rows) {
-            UUID deviceId = UUID.fromString((String) row.get("device_id"));
+            // SOLUCION AL CLASS CAST EXCEPTION
+            Object deviceIdObj = row.get("device_id");
+            UUID deviceId = deviceIdObj instanceof UUID ? 
+                    (UUID) deviceIdObj : 
+                    UUID.fromString(deviceIdObj.toString());
             Double avgCo2 = ((Number) row.get("avg_co2")).doubleValue();
             Double avgPm25 = ((Number) row.get("avg_pm2_5")).doubleValue();
             Double avgTemp = ((Number) row.get("avg_temperature")).doubleValue();

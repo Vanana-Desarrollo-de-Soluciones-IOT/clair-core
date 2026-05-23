@@ -9,11 +9,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
+
+import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 
 /**
  * Kafka consumer that processes DevicePresenceChanged integration events
@@ -26,11 +30,13 @@ public class DevicePresenceChangedKafkaConsumer {
 
     private final DevicePresenceCommandService devicePresenceCommandService;
     private final ObjectMapper objectMapper;
+    private final KafkaInboxService kafkaInboxService;
 
-    public DevicePresenceChangedKafkaConsumer(DevicePresenceCommandService devicePresenceCommandService, ObjectMapper objectMapper) {
+    public DevicePresenceChangedKafkaConsumer(DevicePresenceCommandService devicePresenceCommandService, ObjectMapper objectMapper, KafkaInboxService kafkaInboxService) {
         this.devicePresenceCommandService = devicePresenceCommandService;
         // Edge currently publishes snake_case keys.
         this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        this.kafkaInboxService = kafkaInboxService;
     }
 
     @KafkaListener(
@@ -38,13 +44,20 @@ public class DevicePresenceChangedKafkaConsumer {
             groupId = "core-device-presence-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(String payload) {
+    @Transactional
+    public void consume(ConsumerRecord<String, String> record) {
+        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+            return;
+        }
+
+        String payload = record.value();
         DevicePresenceChangedIntegrationEvent event;
         try {
             event = objectMapper.readValue(payload, DevicePresenceChangedIntegrationEvent.class);
         } catch (Exception e) {
             LOGGER.error("Failed to deserialize presence payload: {}", payload, e);
-            return;
+            // Let the error handler drive retries/DLQ; do not commit the offset.
+            throw new IllegalArgumentException("Invalid presence event payload", e);
         }
 
         LOGGER.info("Consuming presence change for device {} -> {}", event.deviceId(), event.status());
@@ -58,8 +71,12 @@ public class DevicePresenceChangedKafkaConsumer {
             );
 
             devicePresenceCommandService.handle(command);
+
+            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process presence change for device {}", event.deviceId(), e);
+            // Force a retry/DLQ instead of silently advancing the offset.
+            throw e;
         }
     }
 }

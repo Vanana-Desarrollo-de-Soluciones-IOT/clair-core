@@ -4,6 +4,8 @@ import com.claircore.iam.domain.model.entities.RegistrationSession;
 import com.claircore.iam.domain.model.valueobjects.RegistrationSessionId;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -23,6 +25,8 @@ public class RegistrationSessionRepository {
         this.objectMapper = objectMapper;
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void save(RegistrationSession session) {
         try {
             String key = buildKey(session.sessionId().id());
@@ -34,6 +38,8 @@ public class RegistrationSessionRepository {
         }
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public Optional<RegistrationSession> findById(RegistrationSessionId sessionId) {
         String key = buildKey(sessionId.id());
         String value = redisTemplate.opsForValue().get(key);
@@ -48,6 +54,8 @@ public class RegistrationSessionRepository {
         }
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void deleteById(RegistrationSessionId sessionId) {
         String key = buildKey(sessionId.id());
         redisTemplate.delete(key);

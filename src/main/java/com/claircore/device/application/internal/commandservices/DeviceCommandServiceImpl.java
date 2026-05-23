@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,10 @@ import org.springframework.data.domain.PageRequest;
 
 @Service
 public class DeviceCommandServiceImpl implements DeviceCommandService {
+
+    private static final SecureRandom HARDWARE_ID_RANDOM = new SecureRandom();
+    private static final char[] HARDWARE_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+    private static final int HARDWARE_ID_SUFFIX_LENGTH = 4;
 
     private final DeviceRepository deviceRepository;
     private final DeviceAssignmentRepository deviceAssignmentRepository;
@@ -59,10 +64,9 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
                 continue;
             }
-            String hardwareId = "CLAIR-" + String.format("%04d", i);
-            if (deviceRepository.existsByHardwareId(hardwareId)) {
-                continue;
-            }
+
+            // Factory inventory hardware IDs must be random and unique.
+            String hardwareId = generateUniqueHardwareId();
 
             Device device = new Device(
                 serialNumber,
@@ -77,6 +81,25 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             seeded.add(savedDevice);
         }
         return seeded;
+    }
+
+    private String generateUniqueHardwareId() {
+        // Very low collision probability, but we still guard uniqueness via the repository.
+        for (int attempt = 0; attempt < 50; attempt++) {
+            String candidate = "CLAIR-" + randomSuffix();
+            if (!deviceRepository.existsByHardwareId(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Unable to generate a unique hardware id after multiple attempts");
+    }
+
+    private String randomSuffix() {
+        char[] buf = new char[HARDWARE_ID_SUFFIX_LENGTH];
+        for (int i = 0; i < HARDWARE_ID_SUFFIX_LENGTH; i++) {
+            buf[i] = HARDWARE_ID_ALPHABET[HARDWARE_ID_RANDOM.nextInt(HARDWARE_ID_ALPHABET.length)];
+        }
+        return new String(buf);
     }
 
     @Override

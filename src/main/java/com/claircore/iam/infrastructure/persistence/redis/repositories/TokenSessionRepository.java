@@ -5,6 +5,8 @@ import com.claircore.iam.domain.model.valueobjects.TokenJti;
 import com.claircore.iam.domain.model.valueobjects.TokenType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -27,6 +29,8 @@ public class TokenSessionRepository {
         this.objectMapper = objectMapper;
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void save(TokenSession session) {
         try {
             String tokenKey = buildTokenKey(session.jti().jti(), session.type());
@@ -44,6 +48,8 @@ public class TokenSessionRepository {
         }
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void replaceForUser(TokenSession session) {
         UUID userId = session.userId();
         TokenType type = session.type();
@@ -57,6 +63,8 @@ public class TokenSessionRepository {
         save(session);
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void revokeAllTokensForUser(UUID userId) {
         String accessIndex = buildUserIndexKey(userId, TokenType.ACCESS);
         String refreshIndex = buildUserIndexKey(userId, TokenType.REFRESH);
@@ -75,6 +83,8 @@ public class TokenSessionRepository {
         redisTemplate.delete(refreshIndex);
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public Optional<TokenSession> findByJti(TokenJti jti, TokenType type) {
         String key = buildTokenKey(jti.jti(), type);
         String value = redisTemplate.opsForValue().get(key);
@@ -89,11 +99,15 @@ public class TokenSessionRepository {
         }
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public void deleteByJti(TokenJti jti, TokenType type) {
         String key = buildTokenKey(jti.jti(), type);
         redisTemplate.delete(key);
     }
 
+    @Retry(name = "redisRepository")
+    @CircuitBreaker(name = "redisRepository")
     public boolean existsByJti(TokenJti jti, TokenType type) {
         String key = buildTokenKey(jti.jti(), type);
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));

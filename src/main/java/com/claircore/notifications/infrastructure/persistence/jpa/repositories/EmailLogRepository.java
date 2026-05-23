@@ -8,9 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
+public interface EmailLogRepository extends JpaRepository<EmailLog, UUID> {
     List<EmailLog> findByRecipientEmail(EmailRecipient recipientEmail);
 
     Page<EmailLog> findByRecipientEmail(EmailRecipient recipientEmail, Pageable pageable);

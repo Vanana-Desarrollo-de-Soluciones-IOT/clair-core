@@ -15,7 +15,7 @@ import java.time.Instant;
 @Table(
         name = "processed_kafka_record",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_processed_kafka_record", columnNames = {"topic", "partition", "offset"})
+                @UniqueConstraint(name = "uq_processed_kafka_record", columnNames = {"topic", "kafka_partition", "kafka_offset"})
         },
         indexes = {
                 @Index(name = "idx_processed_kafka_record_ts", columnList = "processed_at")
@@ -30,10 +30,10 @@ public class ProcessedKafkaRecord {
     @Column(nullable = false)
     private String topic;
 
-    @Column(name = "partition", nullable = false)
+    @Column(name = "kafka_partition", nullable = false)
     private int partition;
 
-    @Column(name = "offset", nullable = false)
+    @Column(name = "kafka_offset", nullable = false)
     private long offset;
 
     @Column(name = "processed_at", nullable = false)

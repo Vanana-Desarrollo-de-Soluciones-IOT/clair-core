@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
+import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedKafkaPublisher;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
@@ -50,7 +50,7 @@ class DeviceCommandServiceImplTest {
     private ExternalBillingService externalBillingService;
 
     @Mock
-    private DeviceWebhookNotifier deviceWebhookNotifier;
+    private ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher;
 
 
     @InjectMocks
@@ -60,12 +60,18 @@ class DeviceCommandServiceImplTest {
     void seedDevicesCreatesNonExistingOnes() {
         when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
         when(deviceRepository.existsByHardwareId(any())).thenReturn(false);
-        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> {
+            Device device = i.getArgument(0);
+            // In production JPA assigns the id; in this unit test we do it manually.
+            ReflectionTestUtils.setField(device, "id", UUID.randomUUID());
+            return device;
+        });
 
         List<Device> result = service.handle(new SeedDevicesCommand(2));
 
         assertEquals(2, result.size());
         verify(deviceRepository, times(2)).save(any(Device.class));
+        verify(provisioningDevicesChangedKafkaPublisher, times(2)).publish(any());
     }
 
     @Test
@@ -127,7 +133,7 @@ class DeviceCommandServiceImplTest {
         assertEquals(spaceId, result.getSpaceId());
         assertEquals(new UserId(userId), result.getOwnerUserId());
         assertNotNull(result.getActivatedAt());
-        verify(deviceWebhookNotifier).notifyDeviceChanged(result);
+        verify(provisioningDevicesChangedKafkaPublisher).publish(any());
     }
 
     @Test
@@ -160,7 +166,7 @@ class DeviceCommandServiceImplTest {
 
         verify(deviceAssignmentRepository).delete(assignment);
         verify(deviceRepository, never()).delete(any(Device.class));
-        verify(deviceWebhookNotifier).notifyDeviceUnassigned(device);
+        verify(provisioningDevicesChangedKafkaPublisher).publish(any());
     }
 
     private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {
@@ -169,7 +175,6 @@ class DeviceCommandServiceImplTest {
             "Sensor",
             new com.claircore.device.domain.model.valueobjects.HardwareId(hardwareId),
             com.claircore.device.domain.model.valueobjects.ApiKey.generate(),
-            com.claircore.device.domain.model.valueobjects.DeviceSecret.generate(),
             new com.claircore.device.domain.model.valueobjects.DeviceType("air-quality-v1")
         );
         ReflectionTestUtils.setField(device, "id", deviceId);

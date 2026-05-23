@@ -1,6 +1,9 @@
 package com.claircore.device.application.internal.outboundservices.acl;
 
 import com.claircore.device.infrastructure.kafka.DeviceKafkaTopics;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,9 +21,12 @@ public class ProvisioningDevicesChangedKafkaPublisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProvisioningDevicesChangedKafkaPublisher.class);
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    public ProvisioningDevicesChangedKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate) {
+    public ProvisioningDevicesChangedKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
+        // Edge currently expects snake_case keys.
+        this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
     public void publish(DeviceChangedIntegrationEvent event) {
@@ -33,18 +39,10 @@ public class ProvisioningDevicesChangedKafkaPublisher {
     }
 
     private String toJson(DeviceChangedIntegrationEvent event) {
-        return String.format(
-                "{\"deviceId\":\"%s\",\"hardwareId\":\"%s\",\"apiKey\":\"%s\",\"status\":\"%s\",\"changeType\":\"%s\",\"changedAt\":\"%s\"}",
-                escape(event.deviceId()),
-                escape(event.hardwareId()),
-                escape(event.apiKey()),
-                escape(event.status()),
-                escape(event.changeType()),
-                escape(event.changedAt())
-        );
-    }
-
-    private String escape(String value) {
-        return value != null ? value.replace("\"", "\\\"") : "";
+        try {
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize DeviceChangedIntegrationEvent", e);
+        }
     }
 }

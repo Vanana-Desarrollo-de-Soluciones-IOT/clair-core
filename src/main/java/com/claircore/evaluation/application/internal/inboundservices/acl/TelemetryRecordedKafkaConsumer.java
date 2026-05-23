@@ -4,6 +4,8 @@ import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
 import com.claircore.evaluation.domain.model.valueobjects.*;
 import com.claircore.evaluation.domain.services.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.infrastructure.kafka.EvaluationKafkaTopics;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,9 +23,12 @@ public class TelemetryRecordedKafkaConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRecordedKafkaConsumer.class);
 
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
+    private final ObjectMapper objectMapper;
 
-    public TelemetryRecordedKafkaConsumer(TelemetryEvaluationCommandService telemetryEvaluationCommandService) {
+    public TelemetryRecordedKafkaConsumer(TelemetryEvaluationCommandService telemetryEvaluationCommandService, ObjectMapper objectMapper) {
         this.telemetryEvaluationCommandService = telemetryEvaluationCommandService;
+        // Edge currently publishes snake_case keys.
+        this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
     @KafkaListener(
@@ -31,7 +36,15 @@ public class TelemetryRecordedKafkaConsumer {
             groupId = "core-evaluation-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(TelemetryRecordedIntegrationEvent event) {
+    public void consume(String payload) {
+        TelemetryRecordedIntegrationEvent event;
+        try {
+            event = objectMapper.readValue(payload, TelemetryRecordedIntegrationEvent.class);
+        } catch (Exception e) {
+            LOGGER.error("Failed to deserialize telemetry event payload: {}", payload, e);
+            return;
+        }
+
         LOGGER.info("Consuming telemetry record for device {}", event.deviceId());
 
         try {

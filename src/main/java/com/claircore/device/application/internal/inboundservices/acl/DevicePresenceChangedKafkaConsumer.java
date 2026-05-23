@@ -5,6 +5,8 @@ import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.HardwareId;
 import com.claircore.device.domain.services.DevicePresenceCommandService;
 import com.claircore.device.infrastructure.kafka.DeviceKafkaTopics;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,9 +25,12 @@ public class DevicePresenceChangedKafkaConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(DevicePresenceChangedKafkaConsumer.class);
 
     private final DevicePresenceCommandService devicePresenceCommandService;
+    private final ObjectMapper objectMapper;
 
-    public DevicePresenceChangedKafkaConsumer(DevicePresenceCommandService devicePresenceCommandService) {
+    public DevicePresenceChangedKafkaConsumer(DevicePresenceCommandService devicePresenceCommandService, ObjectMapper objectMapper) {
         this.devicePresenceCommandService = devicePresenceCommandService;
+        // Edge currently publishes snake_case keys.
+        this.objectMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
     @KafkaListener(
@@ -33,7 +38,15 @@ public class DevicePresenceChangedKafkaConsumer {
             groupId = "core-device-presence-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(DevicePresenceChangedIntegrationEvent event) {
+    public void consume(String payload) {
+        DevicePresenceChangedIntegrationEvent event;
+        try {
+            event = objectMapper.readValue(payload, DevicePresenceChangedIntegrationEvent.class);
+        } catch (Exception e) {
+            LOGGER.error("Failed to deserialize presence payload: {}", payload, e);
+            return;
+        }
+
         LOGGER.info("Consuming presence change for device {} -> {}", event.deviceId(), event.status());
 
         try {

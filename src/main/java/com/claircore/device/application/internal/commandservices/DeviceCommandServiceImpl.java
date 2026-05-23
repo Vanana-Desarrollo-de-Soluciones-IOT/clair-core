@@ -72,6 +72,8 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
+            // Edge provisioning cache is fed only via Kafka integration events.
+            publishDeviceChanged(savedDevice, DeviceStatus.OFFLINE.name(), "CREATED");
             seeded.add(savedDevice);
         }
         return seeded;

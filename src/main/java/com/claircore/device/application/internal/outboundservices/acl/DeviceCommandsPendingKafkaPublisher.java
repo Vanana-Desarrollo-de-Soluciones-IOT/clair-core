@@ -1,6 +1,8 @@
 package com.claircore.device.application.internal.outboundservices.acl;
 
 import com.claircore.device.infrastructure.kafka.DeviceKafkaTopics;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -16,9 +18,11 @@ public class DeviceCommandsPendingKafkaPublisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCommandsPendingKafkaPublisher.class);
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    public DeviceCommandsPendingKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate) {
+    public DeviceCommandsPendingKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
     public void publish(DeviceCommandIssuedIntegrationEvent event) {
@@ -31,18 +35,10 @@ public class DeviceCommandsPendingKafkaPublisher {
     }
 
     private String toJson(DeviceCommandIssuedIntegrationEvent event) {
-        return String.format(
-                "{\"commandId\":\"%s\",\"deviceId\":\"%s\",\"hardwareId\":\"%s\",\"commandType\":\"%s\",\"payload\":\"%s\",\"issuedAt\":\"%s\"}",
-                escape(event.commandId()),
-                escape(event.deviceId()),
-                escape(event.hardwareId()),
-                escape(event.commandType()),
-                event.payload() != null ? escape(event.payload()) : "",
-                escape(event.issuedAt())
-        );
-    }
-
-    private String escape(String value) {
-        return value != null ? value.replace("\"", "\\\"") : "";
+        try {
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize DeviceCommandIssuedIntegrationEvent", e);
+        }
     }
 }

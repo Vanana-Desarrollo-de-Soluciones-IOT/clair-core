@@ -17,6 +17,9 @@ public interface DeviceCommandRepository extends JpaRepository<DeviceCommand, UU
     @Query("SELECT c FROM DeviceCommand c WHERE c.device.id = :deviceId AND c.id = :commandId")
     Optional<DeviceCommand> findByDeviceIdAndCommandId(@Param("deviceId") UUID deviceId, @Param("commandId") UUID commandId);
 
+    @Query("SELECT c FROM DeviceCommand c WHERE c.device.id = :deviceId ORDER BY c.auditFields.createdAt DESC")
+    Optional<DeviceCommand> findLatestByDeviceId(@Param("deviceId") UUID deviceId);
+
     @Query("SELECT c FROM DeviceCommand c WHERE c.status = :status ORDER BY c.auditFields.createdAt ASC")
     List<DeviceCommand> findByStatusForDispatch(@Param("status") DeviceCommandStatus status, Pageable pageable);
 }

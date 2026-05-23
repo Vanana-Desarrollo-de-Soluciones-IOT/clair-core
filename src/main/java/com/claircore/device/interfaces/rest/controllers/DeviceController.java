@@ -8,10 +8,12 @@ import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.model.queries.GetDeviceByIdQuery;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
+import com.claircore.device.domain.model.queries.GetDeviceStatusByDeviceIdForUserQuery;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.domain.services.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,12 +37,15 @@ public class DeviceController {
 
     private final DeviceCommandService deviceCommandService;
     private final DeviceQueryService deviceQueryService;
+    private final DeviceStatusQueryService deviceStatusQueryService;
 
     public DeviceController(
             DeviceCommandService deviceCommandService,
-            DeviceQueryService deviceQueryService) {
+            DeviceQueryService deviceQueryService,
+            DeviceStatusQueryService deviceStatusQueryService) {
         this.deviceCommandService = deviceCommandService;
         this.deviceQueryService = deviceQueryService;
+        this.deviceStatusQueryService = deviceStatusQueryService;
     }
 
     @PostMapping("/pair")
@@ -101,6 +106,33 @@ public class DeviceController {
         return deviceQueryService.handle(query)
                 .map(device -> ResponseEntity.ok(toResponse(device)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{deviceId}/status")
+    @Operation(summary = "Get current device status")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Status returned"),
+            @ApiResponse(responseCode = "403", description = "The device does not belong to the authenticated user"),
+            @ApiResponse(responseCode = "404", description = "Device assignment not found")
+    })
+    public ResponseEntity<DeviceStatusResponse> getDeviceStatus(
+            HttpServletRequest httpRequest,
+            @PathVariable UUID deviceId
+    ) {
+        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        var query = new GetDeviceStatusByDeviceIdForUserQuery(deviceId, new UserId(userId));
+
+        try {
+            return deviceStatusQueryService.handle(query)
+                    .map(assignment -> ResponseEntity.ok(new DeviceStatusResponse(
+                            assignment.getDevice().getId(),
+                            assignment.getStatus(),
+                            assignment.getLastSeenAt()
+                    )))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (org.springframework.security.access.AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
     }
 
     @DeleteMapping("/{deviceId}")

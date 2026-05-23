@@ -1,7 +1,8 @@
 package com.claircore.device.application.internal.commandservices;
 
+import com.claircore.device.application.internal.outboundservices.acl.DeviceChangedIntegrationEvent;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.webhooks.DeviceWebhookNotifier;
+import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedKafkaPublisher;
 import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +33,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
-    private final DeviceWebhookNotifier deviceWebhookNotifier;
+    private final ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
@@ -39,13 +41,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
-            DeviceWebhookNotifier deviceWebhookNotifier) {
+            ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher) {
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
-        this.deviceWebhookNotifier = deviceWebhookNotifier;
+        this.provisioningDevicesChangedKafkaPublisher = provisioningDevicesChangedKafkaPublisher;
     }
 
     @Override
@@ -67,10 +69,11 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 "Sensor " + i,
                 new HardwareId(hardwareId),
                 ApiKey.generate(),
-                DeviceSecret.generate(),
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
+            // Edge provisioning cache is fed only via Kafka integration events.
+            publishDeviceChanged(savedDevice, DeviceStatus.OFFLINE.name(), "CREATED");
             seeded.add(savedDevice);
         }
         return seeded;
@@ -90,12 +93,12 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 throw new IllegalStateException("Device already paired");
             }
 
-            deviceWebhookNotifier.notifyDeviceChanged(assignment);
+            publishDeviceChanged(assignment, assignment.getStatus().name());
             return assignment;
         }
 
         DeviceAssignment assignment = deviceAssignmentRepository.save(new DeviceAssignment(device, ClaimToken.generate()));
-        deviceWebhookNotifier.notifyDeviceChanged(assignment);
+        publishDeviceChanged(assignment, DeviceStatus.OFFLINE.name());
         return assignment;
     }
 
@@ -120,7 +123,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
         assignment.claimToSpace(command.spaceId(), command.userId());
         DeviceAssignment savedAssignment = deviceAssignmentRepository.save(assignment);
-        deviceWebhookNotifier.notifyDeviceChanged(savedAssignment);
+        publishDeviceChanged(savedAssignment, savedAssignment.getStatus().name());
         return savedAssignment;
     }
 
@@ -142,7 +145,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
         deviceAssignmentRepository.delete(assignment);
         // Reset/unlink is not a decommission. Keep the device cached on the edge.
-        deviceWebhookNotifier.notifyDeviceUnassigned(device);
+        publishDeviceChanged(device, DeviceStatus.OFFLINE.name(), "UPDATED");
     }
 
     @Override
@@ -161,7 +164,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         deviceRepository.save(device);
 
         // Notify downstream consumers with the latest combined view.
-        deviceWebhookNotifier.notifyDeviceChanged(assignment);
+        publishDeviceChanged(assignment, assignment.getStatus().name());
     }
 
     @Override
@@ -195,5 +198,28 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     public long countBySpaceId(UUID spaceId) {
         return deviceAssignmentRepository.countBySpaceId(spaceId);
+    }
+
+    private void publishDeviceChanged(DeviceAssignment assignment, String status) {
+        Device device = assignment.getDevice();
+        provisioningDevicesChangedKafkaPublisher.publish(new DeviceChangedIntegrationEvent(
+                device.getId().toString(),
+                device.getHardwareId().value(),
+                device.getApiKey().value(),
+                status,
+                "UPDATED",
+                Instant.now().toString()
+        ));
+    }
+
+    private void publishDeviceChanged(Device device, String status, String changeType) {
+        provisioningDevicesChangedKafkaPublisher.publish(new DeviceChangedIntegrationEvent(
+                device.getId().toString(),
+                device.getHardwareId().value(),
+                device.getApiKey().value(),
+                status,
+                changeType,
+                Instant.now().toString()
+        ));
     }
 }

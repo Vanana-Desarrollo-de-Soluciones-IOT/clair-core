@@ -18,7 +18,6 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         UUID getDeviceId();
         String getHardwareId();
         String getApiKey();
-        String getDeviceSecret();
         DeviceStatus getStatus();
     }
 
@@ -37,7 +36,6 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
             SELECT d.id as deviceId,
                    d.hardwareId.value as hardwareId,
                    d.apiKey.value as apiKey,
-                   d.deviceSecret.value as deviceSecret,
                    COALESCE(a.status, com.claircore.device.domain.model.valueobjects.DeviceStatus.OFFLINE) as status
             FROM Device d
             LEFT JOIN DeviceAssignment a ON a.device.id = d.id

@@ -28,6 +28,9 @@ spring:
   cache:
     type: redis
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
   mail:
     host: ${SMTP_HOST}
     port: ${SMTP_PORT}
@@ -61,16 +64,6 @@ google:
 
 frontend:
   url: ${FRONTEND_URL}
-
-edge:
-  provisioning:
-    # Shared secret used by the edge service to download provisioning credentials.
-    # MUST be set in production.
-    # Must match EDGE_TO_CORE_TOKEN configured in the edge service.
-    token: ${EDGE_TO_CORE_TOKEN:}
-
-  webhook:
-    devices-url: ${EDGE_WEBHOOK_DEVICES_URL:}
 
 server:
   port: ${PORT:8080}

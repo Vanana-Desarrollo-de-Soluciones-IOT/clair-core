@@ -1,11 +1,17 @@
 package com.claircore.evaluation.application.internal.outboundservices.acl;
 
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
-import com.claircore.evaluation.domain.model.valueobjects.DeviceId;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
+/**
+ * Consumer-side ACL for resolving Device identifiers from the Device bounded context.
+ *
+ * The Evaluation bounded context treats the Device bounded context as the source of truth
+ * for device identity. This service prevents direct repository coupling across contexts.
+ */
 @Service
 public class ExternalDeviceService {
 
@@ -15,9 +21,7 @@ public class ExternalDeviceService {
         this.deviceContextFacade = deviceContextFacade;
     }
 
-    public Optional<DeviceId> fetchDeviceIdByApiKey(String apiKey) {
-        return deviceContextFacade
-                .findDeviceIdByApiKey(apiKey)
-                .map(DeviceId::new);
+    public Optional<UUID> findDeviceIdByHardwareId(String hardwareId) {
+        return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
     }
 }

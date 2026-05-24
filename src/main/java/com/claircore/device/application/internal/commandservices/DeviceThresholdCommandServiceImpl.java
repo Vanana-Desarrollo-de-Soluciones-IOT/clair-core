@@ -49,7 +49,6 @@ public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommand
 
         var configuration = new DeviceMetricThresholdConfiguration(
                 command.metric(),
-                command.operator(),
                 command.value(),
                 command.enabled()
         );

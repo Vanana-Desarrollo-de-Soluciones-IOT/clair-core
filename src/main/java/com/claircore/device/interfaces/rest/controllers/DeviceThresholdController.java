@@ -81,7 +81,6 @@ public class DeviceThresholdController {
                 deviceId,
                 new UserId(userId),
                 request.metric(),
-                request.operator(),
                 request.value(),
                 request.enabled(),
                 DeviceThresholdWriteIntent.CREATE
@@ -110,7 +109,6 @@ public class DeviceThresholdController {
                 deviceId,
                 new UserId(userId),
                 request.metric(),
-                request.operator(),
                 request.value(),
                 request.enabled(),
                 DeviceThresholdWriteIntent.UPDATE

@@ -2,7 +2,6 @@ package com.claircore.device.domain.model.commands;
 
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.model.valueobjects.DeviceThresholdWriteIntent;
-import com.claircore.device.domain.model.valueobjects.ThresholdOperator;
 import com.claircore.device.domain.model.valueobjects.UserId;
 
 import java.math.BigDecimal;
@@ -12,7 +11,6 @@ public record WriteDeviceThresholdCommand(
         UUID deviceId,
         UserId userId,
         MetricThreshold metric,
-        ThresholdOperator operator,
         BigDecimal value,
         boolean enabled,
         DeviceThresholdWriteIntent intent
@@ -26,9 +24,6 @@ public record WriteDeviceThresholdCommand(
         }
         if (metric == null) {
             throw new IllegalArgumentException("Metric must not be null");
-        }
-        if (operator == null) {
-            throw new IllegalArgumentException("Operator must not be null");
         }
         if (value == null) {
             throw new IllegalArgumentException("Value must not be null");

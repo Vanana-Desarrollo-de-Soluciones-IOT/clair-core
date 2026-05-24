@@ -2,7 +2,6 @@ package com.claircore.device.interfaces.rest.resources;
 
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
-import com.claircore.device.domain.model.valueobjects.ThresholdOperator;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -11,7 +10,7 @@ import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-@Schema(description = "Device threshold response")
+@Schema(description = "Device threshold response. Threshold triggers when telemetry value is greater than the configured value.")
 public record DeviceThresholdResponse(
         @Schema(description = "Threshold ID")
         UUID id,
@@ -27,12 +26,6 @@ public record DeviceThresholdResponse(
 
         @Schema(description = "Metric unit", example = "µg/m³")
         String metricUnit,
-
-        @Schema(description = "Comparison operator", example = "GREATER_THAN")
-        ThresholdOperator operator,
-
-        @Schema(description = "Operator symbol", example = ">")
-        String operatorSymbol,
 
         @Schema(description = "Threshold value", example = "60.00")
         BigDecimal value,
@@ -55,8 +48,6 @@ public record DeviceThresholdResponse(
                 threshold.metric(),
                 threshold.metric().label(),
                 threshold.metric().unit(),
-                threshold.operator(),
-                threshold.operator().symbol(),
                 threshold.value(),
                 threshold.enabled(),
                 null,

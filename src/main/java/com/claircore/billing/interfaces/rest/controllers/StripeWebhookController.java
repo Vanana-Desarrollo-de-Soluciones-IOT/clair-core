@@ -7,6 +7,7 @@ import com.claircore.billing.domain.services.SubscriptionCommandService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.StripeObject;
 import com.stripe.net.Webhook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -52,11 +53,7 @@ public class StripeWebhookController {
         log.info("Received Stripe Webhook event: {}", event.getType());
 
         if ("payment_intent.succeeded".equals(event.getType())) {
-            var deserializer = event.getDataObjectDeserializer();
-            PaymentIntent paymentIntent = deserializer.getObject()
-                    .filter(PaymentIntent.class::isInstance)
-                    .map(PaymentIntent.class::cast)
-                    .orElse(null);
+            PaymentIntent paymentIntent = deserializePaymentIntent(event);
 
             if (paymentIntent == null) {
                 log.error("Unable to deserialize PaymentIntent for event id {}. Stripe will retry.", event.getId());
@@ -89,5 +86,20 @@ public class StripeWebhookController {
         }
 
         return ResponseEntity.ok("Received");
+    }
+
+    private PaymentIntent deserializePaymentIntent(Event event) {
+        var deserializer = event.getDataObjectDeserializer();
+
+        StripeObject stripeObject = deserializer.getObject().orElseGet(() -> {
+            try {
+                return deserializer.deserializeUnsafe();
+            } catch (Exception e) {
+                log.error("Stripe event object deserialization failed. eventId={}", event.getId(), e);
+                return null;
+            }
+        });
+
+        return stripeObject instanceof PaymentIntent paymentIntent ? paymentIntent : null;
     }
 }

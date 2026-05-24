@@ -181,7 +181,7 @@
         <dependency>
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
-            <version>25.0.0</version>
+            <version>32.1.0</version>
         </dependency>
     </dependencies>
 

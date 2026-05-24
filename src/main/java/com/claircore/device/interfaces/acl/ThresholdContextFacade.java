@@ -1,6 +1,6 @@
 package com.claircore.device.interfaces.acl;
 
-import com.claircore.device.domain.model.entities.DeviceThreshold;
+import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 
 import java.util.List;
@@ -9,11 +9,11 @@ import java.util.UUID;
 
 public interface ThresholdContextFacade {
 
-    Optional<DeviceThreshold> findThresholdByAssignmentAndMetric(UUID assignmentId, MetricThreshold metric);
+    Optional<DeviceMetricThresholdConfiguration> findThresholdByAssignmentAndMetric(UUID assignmentId, MetricThreshold metric);
 
-    List<DeviceThreshold> findEnabledThresholdsByAssignment(UUID assignmentId);
+    List<DeviceMetricThresholdConfiguration> findEnabledThresholdsByAssignment(UUID assignmentId);
 
-    List<DeviceThreshold> findAllThresholdsByAssignment(UUID assignmentId);
+    List<DeviceMetricThresholdConfiguration> findAllThresholdsByAssignment(UUID assignmentId);
 
     boolean assignmentExists(UUID assignmentId);
 }

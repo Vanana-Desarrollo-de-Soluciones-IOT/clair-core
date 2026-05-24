@@ -1,12 +1,14 @@
 package com.claircore.device.interfaces.rest.resources;
 
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
+import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.ThresholdOperator;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @Schema(description = "Device threshold response")
@@ -44,23 +46,21 @@ public record DeviceThresholdResponse(
         @Schema(description = "When the threshold was last updated")
         Instant updatedAt
 ) {
-    public static DeviceThresholdResponse from(
-            com.claircore.device.domain.model.entities.DeviceThreshold threshold,
-            UUID deviceId) {
+    public static DeviceThresholdResponse from(DeviceMetricThresholdConfiguration threshold, UUID deviceId) {
+        UUID syntheticId = UUID.nameUUIDFromBytes((deviceId.toString() + ":" + threshold.metric().name()).getBytes(StandardCharsets.UTF_8));
+
         return new DeviceThresholdResponse(
-                threshold.getId(),
+                syntheticId,
                 deviceId,
-                threshold.getMetric(),
-                threshold.getMetric().label(),
-                threshold.getMetric().unit(),
-                threshold.getOperator(),
-                threshold.getOperator().symbol(),
-                threshold.getValue(),
-                threshold.isEnabled(),
-                threshold.getAuditFields().getCreatedAt() != null ?
-                        threshold.getAuditFields().getCreatedAt().toInstant() : null,
-                threshold.getAuditFields().getUpdatedAt() != null ?
-                        threshold.getAuditFields().getUpdatedAt().toInstant() : null
+                threshold.metric(),
+                threshold.metric().label(),
+                threshold.metric().unit(),
+                threshold.operator(),
+                threshold.operator().symbol(),
+                threshold.value(),
+                threshold.enabled(),
+                null,
+                null
         );
     }
 }

@@ -2,8 +2,8 @@ package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.RemoveDeviceThresholdCommand;
 import com.claircore.device.domain.model.commands.WriteDeviceThresholdCommand;
-import com.claircore.device.domain.model.entities.DeviceThreshold;
 import com.claircore.device.domain.model.queries.GetDeviceThresholdsByDeviceQuery;
+import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.model.valueobjects.DeviceThresholdWriteIntent;
 import com.claircore.device.domain.model.valueobjects.UserId;
@@ -54,7 +54,7 @@ public class DeviceThresholdController {
 
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var query = new GetDeviceThresholdsByDeviceQuery(deviceId, new UserId(userId));
-        List<DeviceThreshold> thresholds = deviceThresholdQueryService.handle(query);
+        List<DeviceMetricThresholdConfiguration> thresholds = deviceThresholdQueryService.handle(query);
 
         List<DeviceThresholdResponse> responses = thresholds.stream()
                 .map(t -> DeviceThresholdResponse.from(t, deviceId))
@@ -87,7 +87,7 @@ public class DeviceThresholdController {
                 DeviceThresholdWriteIntent.CREATE
         );
 
-        DeviceThreshold threshold = deviceThresholdCommandService.handle(command);
+        DeviceMetricThresholdConfiguration threshold = deviceThresholdCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(DeviceThresholdResponse.from(threshold, deviceId));
     }
@@ -116,7 +116,7 @@ public class DeviceThresholdController {
                 DeviceThresholdWriteIntent.UPDATE
         );
 
-        DeviceThreshold threshold = deviceThresholdCommandService.handle(command);
+        DeviceMetricThresholdConfiguration threshold = deviceThresholdCommandService.handle(command);
         return ResponseEntity.ok(DeviceThresholdResponse.from(threshold, deviceId));
     }
 

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -128,6 +129,16 @@ public class DeviceAssignment {
     public UUID getSpaceId() { return spaceId; }
     public DeviceStatus getStatus() { return status; }
     public Map<String, String> getConfiguration() { return new HashMap<>(configuration); }
+    public Optional<String> findConfigurationValue(String key) { return Optional.ofNullable(configuration.get(key)); }
+    public void putConfigurationValue(String key, String value) {
+        if (key == null || key.isBlank()) throw new IllegalArgumentException("Configuration key must not be blank");
+        if (value == null) throw new IllegalArgumentException("Configuration value must not be null");
+        configuration.put(key, value);
+    }
+    public void removeConfigurationValue(String key) {
+        if (key == null || key.isBlank()) throw new IllegalArgumentException("Configuration key must not be blank");
+        configuration.remove(key);
+    }
     public ClaimToken getClaimToken() { return claimToken; }
     public Instant getActivatedAt() { return activatedAt; }
     public Instant getLastSeenAt() { return lastSeenAt; }

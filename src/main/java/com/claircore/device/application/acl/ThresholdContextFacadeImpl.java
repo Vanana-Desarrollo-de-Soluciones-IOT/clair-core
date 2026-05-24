@@ -1,7 +1,7 @@
 package com.claircore.device.application.acl;
 
-import com.claircore.device.domain.model.entities.DeviceThreshold;
 import com.claircore.device.domain.model.queries.GetDeviceThresholdByMetricQuery;
+import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
@@ -26,19 +26,19 @@ public class ThresholdContextFacadeImpl implements ThresholdContextFacade {
     }
 
     @Override
-    public Optional<DeviceThreshold> findThresholdByAssignmentAndMetric(UUID assignmentId, MetricThreshold metric) {
+    public Optional<DeviceMetricThresholdConfiguration> findThresholdByAssignmentAndMetric(UUID assignmentId, MetricThreshold metric) {
         var query = new GetDeviceThresholdByMetricQuery(assignmentId, metric);
         return deviceThresholdQueryService.handle(query);
     }
 
     @Override
-    public List<DeviceThreshold> findEnabledThresholdsByAssignment(UUID assignmentId) {
+    public List<DeviceMetricThresholdConfiguration> findEnabledThresholdsByAssignment(UUID assignmentId) {
         return deviceThresholdQueryService.findEnabledByAssignmentId(assignmentId);
     }
 
     @Override
-    public List<DeviceThreshold> findAllThresholdsByAssignment(UUID assignmentId) {
-        return deviceThresholdQueryService.findByAssignmentId(assignmentId);
+    public List<DeviceMetricThresholdConfiguration> findAllThresholdsByAssignment(UUID assignmentId) {
+        return deviceThresholdQueryService.findAllByAssignmentId(assignmentId);
     }
 
     @Override

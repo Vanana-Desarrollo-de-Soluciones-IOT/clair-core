@@ -1,10 +1,11 @@
 package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.commands.RemoveDeviceThresholdCommand;
-import com.claircore.device.domain.model.commands.UpdateDeviceThresholdCommand;
+import com.claircore.device.domain.model.commands.WriteDeviceThresholdCommand;
 import com.claircore.device.domain.model.entities.DeviceThreshold;
 import com.claircore.device.domain.model.queries.GetDeviceThresholdsByDeviceQuery;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
+import com.claircore.device.domain.model.valueobjects.DeviceThresholdWriteIntent;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceThresholdCommandService;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
@@ -76,13 +77,14 @@ public class DeviceThresholdController {
             @Valid @RequestBody UpdateDeviceThresholdRequest request) {
 
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
-        var command = new UpdateDeviceThresholdCommand(
+        var command = new WriteDeviceThresholdCommand(
                 deviceId,
                 new UserId(userId),
                 request.metric(),
                 request.operator(),
                 request.value(),
-                request.enabled()
+                request.enabled(),
+                DeviceThresholdWriteIntent.CREATE
         );
 
         DeviceThreshold threshold = deviceThresholdCommandService.handle(command);
@@ -104,13 +106,14 @@ public class DeviceThresholdController {
             @Valid @RequestBody UpdateDeviceThresholdRequest request) {
 
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
-        var command = new UpdateDeviceThresholdCommand(
+        var command = new WriteDeviceThresholdCommand(
                 deviceId,
                 new UserId(userId),
                 request.metric(),
                 request.operator(),
                 request.value(),
-                request.enabled()
+                request.enabled(),
+                DeviceThresholdWriteIntent.UPDATE
         );
 
         DeviceThreshold threshold = deviceThresholdCommandService.handle(command);

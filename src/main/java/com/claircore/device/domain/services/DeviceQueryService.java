@@ -23,4 +23,7 @@ public interface DeviceQueryService {
     Optional<Device> handle(GetDeviceByApiKeyQuery query);
     Page<DeviceAssignment> handle(GetDevicesBySpaceQuery query);
     List<Device> handle(GetProvisionedDevicesQuery query);
+    Optional<UUID> findSpaceIdByDeviceId(UUID deviceId);
+    boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
+    boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
 }

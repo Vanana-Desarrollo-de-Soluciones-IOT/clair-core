@@ -15,12 +15,12 @@ public class KafkaInboxService {
     }
 
     @Transactional
-    public boolean shouldProcess(String topic, int partition, long offset) {
-        return !processedKafkaRecordRepository.existsByTopicAndPartitionAndOffset(topic, partition, offset);
+    public boolean shouldProcess(String consumerGroup, String topic, int partition, long offset) {
+        return !processedKafkaRecordRepository.existsByConsumerGroupAndTopicAndPartitionAndOffset(consumerGroup, topic, partition, offset);
     }
 
     @Transactional
-    public void markProcessed(String topic, int partition, long offset) {
-        processedKafkaRecordRepository.save(new ProcessedKafkaRecord(topic, partition, offset));
+    public void markProcessed(String consumerGroup, String topic, int partition, long offset) {
+        processedKafkaRecordRepository.save(new ProcessedKafkaRecord(consumerGroup, topic, partition, offset));
     }
 }

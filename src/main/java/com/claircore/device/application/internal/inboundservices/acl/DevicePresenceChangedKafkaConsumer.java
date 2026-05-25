@@ -26,6 +26,8 @@ import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 @Service
 public class DevicePresenceChangedKafkaConsumer {
 
+    private static final String CONSUMER_GROUP_ID = "core-device-presence-consumer";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DevicePresenceChangedKafkaConsumer.class);
 
     private final DevicePresenceCommandService devicePresenceCommandService;
@@ -41,12 +43,12 @@ public class DevicePresenceChangedKafkaConsumer {
 
     @KafkaListener(
             topics = "clair.device.presence.changed",
-            groupId = "core-device-presence-consumer",
+            groupId = CONSUMER_GROUP_ID,
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
     public void consume(ConsumerRecord<String, String> record) {
-        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+        if (!kafkaInboxService.shouldProcess(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset())) {
             return;
         }
 
@@ -72,7 +74,7 @@ public class DevicePresenceChangedKafkaConsumer {
 
             devicePresenceCommandService.handle(command);
 
-            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
+            kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process presence change for device {}", event.deviceId(), e);
             // Force a retry/DLQ instead of silently advancing the offset.

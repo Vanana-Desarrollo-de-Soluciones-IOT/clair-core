@@ -31,4 +31,19 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
         return deviceQueryService.handle(query)
                 .map(device -> device.getId());
     }
+
+    @Override
+    public Optional<UUID> findSpaceIdByDeviceId(UUID deviceId) {
+        return deviceQueryService.findSpaceIdByDeviceId(deviceId);
+    }
+
+    @Override
+    public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
+        return deviceQueryService.isDeviceOwnedByUser(deviceId, userId);
+    }
+
+    @Override
+    public boolean isSpaceOwnedByUser(UUID spaceId, UUID userId) {
+        return deviceQueryService.isSpaceOwnedByUser(spaceId, userId);
+    }
 }

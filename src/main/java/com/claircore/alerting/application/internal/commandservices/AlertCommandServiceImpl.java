@@ -2,10 +2,10 @@ package com.claircore.alerting.application.internal.commandservices;
 
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
-import com.claircore.alerting.domain.model.commands.RecordAlertConditionStateChangedCommand;
+import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentChangedIntegrationEvent;
+import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedKafkaPublisher;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.entities.Alert;
-import com.claircore.alerting.domain.model.valueobjects.AlertConditionState;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.domain.services.AlertCommandService;
@@ -27,15 +27,18 @@ public class AlertCommandServiceImpl implements AlertCommandService {
     private final AlertRepository alertRepository;
     private final ExternalAlertingThresholdService externalThresholdService;
     private final ExternalAlertingDeviceService externalDeviceService;
+    private final AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher;
 
     public AlertCommandServiceImpl(
             AlertRepository alertRepository,
             ExternalAlertingThresholdService externalThresholdService,
-            ExternalAlertingDeviceService externalDeviceService
+            ExternalAlertingDeviceService externalDeviceService,
+            AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher
     ) {
         this.alertRepository = alertRepository;
         this.externalThresholdService = externalThresholdService;
         this.externalDeviceService = externalDeviceService;
+        this.alertIncidentsChangedKafkaPublisher = alertIncidentsChangedKafkaPublisher;
     }
 
     @Override
@@ -57,40 +60,47 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                                 existing -> {
                                     // Already active; avoid spamming duplicate alerts for every reading.
                                 },
-                                () -> alertRepository.save(new Alert(
-                                        command.deviceId(),
-                                        spaceId,
-                                        metric,
-                                        threshold.value(),
-                                        actual,
-                                        buildMessage(metric, threshold.value(), actual),
-                                        command.occurredAt()
-                                ))
+                                () -> {
+                                    Alert created = alertRepository.save(new Alert(
+                                            command.deviceId(),
+                                            spaceId,
+                                            metric,
+                                            threshold.value(),
+                                            actual,
+                                            buildMessage(metric, threshold.value(), actual),
+                                            command.occurredAt()
+                                    ));
+                                    publishIncidentChanged(created);
+                                }
                         );
             } else {
                 alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), metric, OPEN_STATUSES)
                         .ifPresent(openAlert -> {
                             openAlert.resolve(command.occurredAt());
-                            alertRepository.save(openAlert);
+                            Alert saved = alertRepository.save(openAlert);
+                            publishIncidentChanged(saved);
                         });
             }
         }
     }
 
-    @Override
-    @Transactional
-    public void handle(RecordAlertConditionStateChangedCommand command) {
-        // Core can close incidents based on Edge/Embedded state changes.
-        // Opening incidents still requires threshold context, so CRITICAL events are currently ignored.
-        if (command.conditionState() != AlertConditionState.NORMAL) {
-            return;
-        }
+    private void publishIncidentChanged(Alert alert) {
+        String hardwareId = externalDeviceService.fetchHardwareIdByDeviceId(alert.getDeviceId())
+                .orElse(alert.getDeviceId().toString());
 
-        alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), command.metric(), OPEN_STATUSES)
-                .ifPresent(openAlert -> {
-                    openAlert.resolve(command.occurredAt());
-                    alertRepository.save(openAlert);
-                });
+        alertIncidentsChangedKafkaPublisher.publish(new AlertIncidentChangedIntegrationEvent(
+                alert.getId(),
+                alert.getDeviceId(),
+                hardwareId,
+                alert.getSpaceId(),
+                alert.getMetric(),
+                alert.getThresholdValue(),
+                alert.getActualValue(),
+                alert.getMessage(),
+                alert.getStatus(),
+                alert.getOccurredAt(),
+                alert.getResolvedAt()
+        ));
     }
 
     private static Map<MetricType, BigDecimal> telemetryValues(EvaluateTelemetryForAlertsCommand command) {

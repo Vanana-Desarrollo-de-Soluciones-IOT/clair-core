@@ -1,6 +1,7 @@
 package com.claircore.device.application.acl;
 
 import com.claircore.device.domain.model.queries.GetDeviceByApiKeyQuery;
+import com.claircore.device.domain.model.queries.GetDeviceByIdQuery;
 import com.claircore.device.domain.model.queries.GetDeviceByHardwareIdQuery;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
@@ -35,6 +36,13 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     @Override
     public Optional<UUID> findSpaceIdByDeviceId(UUID deviceId) {
         return deviceQueryService.findSpaceIdByDeviceId(deviceId);
+    }
+
+    @Override
+    public Optional<String> findHardwareIdByDeviceId(UUID deviceId) {
+        var query = new GetDeviceByIdQuery(deviceId);
+        return deviceQueryService.handle(query)
+                .map(device -> device.getHardwareId().value());
     }
 
     @Override

@@ -23,6 +23,10 @@ public class ExternalAlertingDeviceService {
         return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
     }
 
+    public Optional<String> fetchHardwareIdByDeviceId(UUID deviceId) {
+        return deviceContextFacade.findHardwareIdByDeviceId(deviceId);
+    }
+
     public boolean verifyDeviceOwnership(UUID deviceId, UUID userId) {
         return deviceContextFacade.isDeviceOwnedByUser(deviceId, userId);
     }

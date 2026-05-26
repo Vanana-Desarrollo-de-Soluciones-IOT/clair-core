@@ -45,6 +45,9 @@ public class Alert {
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+
     @Embedded
     private AlertAudit auditFields = new AlertAudit();
 
@@ -81,8 +84,12 @@ public class Alert {
         this.status = AlertStatus.ACKNOWLEDGED;
     }
 
-    public void resolve() {
+    public void resolve(Instant resolvedAt) {
+        if (resolvedAt == null) {
+            throw new IllegalArgumentException("Resolved at must not be null");
+        }
         this.status = AlertStatus.RESOLVED;
+        this.resolvedAt = resolvedAt;
     }
 
     public UUID getId() { return id; }
@@ -94,6 +101,7 @@ public class Alert {
     public String getMessage() { return message; }
     public AlertStatus getStatus() { return status; }
     public Instant getOccurredAt() { return occurredAt; }
+    public Instant getResolvedAt() { return resolvedAt; }
     public AlertAudit getAuditFields() { return auditFields; }
 
     @Embeddable

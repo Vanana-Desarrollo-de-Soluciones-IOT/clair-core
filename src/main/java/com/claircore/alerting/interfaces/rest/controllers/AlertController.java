@@ -5,7 +5,6 @@ import com.claircore.alerting.domain.model.queries.GetAlertsByDeviceQuery;
 import com.claircore.alerting.domain.model.queries.GetAlertsBySpaceQuery;
 import com.claircore.alerting.domain.services.AlertQueryService;
 import com.claircore.alerting.interfaces.rest.resources.AlertResponse;
-import com.claircore.alerting.interfaces.rest.transform.AlertTransform;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -62,7 +60,7 @@ public class AlertController {
         var query = new GetAlertsByDeviceQuery(deviceId, pageable);
         Page<Alert> alerts = alertQueryService.fetchByDevice(query);
 
-        return ResponseEntity.ok(alerts.map(AlertTransform::toResponse));
+        return ResponseEntity.ok(alerts.map(AlertResponse::from));
     }
 
     @GetMapping("/spaces/{spaceId}/alerts")
@@ -88,6 +86,6 @@ public class AlertController {
         var query = new GetAlertsBySpaceQuery(spaceId, pageable);
         Page<Alert> alerts = alertQueryService.fetchBySpace(query);
 
-        return ResponseEntity.ok(alerts.map(AlertTransform::toResponse));
+        return ResponseEntity.ok(alerts.map(AlertResponse::from));
     }
 }

@@ -2,8 +2,10 @@ package com.claircore.alerting.application.internal.commandservices;
 
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
+import com.claircore.alerting.domain.model.commands.RecordAlertConditionStateChangedCommand;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.entities.Alert;
+import com.claircore.alerting.domain.model.valueobjects.AlertConditionState;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.domain.services.AlertCommandService;
@@ -19,6 +21,8 @@ import java.util.Map;
 
 @Service
 public class AlertCommandServiceImpl implements AlertCommandService {
+
+    private static final List<AlertStatus> OPEN_STATUSES = List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED);
 
     private final AlertRepository alertRepository;
     private final ExternalAlertingThresholdService externalThresholdService;
@@ -48,7 +52,7 @@ public class AlertCommandServiceImpl implements AlertCommandService {
 
             int comparison = actual.compareTo(threshold.value());
             if (comparison >= 0) {
-                alertRepository.findFirstByDeviceIdAndMetricAndStatus(command.deviceId(), metric, AlertStatus.ACTIVE)
+                alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), metric, OPEN_STATUSES)
                         .ifPresentOrElse(
                                 existing -> {
                                     // Already active; avoid spamming duplicate alerts for every reading.
@@ -64,13 +68,29 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                                 ))
                         );
             } else {
-                alertRepository.findFirstByDeviceIdAndMetricAndStatus(command.deviceId(), metric, AlertStatus.ACTIVE)
-                        .ifPresent(active -> {
-                            active.resolve();
-                            alertRepository.save(active);
+                alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), metric, OPEN_STATUSES)
+                        .ifPresent(openAlert -> {
+                            openAlert.resolve(command.occurredAt());
+                            alertRepository.save(openAlert);
                         });
             }
         }
+    }
+
+    @Override
+    @Transactional
+    public void handle(RecordAlertConditionStateChangedCommand command) {
+        // Core can close incidents based on Edge/Embedded state changes.
+        // Opening incidents still requires threshold context, so CRITICAL events are currently ignored.
+        if (command.conditionState() != AlertConditionState.NORMAL) {
+            return;
+        }
+
+        alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), command.metric(), OPEN_STATUSES)
+                .ifPresent(openAlert -> {
+                    openAlert.resolve(command.occurredAt());
+                    alertRepository.save(openAlert);
+                });
     }
 
     private static Map<MetricType, BigDecimal> telemetryValues(EvaluateTelemetryForAlertsCommand command) {

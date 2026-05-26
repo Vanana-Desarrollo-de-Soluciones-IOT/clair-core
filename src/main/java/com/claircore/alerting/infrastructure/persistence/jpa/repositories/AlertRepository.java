@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
@@ -23,4 +24,6 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     Page<Alert> findBySpaceId(@Param("spaceId") UUID spaceId, Pageable pageable);
 
     Optional<Alert> findFirstByDeviceIdAndMetricAndStatus(UUID deviceId, MetricType metric, AlertStatus status);
+
+    Optional<Alert> findFirstByDeviceIdAndMetricAndStatusIn(UUID deviceId, MetricType metric, Collection<AlertStatus> statuses);
 }

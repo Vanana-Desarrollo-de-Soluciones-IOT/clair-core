@@ -44,6 +44,9 @@ public record AlertResponse(
         @Schema(description = "When the alert occurred")
         Instant occurredAt,
 
+        @Schema(description = "When the alert was resolved", nullable = true)
+        Instant resolvedAt,
+
         @Schema(description = "When the alert was created")
         Instant createdAt
 ) {
@@ -60,6 +63,7 @@ public record AlertResponse(
                 alert.getMessage(),
                 alert.getStatus(),
                 alert.getOccurredAt(),
+                alert.getResolvedAt(),
                 alert.getAuditFields().getCreatedAt().toInstant()
         );
     }

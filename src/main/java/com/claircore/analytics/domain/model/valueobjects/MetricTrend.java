@@ -12,11 +12,5 @@ public record MetricTrend(
         if (currentValue == null) {
             throw new IllegalArgumentException("currentValue must not be null");
         }
-        if (previousValue == null) {
-            throw new IllegalArgumentException("previousValue must not be null");
-        }
-        if (deltaPercentage == null) {
-            throw new IllegalArgumentException("deltaPercentage must not be null");
-        }
     }
 }

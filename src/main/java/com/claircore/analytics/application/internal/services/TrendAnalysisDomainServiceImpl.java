@@ -9,8 +9,11 @@ public class TrendAnalysisDomainServiceImpl implements TrendAnalysisDomainServic
 
     @Override
     public MetricTrend calculateTrend(Double currentValue, Double previousValue) {
-        if (previousValue == null || previousValue == 0.0) {
-            return new MetricTrend(currentValue, previousValue, 0.0);
+        if (previousValue == null) {
+            return new MetricTrend(currentValue, null, null);
+        }
+        if (previousValue == 0.0) {
+            return new MetricTrend(currentValue, 0.0, null);
         }
         double delta = ((currentValue - previousValue) / Math.abs(previousValue)) * 100.0;
         double rounded = Math.round(delta * 100.0) / 100.0;

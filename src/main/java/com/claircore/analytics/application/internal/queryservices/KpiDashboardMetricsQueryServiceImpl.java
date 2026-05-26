@@ -121,7 +121,12 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                 }
             }
 
-            var avg = getAverages(query.deviceId().value(), start, end);
+            var avgResult = getAverages(query.deviceId().value(), start, end);
+            if (!avgResult.hasData()) {
+                return Optional.empty();
+            }
+
+            var avg = avgResult.averages();
             var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
 
             // Para las tendencias comparamos con el período anterior de igual duración
@@ -129,7 +134,11 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
             Instant prevStart = start.minus(duration);
             Instant prevEnd = start;
 
-            var prevAvg = getAverages(query.deviceId().value(), prevStart, prevEnd);
+            var prevAvgResult = getAverages(query.deviceId().value(), prevStart, prevEnd);
+            Double prevCo2 = prevAvgResult.hasData() ? prevAvgResult.averages().co2() : null;
+            Double prevPm25 = prevAvgResult.hasData() ? prevAvgResult.averages().pm2_5() : null;
+            Double prevTemp = prevAvgResult.hasData() ? prevAvgResult.averages().temperature() : null;
+            Double prevHum = prevAvgResult.hasData() ? prevAvgResult.averages().humidity() : null;
 
             var metrics = new KpiDashboardMetrics(
                     aqi,
@@ -137,10 +146,10 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                     avg.pm2_5(),
                     avg.temperature(),
                     avg.humidity(),
-                    trendAnalysisDomainService.calculateTrend(avg.co2(), prevAvg.co2()),
-                    trendAnalysisDomainService.calculateTrend(avg.pm2_5(), prevAvg.pm2_5()),
-                    trendAnalysisDomainService.calculateTrend(avg.temperature(), prevAvg.temperature()),
-                    trendAnalysisDomainService.calculateTrend(avg.humidity(), prevAvg.humidity()),
+                    trendAnalysisDomainService.calculateTrend(avg.co2(), prevCo2),
+                    trendAnalysisDomainService.calculateTrend(avg.pm2_5(), prevPm25),
+                    trendAnalysisDomainService.calculateTrend(avg.temperature(), prevTemp),
+                    trendAnalysisDomainService.calculateTrend(avg.humidity(), prevHum),
                     Instant.now()
             );
 
@@ -148,7 +157,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
         }
     }
 
-    private Averages getAverages(UUID deviceId, Instant start, Instant end) {
+    private AveragesResult getAverages(UUID deviceId, Instant start, Instant end) {
         long hours = Duration.between(start, end).toHours();
         if (hours <= 24) {
             return getRawAverages(deviceId, start, end);
@@ -157,12 +166,13 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
         }
     }
 
-    private Averages getRawAverages(UUID deviceId, Instant start, Instant end) {
+    private AveragesResult getRawAverages(UUID deviceId, Instant start, Instant end) {
         String sql = """
-                SELECT COALESCE(AVG(aq_co2), 0.0) as avg_co2,
-                       COALESCE(AVG(pm_pm2_5), 0.0) as avg_pm2_5,
-                       COALESCE(AVG(aq_temperature), 0.0) as avg_temperature,
-                       COALESCE(AVG(aq_humidity), 0.0) as avg_humidity
+                SELECT COUNT(*) as cnt,
+                       AVG(aq_co2) as avg_co2,
+                       AVG(pm_pm2_5) as avg_pm2_5,
+                       AVG(aq_temperature) as avg_temperature,
+                       AVG(aq_humidity) as avg_humidity
                 FROM telemetry_evaluations
                 WHERE device_id = ? AND recorded_at >= ? AND recorded_at < ?
                 """;
@@ -173,20 +183,24 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                     java.sql.Timestamp.from(start),
                     java.sql.Timestamp.from(end)
             );
-            double co2 = ((Number) row.getOrDefault("avg_co2", 0.0)).doubleValue();
-            double pm25 = ((Number) row.getOrDefault("avg_pm2_5", 0.0)).doubleValue();
-            double temp = ((Number) row.getOrDefault("avg_temperature", 0.0)).doubleValue();
-            double hum = ((Number) row.getOrDefault("avg_humidity", 0.0)).doubleValue();
-            return new Averages(co2, pm25, temp, hum);
+            long count = ((Number) row.getOrDefault("cnt", 0L)).longValue();
+            if (count == 0) {
+                return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
+            }
+            double co2 = row.get("avg_co2") != null ? ((Number) row.get("avg_co2")).doubleValue() : 0.0;
+            double pm25 = row.get("avg_pm2_5") != null ? ((Number) row.get("avg_pm2_5")).doubleValue() : 0.0;
+            double temp = row.get("avg_temperature") != null ? ((Number) row.get("avg_temperature")).doubleValue() : 0.0;
+            double hum = row.get("avg_humidity") != null ? ((Number) row.get("avg_humidity")).doubleValue() : 0.0;
+            return new AveragesResult(new Averages(co2, pm25, temp, hum), true);
         } catch (Exception e) {
-            return new Averages(0.0, 0.0, 0.0, 0.0);
+            return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
         }
     }
 
-    private Averages getSnapshotAverages(UUID deviceId, Instant start, Instant end) {
+    private AveragesResult getSnapshotAverages(UUID deviceId, Instant start, Instant end) {
         var snapshots = snapshotRepository.findByDeviceIdAndTimeWindowStartBetween(deviceId, start, end);
         if (snapshots.isEmpty()) {
-            return new Averages(0.0, 0.0, 0.0, 0.0);
+            return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
         }
         double sumCo2 = 0.0;
         double sumPm25 = 0.0;
@@ -199,8 +213,9 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
             sumHum += s.getAverageHumidity();
         }
         int count = snapshots.size();
-        return new Averages(sumCo2 / count, sumPm25 / count, sumTemp / count, sumHum / count);
+        return new AveragesResult(new Averages(sumCo2 / count, sumPm25 / count, sumTemp / count, sumHum / count), true);
     }
 
     private record Averages(double co2, double pm2_5, double temperature, double humidity) {}
+    private record AveragesResult(Averages averages, boolean hasData) {}
 }

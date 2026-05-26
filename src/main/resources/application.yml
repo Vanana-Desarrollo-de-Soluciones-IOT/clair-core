@@ -48,6 +48,12 @@ spring:
             enable: false
         debug: false
 
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
 

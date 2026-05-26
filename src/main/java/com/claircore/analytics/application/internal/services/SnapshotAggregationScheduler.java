@@ -34,15 +34,14 @@ public class SnapshotAggregationScheduler {
         this.aqiCalculationDomainService = aqiCalculationDomainService;
     }
 
-    //@Scheduled(fixedRate = 5000)//
-    @Scheduled(cron = "0 0 * * * *")
+    //@Scheduled(cron = "0 0 * * * *") // cada hora en punto
+    @Scheduled(cron = "*/10 * * * * *")
     @Transactional
     public void aggregateHourlySnapshots() {
 
-        System.out.println("Run 5 segundos");
-        // Cambiamos la ventana de tiempo para mirar los últimos 5 minutos en lugar de la hora pasada
-        Instant windowEnd = Instant.now();
-        Instant windowStart = windowEnd.minus(Duration.ofMinutes(5));
+        Instant windowEnd = Instant.now().truncatedTo(ChronoUnit.HOURS);
+        Instant windowStart = windowEnd.minus(1, ChronoUnit.HOURS);
+        System.out.print("10 segundos");
 
         String sql = """
                 SELECT device_id,

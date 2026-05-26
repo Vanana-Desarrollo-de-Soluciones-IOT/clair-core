@@ -23,15 +23,28 @@ public class KpiHistoricalTrendQueryServiceImpl implements KpiHistoricalTrendQue
     @Override
     @Transactional(readOnly = true)
     public List<KpiTrendPoint> handle(GetHistoricalTrendQuery query) {
-        Instant now = Instant.now();
-        Instant start = switch (query.period()) {
-            case DAY -> now.minus(Duration.ofDays(1));
-            case WEEK -> now.minus(Duration.ofDays(7));
-            case MONTH -> now.minus(Duration.ofDays(30));
-        };
+        Instant start;
+        Instant end;
+
+        if (query.startDate() != null && query.endDate() != null) {
+            start = query.startDate();
+            end = query.endDate();
+        } else {
+            Instant now = Instant.now();
+            end = now;
+            if (query.period() != null) {
+                start = switch (query.period()) {
+                    case DAY -> now.minus(Duration.ofDays(1));
+                    case WEEK -> now.minus(Duration.ofDays(7));
+                    case MONTH -> now.minus(Duration.ofDays(30));
+                };
+            } else {
+                start = now.minus(Duration.ofDays(1));
+            }
+        }
 
         var snapshots = snapshotRepository.findByDeviceIdAndTimeWindowStartBetween(
-                query.deviceId().value(), start, now
+                query.deviceId().value(), start, end
         );
 
         return snapshots.stream()

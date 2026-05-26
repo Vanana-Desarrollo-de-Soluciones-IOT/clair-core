@@ -24,6 +24,8 @@ import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 @Service
 public class DeviceCommandAcknowledgedKafkaConsumer {
 
+    private static final String CONSUMER_GROUP_ID = "core-device-commands-consumer";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCommandAcknowledgedKafkaConsumer.class);
 
     private final DeviceControlCommandService deviceControlCommandService;
@@ -39,12 +41,12 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
 
     @KafkaListener(
             topics = "clair.device.commands.acknowledged",
-            groupId = "core-device-commands-consumer",
+            groupId = CONSUMER_GROUP_ID,
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
     public void consume(ConsumerRecord<String, String> record) {
-        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+        if (!kafkaInboxService.shouldProcess(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset())) {
             return;
         }
 
@@ -70,7 +72,7 @@ public class DeviceCommandAcknowledgedKafkaConsumer {
 
             deviceControlCommandService.handle(command);
 
-            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
+            kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process command ACK for command {}", event.commandId(), e);
             // Force a retry/DLQ instead of silently advancing the offset.

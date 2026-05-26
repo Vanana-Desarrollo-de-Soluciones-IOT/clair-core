@@ -15,7 +15,10 @@ import java.time.Instant;
 @Table(
         name = "processed_kafka_record",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_processed_kafka_record", columnNames = {"topic", "kafka_partition", "kafka_offset"})
+                @UniqueConstraint(
+                        name = "uq_processed_kafka_record",
+                        columnNames = {"consumer_group", "topic", "kafka_partition", "kafka_offset"}
+                )
         },
         indexes = {
                 @Index(name = "idx_processed_kafka_record_ts", columnList = "processed_at")
@@ -24,8 +27,11 @@ import java.time.Instant;
 public class ProcessedKafkaRecord {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private java.util.UUID id;
+
+    @Column(name = "consumer_group", nullable = false, length = 200)
+    private String consumerGroup;
 
     @Column(nullable = false)
     private String topic;
@@ -43,12 +49,18 @@ public class ProcessedKafkaRecord {
         // JPA
     }
 
-    public ProcessedKafkaRecord(String topic, int partition, long offset) {
+    public ProcessedKafkaRecord(String consumerGroup, String topic, int partition, long offset) {
+        if (consumerGroup == null || consumerGroup.isBlank()) throw new IllegalArgumentException("consumerGroup is required");
         if (topic == null || topic.isBlank()) throw new IllegalArgumentException("topic is required");
+        this.consumerGroup = consumerGroup;
         this.topic = topic;
         this.partition = partition;
         this.offset = offset;
         this.processedAt = Instant.now();
+    }
+
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
     public String getTopic() {

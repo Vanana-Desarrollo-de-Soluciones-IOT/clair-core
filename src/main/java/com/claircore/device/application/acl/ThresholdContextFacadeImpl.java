@@ -6,23 +6,28 @@ import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.interfaces.acl.ThresholdContextFacade;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 public class ThresholdContextFacadeImpl implements ThresholdContextFacade {
 
     private final DeviceThresholdQueryService deviceThresholdQueryService;
     private final DeviceAssignmentRepository deviceAssignmentRepository;
+    private final ObjectMapper objectMapper;
 
     public ThresholdContextFacadeImpl(
             DeviceThresholdQueryService deviceThresholdQueryService,
-            DeviceAssignmentRepository deviceAssignmentRepository) {
+            DeviceAssignmentRepository deviceAssignmentRepository,
+            ObjectMapper objectMapper) {
         this.deviceThresholdQueryService = deviceThresholdQueryService;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -42,7 +47,31 @@ public class ThresholdContextFacadeImpl implements ThresholdContextFacade {
     }
 
     @Override
+    public List<DeviceMetricThresholdConfiguration> findEnabledThresholdsByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .map(a -> Stream.of(MetricThreshold.values())
+                        .map(metric -> a.findConfigurationValue(thresholdConfigKey(metric))
+                                .flatMap(this::deserializeOptional)
+                                .orElse(null))
+                        .filter(t -> t != null && t.enabled())
+                        .toList())
+                .orElseGet(List::of);
+    }
+
+    @Override
     public boolean assignmentExists(UUID assignmentId) {
         return deviceAssignmentRepository.existsById(assignmentId);
+    }
+
+    private Optional<DeviceMetricThresholdConfiguration> deserializeOptional(String rawJson) {
+        try {
+            return Optional.of(objectMapper.readValue(rawJson, DeviceMetricThresholdConfiguration.class));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private static String thresholdConfigKey(MetricThreshold metric) {
+        return "threshold." + metric.name();
     }
 }

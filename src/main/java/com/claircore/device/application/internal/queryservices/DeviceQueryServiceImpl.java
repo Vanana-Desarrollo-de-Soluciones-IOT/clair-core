@@ -100,4 +100,28 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
         int cappedLimit = Math.max(1, Math.min(query.limit(), 5000));
         return deviceRepository.findAll(PageRequest.of(0, cappedLimit)).getContent();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> findSpaceIdByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .map(DeviceAssignment::getSpaceId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .map(assignment -> assignment.getOwnerUserId() != null &&
+                        assignment.getOwnerUserId().userId().equals(userId))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isSpaceOwnedByUser(UUID spaceId, UUID userId) {
+        return spaceRepository.findById(spaceId)
+                .map(space -> space.getOwnerUserId().userId().equals(userId))
+                .orElse(false);
+    }
 }

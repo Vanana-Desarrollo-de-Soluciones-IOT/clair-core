@@ -27,6 +27,8 @@ import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 @Service
 public class TelemetryRecordedKafkaConsumer {
 
+    private static final String CONSUMER_GROUP_ID = "core-evaluation-consumer";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRecordedKafkaConsumer.class);
 
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
@@ -48,12 +50,12 @@ public class TelemetryRecordedKafkaConsumer {
 
     @KafkaListener(
             topics = "clair.device.telemetry.recorded",
-            groupId = "core-evaluation-consumer",
+            groupId = CONSUMER_GROUP_ID,
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
     public void consume(ConsumerRecord<String, String> record) {
-        if (!kafkaInboxService.shouldProcess(record.topic(), record.partition(), record.offset())) {
+        if (!kafkaInboxService.shouldProcess(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset())) {
             return;
         }
 
@@ -74,7 +76,7 @@ public class TelemetryRecordedKafkaConsumer {
             if (resolvedDeviceId == null) {
                 LOGGER.warn("Skipping telemetry event: unknown device identifier {}", event.deviceId());
                 // Skip is intentional; do not retry forever.
-                kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
+                kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
                 return;
             }
 
@@ -93,7 +95,7 @@ public class TelemetryRecordedKafkaConsumer {
 
             telemetryEvaluationCommandService.handle(command);
 
-            kafkaInboxService.markProcessed(record.topic(), record.partition(), record.offset());
+            kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process telemetry event for device {}", event.deviceId(), e);
             // Force a retry/DLQ instead of silently advancing the offset.

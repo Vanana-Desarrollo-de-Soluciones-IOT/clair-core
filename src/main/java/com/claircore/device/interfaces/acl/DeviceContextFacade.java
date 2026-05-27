@@ -17,6 +17,8 @@ public interface DeviceContextFacade {
 
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
 
+    Optional<UUID> findOwnerIdByDeviceId(UUID deviceId);
+
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
 
     Optional<String> findSpaceNameBySpaceId(UUID spaceId);

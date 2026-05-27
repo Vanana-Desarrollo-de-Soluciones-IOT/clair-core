@@ -34,14 +34,14 @@ public class SnapshotAggregationScheduler {
         this.aqiCalculationDomainService = aqiCalculationDomainService;
     }
 
-    //@Scheduled(cron = "0 0 * * * *") // cada hora en punto
-    @Scheduled(cron = "*/10 * * * * *")
+    @Scheduled(cron = "0 0 * * * *") // cada hora en punto
+    //@Scheduled(cron = "*/10 * * * * *")
     @Transactional
     public void aggregateHourlySnapshots() {
 
         Instant windowEnd = Instant.now().truncatedTo(ChronoUnit.HOURS);
         Instant windowStart = windowEnd.minus(1, ChronoUnit.HOURS);
-        System.out.print("10 segundos");
+
 
         String sql = """
                 SELECT device_id,

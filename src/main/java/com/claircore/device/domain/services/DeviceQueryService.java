@@ -26,6 +26,7 @@ public interface DeviceQueryService {
     List<Device> handle(GetProvisionedDevicesQuery query);
     Optional<UUID> findSpaceIdByDeviceId(UUID deviceId);
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
+    Optional<UUID> findOwnerIdByDeviceId(UUID deviceId);
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
 
     /**

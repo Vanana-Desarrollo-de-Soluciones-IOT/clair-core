@@ -16,9 +16,29 @@ public class ExternalAlertingDeviceService {
         this.deviceContextFacade = deviceContextFacade;
     }
 
-    @Cacheable(value = "alerting:device-space", key = "#deviceId")
+    /**
+     * Spring cache serialization can deserialize UUIDs as Strings depending on the cache serializer.
+     * Cache the UUID as a String to avoid ClassCastException at call sites expecting UUID.
+     */
     public Optional<UUID> fetchSpaceIdByDeviceId(UUID deviceId) {
-        return deviceContextFacade.findSpaceIdByDeviceId(deviceId);
+        return Optional.ofNullable(fetchSpaceIdStringByDeviceIdCached(deviceId))
+                .flatMap(ExternalAlertingDeviceService::parseUuid);
+    }
+
+    @Cacheable(value = "alerting:device-space-id", key = "#deviceId")
+    public String fetchSpaceIdStringByDeviceIdCached(UUID deviceId) {
+        return deviceContextFacade.findSpaceIdByDeviceId(deviceId)
+                .map(UUID::toString)
+                .orElse(null);
+    }
+
+    private static Optional<UUID> parseUuid(String value) {
+        if (value == null || value.isBlank()) return Optional.empty();
+        try {
+            return Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException ignored) {
+            return Optional.empty();
+        }
     }
 
     public Optional<UUID> fetchDeviceIdByHardwareId(String hardwareId) {

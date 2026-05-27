@@ -29,6 +29,8 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
 
     Optional<Alert> findFirstByDeviceIdAndMetricAndStatusIn(UUID deviceId, MetricType metric, Collection<AlertStatus> statuses);
 
+    List<Alert> findByDeviceIdAndStatus(UUID deviceId, AlertStatus status);
+
     @Query("SELECT a FROM Alert a WHERE a.deviceId = :deviceId AND a.status IN :statuses ORDER BY a.occurredAt DESC")
     Page<Alert> findByDeviceIdAndStatusIn(@Param("deviceId") UUID deviceId, @Param("statuses") Collection<AlertStatus> statuses, Pageable pageable);
 

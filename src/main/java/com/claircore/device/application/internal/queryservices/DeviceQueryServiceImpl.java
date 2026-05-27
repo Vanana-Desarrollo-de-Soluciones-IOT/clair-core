@@ -6,6 +6,7 @@ import com.claircore.device.domain.model.entities.Organization;
 import com.claircore.device.domain.model.entities.Space;
 import com.claircore.device.domain.model.queries.*;
 import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
@@ -117,6 +118,15 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
                         assignment.getOwnerUserId().userId().equals(userId))
                 .orElse(false);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> findOwnerIdByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .map(DeviceAssignment::getOwnerUserId)
+                .map(UserId::userId);
+    }
+
 
     @Override
     @Transactional(readOnly = true)

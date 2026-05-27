@@ -1,6 +1,8 @@
 package com.claircore.device.interfaces.acl;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface DeviceContextFacade {
@@ -16,4 +18,18 @@ public interface DeviceContextFacade {
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
 
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
+
+    Optional<String> findSpaceNameBySpaceId(UUID spaceId);
+
+    Optional<String> findDeviceNameByDeviceId(UUID deviceId);
+
+    /**
+     * Batch lookup to avoid N+1 queries in consumer contexts.
+     */
+    Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds);
+
+    /**
+     * Batch lookup to avoid N+1 queries in consumer contexts.
+     */
+    Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds);
 }

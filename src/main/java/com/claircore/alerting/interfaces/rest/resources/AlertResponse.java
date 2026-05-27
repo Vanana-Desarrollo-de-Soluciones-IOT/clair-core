@@ -1,6 +1,7 @@
 package com.claircore.alerting.interfaces.rest.resources;
 
 import com.claircore.alerting.domain.model.entities.Alert;
+import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,6 +42,15 @@ public record AlertResponse(
         @Schema(description = "Alert status", example = "ACTIVE")
         AlertStatus status,
 
+        @Schema(description = "Alert severity", example = "CRITICAL")
+        AlertSeverity severity,
+
+        @Schema(description = "Space name", example = "Floor 2")
+        String spaceName,
+
+        @Schema(description = "Device name", example = "Living Room Sensor")
+        String deviceName,
+
         @Schema(description = "When the alert occurred")
         Instant occurredAt,
 
@@ -62,6 +72,37 @@ public record AlertResponse(
                 alert.getActualValue(),
                 alert.getMessage(),
                 alert.getStatus(),
+                alert.getSeverity(),
+                alert.getSpaceName(),
+                alert.getDeviceName(),
+                alert.getOccurredAt(),
+                alert.getResolvedAt(),
+                alert.getAuditFields().getCreatedAt().toInstant()
+        );
+    }
+
+    public static AlertResponse from(Alert alert, String resolvedSpaceName, String resolvedDeviceName) {
+        String spaceName = (resolvedSpaceName != null && !resolvedSpaceName.isBlank())
+                ? resolvedSpaceName
+                : alert.getSpaceName();
+        String deviceName = (resolvedDeviceName != null && !resolvedDeviceName.isBlank())
+                ? resolvedDeviceName
+                : alert.getDeviceName();
+
+        return new AlertResponse(
+                alert.getId(),
+                alert.getDeviceId(),
+                alert.getSpaceId(),
+                alert.getMetric(),
+                alert.getMetric().label(),
+                alert.getMetric().unit(),
+                alert.getThresholdValue(),
+                alert.getActualValue(),
+                alert.getMessage(),
+                alert.getStatus(),
+                alert.getSeverity(),
+                spaceName,
+                deviceName,
                 alert.getOccurredAt(),
                 alert.getResolvedAt(),
                 alert.getAuditFields().getCreatedAt().toInstant()

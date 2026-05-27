@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
 import java.util.UUID;
@@ -26,4 +28,13 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     Optional<Alert> findFirstByDeviceIdAndMetricAndStatus(UUID deviceId, MetricType metric, AlertStatus status);
 
     Optional<Alert> findFirstByDeviceIdAndMetricAndStatusIn(UUID deviceId, MetricType metric, Collection<AlertStatus> statuses);
+
+    @Query("SELECT a FROM Alert a WHERE a.deviceId = :deviceId AND a.status IN :statuses ORDER BY a.occurredAt DESC")
+    Page<Alert> findByDeviceIdAndStatusIn(@Param("deviceId") UUID deviceId, @Param("statuses") Collection<AlertStatus> statuses, Pageable pageable);
+
+    @Query("SELECT a FROM Alert a WHERE a.spaceId = :spaceId AND a.status IN :statuses ORDER BY a.occurredAt DESC")
+    Page<Alert> findBySpaceIdAndStatusIn(@Param("spaceId") UUID spaceId, @Param("statuses") Collection<AlertStatus> statuses, Pageable pageable);
+
+    @Query("SELECT cast(a.occurredAt as java.time.LocalDate), count(a) FROM Alert a WHERE a.spaceId = :spaceId AND a.occurredAt >= :since GROUP BY cast(a.occurredAt as java.time.LocalDate) ORDER BY cast(a.occurredAt as java.time.LocalDate)")
+    List<Object[]> countAlertsPerDay(@Param("spaceId") UUID spaceId, @Param("since") Instant since);
 }

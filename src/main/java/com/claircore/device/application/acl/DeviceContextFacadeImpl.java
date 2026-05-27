@@ -8,6 +8,8 @@ import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,5 +70,15 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
         var query = new GetDeviceByIdQuery(deviceId);
         return deviceQueryService.handle(query)
                 .map(device -> device.getName());
+    }
+
+    @Override
+    public Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds) {
+        return deviceQueryService.findDeviceNamesByDeviceIds(deviceIds);
+    }
+
+    @Override
+    public Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds) {
+        return deviceQueryService.findSpaceNamesBySpaceIds(spaceIds);
     }
 }

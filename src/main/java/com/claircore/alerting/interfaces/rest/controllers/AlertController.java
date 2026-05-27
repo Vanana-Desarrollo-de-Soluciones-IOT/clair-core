@@ -22,7 +22,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -66,7 +68,18 @@ public class AlertController {
                 ? alertQueryService.fetchByDeviceAndStatus(query, status)
                 : alertQueryService.fetchByDevice(query);
 
-        return ResponseEntity.ok(alerts.map(AlertResponse::from));
+        Map<UUID, String> deviceNames = externalDeviceService.fetchDeviceNamesByDeviceIds(
+                alerts.getContent().stream().map(Alert::getDeviceId).distinct().toList()
+        );
+        Map<UUID, String> spaceNames = externalDeviceService.fetchSpaceNamesBySpaceIds(
+                alerts.getContent().stream().map(Alert::getSpaceId).filter(Objects::nonNull).distinct().toList()
+        );
+
+        return ResponseEntity.ok(alerts.map(a -> AlertResponse.from(
+                a,
+                spaceNames.get(a.getSpaceId()),
+                deviceNames.get(a.getDeviceId())
+        )));
     }
 
     @GetMapping("/spaces/{spaceId}/alerts")
@@ -95,7 +108,18 @@ public class AlertController {
                 ? alertQueryService.fetchBySpaceAndStatus(query, status)
                 : alertQueryService.fetchBySpace(query);
 
-        return ResponseEntity.ok(alerts.map(AlertResponse::from));
+        Map<UUID, String> deviceNames = externalDeviceService.fetchDeviceNamesByDeviceIds(
+                alerts.getContent().stream().map(Alert::getDeviceId).distinct().toList()
+        );
+        Map<UUID, String> spaceNames = externalDeviceService.fetchSpaceNamesBySpaceIds(
+                alerts.getContent().stream().map(Alert::getSpaceId).filter(Objects::nonNull).distinct().toList()
+        );
+
+        return ResponseEntity.ok(alerts.map(a -> AlertResponse.from(
+                a,
+                spaceNames.get(a.getSpaceId()),
+                deviceNames.get(a.getDeviceId())
+        )));
     }
 
     @GetMapping("/spaces/{spaceId}/alerts/daily-summary")

@@ -4,6 +4,8 @@ import com.claircore.device.interfaces.acl.DeviceContextFacade;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,6 +45,14 @@ public class ExternalAlertingDeviceService {
 
     public Optional<UUID> fetchDeviceIdByHardwareId(String hardwareId) {
         return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
+    }
+
+    public Map<UUID, String> fetchDeviceNamesByDeviceIds(List<UUID> deviceIds) {
+        return deviceContextFacade.findDeviceNamesByDeviceIds(deviceIds);
+    }
+
+    public Map<UUID, String> fetchSpaceNamesBySpaceIds(List<UUID> spaceIds) {
+        return deviceContextFacade.findSpaceNamesBySpaceIds(spaceIds);
     }
 
     @Cacheable(value = "alerting:device-hardware", key = "#deviceId")

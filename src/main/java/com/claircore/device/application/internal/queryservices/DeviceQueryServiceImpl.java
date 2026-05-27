@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -123,5 +124,31 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
         return spaceRepository.findById(spaceId)
                 .map(space -> space.getOwnerUserId().userId().equals(userId))
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds) {
+        if (deviceIds == null || deviceIds.isEmpty()) return Map.of();
+        return deviceRepository.findAllById(deviceIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Device::getId,
+                        Device::getName,
+                        (a, b) -> a
+                ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds) {
+        if (spaceIds == null || spaceIds.isEmpty()) return Map.of();
+        return spaceRepository.findAllById(spaceIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Space::getId,
+                        Space::getName,
+                        (a, b) -> a
+                ));
     }
 }

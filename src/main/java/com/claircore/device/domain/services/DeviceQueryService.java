@@ -8,6 +8,7 @@ import com.claircore.device.domain.model.queries.*;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import org.springframework.data.domain.Page;
 
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,4 +27,14 @@ public interface DeviceQueryService {
     Optional<UUID> findSpaceIdByDeviceId(UUID deviceId);
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
+
+    /**
+     * Batch lookup to avoid N+1 queries in read models.
+     */
+    Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds);
+
+    /**
+     * Batch lookup to avoid N+1 queries in read models.
+     */
+    Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds);
 }

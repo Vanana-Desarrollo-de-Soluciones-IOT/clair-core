@@ -80,4 +80,32 @@ public record AlertResponse(
                 alert.getAuditFields().getCreatedAt().toInstant()
         );
     }
+
+    public static AlertResponse from(Alert alert, String resolvedSpaceName, String resolvedDeviceName) {
+        String spaceName = (resolvedSpaceName != null && !resolvedSpaceName.isBlank())
+                ? resolvedSpaceName
+                : alert.getSpaceName();
+        String deviceName = (resolvedDeviceName != null && !resolvedDeviceName.isBlank())
+                ? resolvedDeviceName
+                : alert.getDeviceName();
+
+        return new AlertResponse(
+                alert.getId(),
+                alert.getDeviceId(),
+                alert.getSpaceId(),
+                alert.getMetric(),
+                alert.getMetric().label(),
+                alert.getMetric().unit(),
+                alert.getThresholdValue(),
+                alert.getActualValue(),
+                alert.getMessage(),
+                alert.getStatus(),
+                alert.getSeverity(),
+                spaceName,
+                deviceName,
+                alert.getOccurredAt(),
+                alert.getResolvedAt(),
+                alert.getAuditFields().getCreatedAt().toInstant()
+        );
+    }
 }

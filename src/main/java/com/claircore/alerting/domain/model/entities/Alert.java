@@ -1,5 +1,6 @@
 package com.claircore.alerting.domain.model.entities;
 
+import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.shared.domain.model.entities.AuditableModel;
@@ -42,6 +43,16 @@ public class Alert {
     @Column(nullable = false)
     private AlertStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AlertSeverity severity;
+
+    @Column(name = "space_name")
+    private String spaceName;
+
+    @Column(name = "device_name")
+    private String deviceName;
+
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
@@ -53,7 +64,9 @@ public class Alert {
 
     protected Alert() {}
 
-    public Alert(UUID deviceId, UUID spaceId, MetricType metric, BigDecimal thresholdValue, BigDecimal actualValue, String message, Instant occurredAt) {
+    public Alert(UUID deviceId, UUID spaceId, String spaceName, String deviceName,
+                 MetricType metric, BigDecimal thresholdValue, BigDecimal actualValue,
+                 String message, AlertSeverity severity, Instant occurredAt) {
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
@@ -66,17 +79,23 @@ public class Alert {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("Message must not be null or blank");
         }
+        if (severity == null) {
+            throw new IllegalArgumentException("Severity must not be null");
+        }
         if (occurredAt == null) {
             throw new IllegalArgumentException("Occurred at must not be null");
         }
 
         this.deviceId = deviceId;
         this.spaceId = spaceId;
+        this.spaceName = spaceName;
+        this.deviceName = deviceName;
         this.metric = metric;
         this.thresholdValue = thresholdValue;
         this.actualValue = actualValue;
         this.message = message;
         this.status = AlertStatus.ACTIVE;
+        this.severity = severity;
         this.occurredAt = occurredAt;
     }
 
@@ -100,6 +119,9 @@ public class Alert {
     public BigDecimal getActualValue() { return actualValue; }
     public String getMessage() { return message; }
     public AlertStatus getStatus() { return status; }
+    public AlertSeverity getSeverity() { return severity; }
+    public String getSpaceName() { return spaceName; }
+    public String getDeviceName() { return deviceName; }
     public Instant getOccurredAt() { return occurredAt; }
     public Instant getResolvedAt() { return resolvedAt; }
     public AlertAudit getAuditFields() { return auditFields; }

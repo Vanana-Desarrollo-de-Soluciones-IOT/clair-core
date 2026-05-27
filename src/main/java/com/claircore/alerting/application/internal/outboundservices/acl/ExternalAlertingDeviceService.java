@@ -34,4 +34,12 @@ public class ExternalAlertingDeviceService {
     public boolean verifySpaceOwnership(UUID spaceId, UUID userId) {
         return deviceContextFacade.isSpaceOwnedByUser(spaceId, userId);
     }
+
+    public Optional<String> fetchSpaceNameBySpaceId(UUID spaceId) {
+        return deviceContextFacade.findSpaceNameBySpaceId(spaceId);
+    }
+
+    public Optional<String> fetchDeviceNameByDeviceId(UUID deviceId) {
+        return deviceContextFacade.findDeviceNameByDeviceId(deviceId);
+    }
 }

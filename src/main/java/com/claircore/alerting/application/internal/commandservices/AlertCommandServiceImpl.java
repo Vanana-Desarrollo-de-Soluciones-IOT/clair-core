@@ -6,6 +6,7 @@ import com.claircore.alerting.application.internal.outboundservices.acl.AlertInc
 import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedKafkaPublisher;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.entities.Alert;
+import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.domain.services.AlertCommandService;
@@ -61,13 +62,19 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                                     // Already active; avoid spamming duplicate alerts for every reading.
                                 },
                                 () -> {
+                                    var spaceName = externalDeviceService.fetchSpaceNameBySpaceId(spaceId).orElse(null);
+                                    var deviceName = externalDeviceService.fetchDeviceNameByDeviceId(command.deviceId()).orElse(null);
+                                    var severity = calculateSeverity(actual, threshold.value());
                                     Alert created = alertRepository.save(new Alert(
                                             command.deviceId(),
                                             spaceId,
+                                            spaceName,
+                                            deviceName,
                                             metric,
                                             threshold.value(),
                                             actual,
                                             buildMessage(metric, threshold.value(), actual),
+                                            severity,
                                             command.occurredAt()
                                     ));
                                     publishIncidentChanged(created);
@@ -120,5 +127,19 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                 threshold.stripTrailingZeros().toPlainString(),
                 metric.unit()
         );
+    }
+
+    private static AlertSeverity calculateSeverity(BigDecimal actual, BigDecimal threshold) {
+        if (threshold.compareTo(BigDecimal.ZERO) == 0) {
+            return AlertSeverity.LOW;
+        }
+        BigDecimal ratio = actual.divide(threshold, 4, java.math.RoundingMode.HALF_UP);
+        if (ratio.compareTo(new BigDecimal("1.5")) >= 0) {
+            return AlertSeverity.CRITICAL;
+        }
+        if (ratio.compareTo(new BigDecimal("1.2")) >= 0) {
+            return AlertSeverity.WARNING;
+        }
+        return AlertSeverity.LOW;
     }
 }

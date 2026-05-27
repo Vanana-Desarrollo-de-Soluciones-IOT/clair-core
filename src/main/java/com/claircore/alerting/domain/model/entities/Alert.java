@@ -12,7 +12,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "alerts")
+@Table(
+        name = "alerts",
+        indexes = {
+                @Index(name = "idx_alert_device_metric_status", columnList = "deviceId, metric, status"),
+                @Index(name = "idx_alert_space_status", columnList = "spaceId, status"),
+                @Index(name = "idx_alert_occurred_at", columnList = "occurredAt")
+        }
+)
 @EntityListeners(AuditingEntityListener.class)
 public class Alert {
 

@@ -9,6 +9,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
@@ -18,19 +20,29 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
     private static final String ISSUER_GOOGLE_SHORT = "accounts.google.com";
 
     private final RestTemplate restTemplate;
-    private final String expectedClientId;
+    private final Set<String> allowedClientIds;
 
     public GoogleTokenVerifierImpl(
-            @Value("${google.oauth.client-id}") String expectedClientId
+            @Value("${google.oauth.client-id}") String primaryClientId,
+            @Value("${google.oauth.allowed-client-ids:}") String allowedClientIds
     ) {
         this.restTemplate = new RestTemplate();
-        this.expectedClientId = expectedClientId;
+        final String effectiveAllowed = (allowedClientIds == null || allowedClientIds.isBlank())
+                ? primaryClientId
+                : allowedClientIds;
+
+        this.allowedClientIds = effectiveAllowed == null
+                ? Set.of()
+                : Set.of(effectiveAllowed.split(",")).stream()
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
     public Optional<VerifiedGoogleIdentity> verify(GoogleIdToken idToken) {
         try {
-            if (expectedClientId == null || expectedClientId.isBlank()) {
+            if (allowedClientIds.isEmpty()) {
                 throw new IllegalStateException("Google OAuth client ID is not configured");
             }
 
@@ -51,7 +63,7 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
             }
 
             String aud = (String) payload.get("aud");
-            if (!expectedClientId.equals(aud)) {
+            if (aud == null || aud.isBlank() || !allowedClientIds.contains(aud)) {
                 return Optional.empty();
             }
 

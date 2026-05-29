@@ -9,4 +9,6 @@ public interface BillingContextFacade {
     int getMaxSpaces(UUID userId);
 
     int getMaxDevices(UUID userId);
+
+    boolean canAccessMonthlyReports(UUID userId);
 }

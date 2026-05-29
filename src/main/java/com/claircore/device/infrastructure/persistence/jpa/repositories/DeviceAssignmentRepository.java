@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,4 +30,7 @@ public interface DeviceAssignmentRepository extends JpaRepository<DeviceAssignme
 
     @Query("SELECT COUNT(a) FROM DeviceAssignment a WHERE a.spaceId IN (SELECT s.id FROM Space s WHERE s.ownerUserId = :ownerUserId)")
     long countByOwnerUserId(@Param("ownerUserId") UserId ownerUserId);
+
+    @Query("SELECT a.device.id FROM DeviceAssignment a WHERE a.ownerUserId = :ownerUserId")
+    List<UUID> findDeviceIdsByOwnerUserId(@Param("ownerUserId") UserId ownerUserId);
 }

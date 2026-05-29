@@ -65,6 +65,11 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     }
 
     @Override
+    public List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId) {
+        return deviceQueryService.findDeviceIdsByOwnerId(ownerUserId);
+    }
+
+    @Override
     public Optional<String> findSpaceNameBySpaceId(UUID spaceId) {
         var query = new GetSpaceByIdQuery(spaceId);
         return deviceQueryService.handle(query)

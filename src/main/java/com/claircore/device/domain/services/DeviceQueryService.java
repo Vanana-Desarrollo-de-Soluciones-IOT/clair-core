@@ -28,6 +28,7 @@ public interface DeviceQueryService {
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
     Optional<UUID> findOwnerIdByDeviceId(UUID deviceId);
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
+    List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId);
 
     /**
      * Batch lookup to avoid N+1 queries in read models.

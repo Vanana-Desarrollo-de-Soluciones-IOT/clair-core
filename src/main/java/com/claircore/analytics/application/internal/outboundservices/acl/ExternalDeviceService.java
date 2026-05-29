@@ -1,8 +1,8 @@
 package com.claircore.analytics.application.internal.outboundservices.acl;
 
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
-import com.claircore.device.interfaces.acl.OrganizationSummaryDto;
-import com.claircore.device.interfaces.acl.SpaceSummaryDto;
+import com.claircore.device.interfaces.acl.OrganizationSummary;
+import com.claircore.device.interfaces.acl.SpaceSummary;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -27,12 +27,12 @@ public class ExternalDeviceService {
         return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
     }
 
-    public List<OrganizationSummaryDto> findOrganizationsByOwnerId(UUID ownerUserId) {
+    public List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId) {
         if (ownerUserId == null) return List.of();
         return deviceContextFacade.findOrganizationsByOwnerId(ownerUserId);
     }
 
-    public List<SpaceSummaryDto> findSpacesByOrganizationId(UUID organizationId) {
+    public List<SpaceSummary> findSpacesByOrganizationId(UUID organizationId) {
         if (organizationId == null) return List.of();
         return deviceContextFacade.findSpacesByOrganizationId(organizationId);
     }

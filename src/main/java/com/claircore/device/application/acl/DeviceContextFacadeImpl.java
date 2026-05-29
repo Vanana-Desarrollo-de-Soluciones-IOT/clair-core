@@ -11,8 +11,8 @@ import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
-import com.claircore.device.interfaces.acl.OrganizationSummaryDto;
-import com.claircore.device.interfaces.acl.SpaceSummaryDto;
+import com.claircore.device.interfaces.acl.OrganizationSummary;
+import com.claircore.device.interfaces.acl.SpaceSummary;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -101,20 +101,20 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     }
 
     @Override
-    public List<OrganizationSummaryDto> findOrganizationsByOwnerId(UUID ownerUserId) {
+    public List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId) {
         var query = new GetOrganizationsByOwnerQuery(new UserId(ownerUserId));
         return deviceQueryService.handle(query)
                 .stream()
-                .map(o -> new OrganizationSummaryDto(o.getId(), o.getName()))
+                .map(o -> new OrganizationSummary(o.getId(), o.getName()))
                 .toList();
     }
 
     @Override
-    public List<SpaceSummaryDto> findSpacesByOrganizationId(UUID organizationId) {
+    public List<SpaceSummary> findSpacesByOrganizationId(UUID organizationId) {
         var query = new GetSpacesByOrganizationQuery(organizationId);
         return deviceQueryService.handle(query)
                 .stream()
-                .map(s -> new SpaceSummaryDto(s.getId(), s.getName(), s.getOrganizationId()))
+                .map(s -> new SpaceSummary(s.getId(), s.getName(), s.getOrganizationId()))
                 .toList();
     }
 

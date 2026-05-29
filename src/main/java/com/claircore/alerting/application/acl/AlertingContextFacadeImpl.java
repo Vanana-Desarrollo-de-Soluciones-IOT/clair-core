@@ -4,7 +4,7 @@ import com.claircore.alerting.application.internal.outboundservices.acl.External
 import com.claircore.alerting.domain.model.entities.Alert;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.infrastructure.persistence.jpa.repositories.AlertRepository;
-import com.claircore.alerting.interfaces.acl.AlertDetailsDto;
+import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.alerting.interfaces.acl.AlertingContextFacade;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,20 +31,20 @@ public class AlertingContextFacadeImpl implements AlertingContextFacade {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AlertDetailsDto> getActiveAlertsByDeviceId(UUID deviceId) {
+    public List<AlertDetails> getActiveAlertsByDeviceId(UUID deviceId) {
         List<Alert> activeAlerts = alertRepository.findByDeviceIdAndStatus(deviceId, AlertStatus.ACTIVE);
         return activeAlerts.stream().map(this::toDto).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<AlertDetailsDto> getAlertDetailsById(UUID alertId) {
+    public Optional<AlertDetails> getAlertDetailsById(UUID alertId) {
         return alertRepository.findById(alertId).map(this::toDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AlertDetailsDto> getRecentAlertsByOwnerId(UUID ownerUserId, List<AlertStatus> statuses, int limit) {
+    public List<AlertDetails> getRecentAlertsByOwnerId(UUID ownerUserId, List<AlertStatus> statuses, int limit) {
         if (ownerUserId == null) return List.of();
         int size = Math.max(0, limit);
         if (size == 0) return List.of();
@@ -60,8 +60,8 @@ public class AlertingContextFacadeImpl implements AlertingContextFacade {
         return page.getContent().stream().map(this::toDto).toList();
     }
 
-    private AlertDetailsDto toDto(Alert alert) {
-        return new AlertDetailsDto(
+    private AlertDetails toDto(Alert alert) {
+        return new AlertDetails(
                 alert.getId(),
                 alert.getDeviceId(),
                 alert.getSpaceId(),

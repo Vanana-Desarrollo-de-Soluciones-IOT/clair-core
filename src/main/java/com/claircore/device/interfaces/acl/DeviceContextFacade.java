@@ -40,12 +40,12 @@ public interface DeviceContextFacade {
     /**
      * Ownership-scoped organization summaries for read models.
      */
-    List<OrganizationSummaryDto> findOrganizationsByOwnerId(UUID ownerUserId);
+    List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId);
 
     /**
      * Spaces within an organization for read models.
      */
-    List<SpaceSummaryDto> findSpacesByOrganizationId(UUID organizationId);
+    List<SpaceSummary> findSpacesByOrganizationId(UUID organizationId);
 
     /**
      * Device IDs assigned to a space (bounded by limit) for read models.

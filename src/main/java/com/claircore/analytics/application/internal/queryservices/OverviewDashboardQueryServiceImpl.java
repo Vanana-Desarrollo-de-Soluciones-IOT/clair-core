@@ -1,7 +1,7 @@
 package com.claircore.analytics.application.internal.queryservices;
 
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
-import com.claircore.alerting.interfaces.acl.AlertDetailsDto;
+import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.alerting.interfaces.acl.AlertingContextFacade;
 import com.claircore.analytics.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.analytics.application.internal.services.KpiLiveMetricsCache;
@@ -11,8 +11,8 @@ import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapsh
 import com.claircore.analytics.domain.services.AqiCalculationDomainService;
 import com.claircore.analytics.domain.services.OverviewDashboardQueryService;
 import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceAnalyticsSnapshotRepository;
-import com.claircore.device.interfaces.acl.OrganizationSummaryDto;
-import com.claircore.device.interfaces.acl.SpaceSummaryDto;
+import com.claircore.device.interfaces.acl.OrganizationSummary;
+import com.claircore.device.interfaces.acl.SpaceSummary;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,18 +52,18 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         int deviceLimit = query.deviceLimitPerSpace();
         int alertLimit = query.alertLimit();
 
-        List<OrganizationSummaryDto> orgs = externalDeviceService.findOrganizationsByOwnerId(ownerUserId);
+        List<OrganizationSummary> orgs = externalDeviceService.findOrganizationsByOwnerId(ownerUserId);
         List<OverviewDashboardSnapshot.OrganizationBreakdown> orgBreakdown = new ArrayList<>();
 
         Set<UUID> allDeviceIds = new HashSet<>();
         int spaceCount = 0;
 
-        for (OrganizationSummaryDto org : orgs) {
-            List<SpaceSummaryDto> spaces = externalDeviceService.findSpacesByOrganizationId(org.organizationId());
+        for (OrganizationSummary org : orgs) {
+            List<SpaceSummary> spaces = externalDeviceService.findSpacesByOrganizationId(org.organizationId());
             spaceCount += spaces.size();
 
             List<OverviewDashboardSnapshot.SpaceBreakdown> spaceBreakdowns = new ArrayList<>();
-            for (SpaceSummaryDto space : spaces) {
+            for (SpaceSummary space : spaces) {
                 List<UUID> spaceDeviceIds = externalDeviceService.findDeviceIdsBySpaceId(space.spaceId(), deviceLimit);
                 allDeviceIds.addAll(spaceDeviceIds);
 
@@ -87,7 +87,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             ));
         }
 
-        List<AlertDetailsDto> recentAlerts = alertingContextFacade.getRecentAlertsByOwnerId(ownerUserId, DEFAULT_ALERT_STATUSES, alertLimit);
+        List<AlertDetails> recentAlerts = alertingContextFacade.getRecentAlertsByOwnerId(ownerUserId, DEFAULT_ALERT_STATUSES, alertLimit);
         List<OverviewDashboardSnapshot.AlertSummary> alertSummaries = toAlertSummaries(recentAlerts);
 
         // Fill missing names using batch lookups to Device BC (best-effort).
@@ -267,7 +267,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         );
     }
 
-    private static List<OverviewDashboardSnapshot.AlertSummary> toAlertSummaries(List<AlertDetailsDto> alerts) {
+    private static List<OverviewDashboardSnapshot.AlertSummary> toAlertSummaries(List<AlertDetails> alerts) {
         if (alerts == null || alerts.isEmpty()) return List.of();
         return alerts.stream().map(a -> new OverviewDashboardSnapshot.AlertSummary(
                 a.alertId(),

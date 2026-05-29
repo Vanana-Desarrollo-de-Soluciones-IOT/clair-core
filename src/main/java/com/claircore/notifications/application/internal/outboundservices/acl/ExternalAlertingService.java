@@ -1,6 +1,6 @@
 package com.claircore.notifications.application.internal.outboundservices.acl;
 
-import com.claircore.alerting.interfaces.acl.AlertDetailsDto;
+import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.alerting.interfaces.acl.AlertingContextFacade;
 import org.springframework.stereotype.Service;
 
@@ -17,11 +17,11 @@ public class ExternalAlertingService {
         this.alertingContextFacade = alertingContextFacade;
     }
 
-    public List<AlertDetailsDto> fetchActiveAlertsByDeviceId(UUID deviceId) {
+    public List<AlertDetails> fetchActiveAlertsByDeviceId(UUID deviceId) {
         return alertingContextFacade.getActiveAlertsByDeviceId(deviceId);
     }
 
-    public Optional<AlertDetailsDto> fetchAlertDetailsById(UUID alertId) {
+    public Optional<AlertDetails> fetchAlertDetailsById(UUID alertId) {
         return alertingContextFacade.getAlertDetailsById(alertId);
     }
 }

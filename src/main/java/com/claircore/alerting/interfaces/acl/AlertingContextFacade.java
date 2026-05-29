@@ -7,11 +7,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AlertingContextFacade {
-    List<AlertDetailsDto> getActiveAlertsByDeviceId(UUID deviceId);
-    Optional<AlertDetailsDto> getAlertDetailsById(UUID alertId);
+    List<AlertDetails> getActiveAlertsByDeviceId(UUID deviceId);
+    Optional<AlertDetails> getAlertDetailsById(UUID alertId);
 
     /**
      * Ownership-scoped alert summaries across all owned devices.
      */
-    List<AlertDetailsDto> getRecentAlertsByOwnerId(UUID ownerUserId, List<AlertStatus> statuses, int limit);
+    List<AlertDetails> getRecentAlertsByOwnerId(UUID ownerUserId, List<AlertStatus> statuses, int limit);
 }

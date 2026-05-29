@@ -58,10 +58,20 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     @Transactional
     public List<Device> handle(SeedDevicesCommand command) {
-        List<Device> seeded = new ArrayList<>();
+        List<String> expectedSerialNumbers = new ArrayList<>();
         for (int i = 1; i <= command.count(); i++) {
-            String serialNumber = "SN-" + String.format("%04d", i);
-            if (deviceRepository.findBySerialNumber(serialNumber).isPresent()) {
+            expectedSerialNumbers.add("SN-" + String.format("%04d", i));
+        }
+
+        // Optimized: Single query to find all existing devices by serial number.
+        List<String> existingSerialNumbers = deviceRepository.findAllBySerialNumberIn(expectedSerialNumbers)
+                .stream()
+                .map(Device::getSerialNumber)
+                .toList();
+
+        List<Device> seeded = new ArrayList<>();
+        for (String serialNumber : expectedSerialNumbers) {
+            if (existingSerialNumbers.contains(serialNumber)) {
                 continue;
             }
 
@@ -70,7 +80,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
             Device device = new Device(
                 serialNumber,
-                "Sensor " + i,
+                "Sensor " + serialNumber.substring(3),
                 new HardwareId(hardwareId),
                 ApiKey.generate(),
                 new DeviceType("air-quality-v1")

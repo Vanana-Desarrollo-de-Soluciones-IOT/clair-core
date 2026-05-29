@@ -153,26 +153,16 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     }
 
     private AveragesResult getAverages(UUID deviceId, Instant start, Instant end) {
-        return getSnapshotAverages(deviceId, start, end);
-    }
-
-    private AveragesResult getSnapshotAverages(UUID deviceId, Instant start, Instant end) {
-        var snapshots = snapshotRepository.findByDeviceIdAndTimeWindowStartBetween(deviceId, start, end);
-        if (snapshots.isEmpty()) {
+        Object[] result = (Object[]) snapshotRepository.findAveragesByDeviceIdAndTimeWindow(deviceId, start, end);
+        if (result == null || result.length == 0 || result[0] == null) {
             return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
         }
-        double sumCo2 = 0.0;
-        double sumPm25 = 0.0;
-        double sumTemp = 0.0;
-        double sumHum = 0.0;
-        for (var s : snapshots) {
-            sumCo2 += s.getAverageCo2();
-            sumPm25 += s.getAveragePm2_5();
-            sumTemp += s.getAverageTemperature();
-            sumHum += s.getAverageHumidity();
-        }
-        int count = snapshots.size();
-        return new AveragesResult(new Averages(sumCo2 / count, sumPm25 / count, sumTemp / count, sumHum / count), true);
+        return new AveragesResult(new Averages(
+                ((Number) result[0]).doubleValue(),
+                ((Number) result[1]).doubleValue(),
+                ((Number) result[2]).doubleValue(),
+                ((Number) result[3]).doubleValue()
+        ), true);
     }
 
     private record Averages(double co2, double pm2_5, double temperature, double humidity) {}

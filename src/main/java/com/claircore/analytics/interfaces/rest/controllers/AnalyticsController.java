@@ -96,24 +96,9 @@ public class AnalyticsController {
             return ResponseEntity.badRequest().build();
         }
         
-        TrendPeriod trendPeriod = null;
-        if (period != null) {
-            try {
-                trendPeriod = TrendPeriod.valueOf(period.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().build();
-            }
-        } else if (startDate == null || endDate == null) {
-            trendPeriod = TrendPeriod.DAY;
-        }
-
-        var query = new GetHistoricalTrendQuery(new DeviceId(deviceId), trendPeriod, startDate, endDate);
+        TrendPeriod trendPeriod = (period != null) ? TrendPeriod.valueOf(period.toUpperCase()) : null;
+        var query = new GetHistoricalTrendQuery(new DeviceId(deviceId), trendPeriod, startDate, endDate, limit);
         var points = kpiHistoricalTrendQueryService.handle(query);
-        
-        // Add limit to trends
-        if (points.size() > limit) {
-            points = points.subList(points.size() - limit, points.size());
-        }
         
         return ResponseEntity.ok(AnalyticsTransform.toTrendChartResponse(points));
     }

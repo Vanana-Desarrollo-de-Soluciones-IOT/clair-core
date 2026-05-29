@@ -11,13 +11,11 @@ import com.claircore.device.domain.services.DeviceThresholdCommandService;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.interfaces.rest.resources.DeviceThresholdResponse;
 import com.claircore.device.interfaces.rest.resources.UpdateDeviceThresholdRequest;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,10 +47,9 @@ public class DeviceThresholdController {
             @ApiResponse(responseCode = "404", description = "Device not found")
     })
     public ResponseEntity<List<DeviceThresholdResponse>> getThresholds(
-            HttpServletRequest httpRequest,
             @Parameter(description = "Device ID") @PathVariable UUID deviceId) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var query = new GetDeviceThresholdsByDeviceQuery(deviceId, new UserId(userId));
         List<DeviceMetricThresholdConfiguration> thresholds = deviceThresholdQueryService.handle(query);
 
@@ -72,11 +69,10 @@ public class DeviceThresholdController {
             @ApiResponse(responseCode = "404", description = "Device not found")
     })
     public ResponseEntity<DeviceThresholdResponse> createThreshold(
-            HttpServletRequest httpRequest,
             @Parameter(description = "Device ID") @PathVariable UUID deviceId,
             @Valid @RequestBody UpdateDeviceThresholdRequest request) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new WriteDeviceThresholdCommand(
                 deviceId,
                 new UserId(userId),
@@ -100,11 +96,10 @@ public class DeviceThresholdController {
             @ApiResponse(responseCode = "404", description = "Device not found")
     })
     public ResponseEntity<DeviceThresholdResponse> updateThreshold(
-            HttpServletRequest httpRequest,
             @Parameter(description = "Device ID") @PathVariable UUID deviceId,
             @Valid @RequestBody UpdateDeviceThresholdRequest request) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new WriteDeviceThresholdCommand(
                 deviceId,
                 new UserId(userId),
@@ -127,13 +122,20 @@ public class DeviceThresholdController {
             @ApiResponse(responseCode = "404", description = "Threshold or device not found")
     })
     public ResponseEntity<Void> removeThreshold(
-            HttpServletRequest httpRequest,
             @Parameter(description = "Device ID") @PathVariable UUID deviceId,
             @Parameter(description = "Metric type") @PathVariable MetricThreshold metric) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new RemoveDeviceThresholdCommand(deviceId, new UserId(userId), metric);
         deviceThresholdCommandService.handle(command);
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID getAuthenticatedUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails)) {
+            throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
+        }
+        return UUID.fromString(userDetails.getUsername());
     }
 }

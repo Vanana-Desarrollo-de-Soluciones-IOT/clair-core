@@ -3,11 +3,12 @@ package com.claircore.evaluation.domain.model.commands;
 import com.claircore.evaluation.domain.model.valueobjects.*;
 
 import java.time.Instant;
+import java.time.LocalTime;
 
 public record EvaluateTelemetryCommand(
         DeviceId deviceId,
-        String deviceTime,
-        String uptime,
+        LocalTime deviceTime,
+        Long uptime,
         AirQuality airQuality,
         ParticulateMatter particulateMatter,
         Connectivity connectivity,
@@ -20,11 +21,11 @@ public record EvaluateTelemetryCommand(
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
-        if (deviceTime == null || deviceTime.isBlank()) {
-            throw new IllegalArgumentException("deviceTime must not be null or blank");
+        if (deviceTime == null) {
+            throw new IllegalArgumentException("deviceTime must not be null");
         }
-        if (uptime == null || uptime.isBlank()) {
-            throw new IllegalArgumentException("uptime must not be null or blank");
+        if (uptime == null || uptime < 0) {
+            throw new IllegalArgumentException("uptime must not be null or negative");
         }
         if (airQuality == null) {
             throw new IllegalArgumentException("airQuality must not be null");

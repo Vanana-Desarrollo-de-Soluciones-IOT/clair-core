@@ -15,12 +15,10 @@ import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.services.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -73,10 +71,9 @@ public class DeviceController {
             @ApiResponse(responseCode = "403", description = "The target space does not belong to the authenticated user")
     })
     public ResponseEntity<DeviceResponse> claimDevice(
-            HttpServletRequest httpRequest,
             @Valid @RequestBody ClaimDeviceRequest request) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new ClaimDeviceCommand(
                 request.claimToken(),
                 request.spaceId(),
@@ -116,23 +113,18 @@ public class DeviceController {
             @ApiResponse(responseCode = "404", description = "Device assignment not found")
     })
     public ResponseEntity<DeviceStatusResponse> getDeviceStatus(
-            HttpServletRequest httpRequest,
             @PathVariable UUID deviceId
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var query = new GetDeviceStatusByDeviceIdForUserQuery(deviceId, new UserId(userId));
 
-        try {
-            return deviceStatusQueryService.handle(query)
-                    .map(assignment -> ResponseEntity.ok(new DeviceStatusResponse(
-                            assignment.getDevice().getId(),
-                            assignment.getStatus(),
-                            assignment.getLastSeenAt()
-                    )))
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (org.springframework.security.access.AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        return deviceStatusQueryService.handle(query)
+                .map(assignment -> ResponseEntity.ok(new DeviceStatusResponse(
+                        assignment.getDevice().getId(),
+                        assignment.getStatus(),
+                        assignment.getLastSeenAt()
+                )))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{deviceId}")
@@ -142,8 +134,8 @@ public class DeviceController {
             @ApiResponse(responseCode = "400", description = "Device not found or invalid request"),
             @ApiResponse(responseCode = "403", description = "The device does not belong to the authenticated user")
     })
-    public ResponseEntity<Void> deleteDevice(HttpServletRequest httpRequest, @PathVariable UUID deviceId) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+    public ResponseEntity<Void> deleteDevice(@PathVariable UUID deviceId) {
+        UUID userId = getAuthenticatedUserId();
         deviceCommandService.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
         return ResponseEntity.noContent().build();
     }
@@ -156,13 +148,20 @@ public class DeviceController {
             @ApiResponse(responseCode = "403", description = "The device does not belong to the authenticated user")
     })
     public ResponseEntity<Void> updateDeviceName(
-            HttpServletRequest httpRequest,
             @PathVariable UUID deviceId,
             @Valid @RequestBody UpdateDeviceNameRequest request) {
 
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         deviceCommandService.handle(new UpdateDeviceNameCommand(deviceId, request.name(), new UserId(userId)));
         return ResponseEntity.ok().build();
+    }
+
+    private UUID getAuthenticatedUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails)) {
+            throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
+        }
+        return UUID.fromString(userDetails.getUsername());
     }
 
     private DeviceResponse toResponse(DeviceAssignment assignment) {

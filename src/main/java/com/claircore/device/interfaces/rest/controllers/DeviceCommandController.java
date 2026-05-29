@@ -9,12 +9,10 @@ import com.claircore.device.domain.services.DeviceControlCommandService;
 import com.claircore.device.domain.services.DeviceCommandQueryService;
 import com.claircore.device.interfaces.rest.resources.CreateDeviceCommandRequest;
 import com.claircore.device.interfaces.rest.resources.DeviceCommandResponse;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
@@ -49,11 +47,10 @@ public class DeviceCommandController {
             @ApiResponse(responseCode = "404", description = "Device assignment not found")
     })
     public ResponseEntity<DeviceCommandResponse> createDeviceCommand(
-            HttpServletRequest httpRequest,
             @PathVariable UUID deviceId,
             @Valid @RequestBody CreateDeviceCommandRequest request
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         DeviceCommand command = deviceControlCommandService.handle(new CreateDeviceCommandCommand(
                 deviceId,
                 request.type(),
@@ -72,19 +69,14 @@ public class DeviceCommandController {
             @ApiResponse(responseCode = "404", description = "Command not found")
     })
     public ResponseEntity<DeviceCommandResponse> getDeviceCommandById(
-            HttpServletRequest httpRequest,
             @PathVariable UUID deviceId,
             @PathVariable UUID commandId
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var query = new GetDeviceCommandByIdForUserQuery(deviceId, commandId, new UserId(userId));
-        try {
-            return deviceCommandQueryService.handle(query)
-                    .map(command -> ResponseEntity.ok(toResponse(command)))
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        return deviceCommandQueryService.handle(query)
+                .map(command -> ResponseEntity.ok(toResponse(command)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{deviceId}/commands/latest")
@@ -95,18 +87,21 @@ public class DeviceCommandController {
             @ApiResponse(responseCode = "404", description = "No commands found for device")
     })
     public ResponseEntity<DeviceCommandResponse> getLatestDeviceCommand(
-            HttpServletRequest httpRequest,
             @PathVariable UUID deviceId
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var query = new GetLatestDeviceCommandByDeviceForUserQuery(deviceId, new UserId(userId));
-        try {
-            return deviceCommandQueryService.handle(query)
-                    .map(command -> ResponseEntity.ok(toResponse(command)))
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (AccessDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return deviceCommandQueryService.handle(query)
+                .map(command -> ResponseEntity.ok(toResponse(command)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    private UUID getAuthenticatedUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails)) {
+            throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
         }
+        return UUID.fromString(userDetails.getUsername());
     }
 
     private DeviceCommandResponse toResponse(DeviceCommand command) {

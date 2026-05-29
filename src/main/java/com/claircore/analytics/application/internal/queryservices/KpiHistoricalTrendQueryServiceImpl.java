@@ -43,8 +43,10 @@ public class KpiHistoricalTrendQueryServiceImpl implements KpiHistoricalTrendQue
             }
         }
 
+        var pageable = query.limit() != null ? org.springframework.data.domain.PageRequest.of(0, query.limit()) : org.springframework.data.domain.Pageable.unpaged();
+
         var snapshots = snapshotRepository.findByDeviceIdAndTimeWindowStartBetween(
-                query.deviceId().value(), start, end
+                query.deviceId().value(), start, end, pageable
         );
 
         return snapshots.stream()

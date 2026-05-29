@@ -69,11 +69,9 @@ public class MetricsAggregationDomainServiceImpl implements MetricsAggregationDo
         Integer avgAqi = averageInt(aqi);
         String aqiCategory = null;
         if (avgAqi != null && avgPm25 != null && avgCo2 != null) {
-            try {
-                AirQualityIndex derived = aqiCalculationDomainService.calculateAqi(avgPm25, avgCo2);
-                avgAqi = derived.value();
-                aqiCategory = derived.category().name();
-            } catch (Exception ignored) {}
+            AirQualityIndex derived = aqiCalculationDomainService.calculateAqi(avgPm25, avgCo2);
+            avgAqi = derived.value();
+            aqiCategory = derived.category().name();
         }
 
         Freshness freshness = Freshness.NO_DATA;

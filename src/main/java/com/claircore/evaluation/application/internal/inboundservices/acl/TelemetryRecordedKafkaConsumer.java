@@ -15,8 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 
@@ -35,6 +39,9 @@ public class TelemetryRecordedKafkaConsumer {
     private final ObjectMapper objectMapper;
     private final ExternalDeviceService externalDeviceService;
     private final KafkaInboxService kafkaInboxService;
+
+    // Cache for resolving hardwareId/deviceId string to UUID to avoid crossing BC boundaries on every event.
+    private final Map<String, UUID> deviceIdCache = new ConcurrentHashMap<>();
 
     public TelemetryRecordedKafkaConsumer(
             TelemetryEvaluationCommandService telemetryEvaluationCommandService,
@@ -69,21 +76,29 @@ public class TelemetryRecordedKafkaConsumer {
             throw new IllegalArgumentException("Invalid telemetry event payload", e);
         }
 
-        LOGGER.info("Consuming telemetry record for device {}", event.deviceId());
+        LOGGER.debug("Consuming telemetry record for device {}", event.deviceId());
 
         try {
-            UUID resolvedDeviceId = resolveDeviceId(event.deviceId()).orElse(null);
+            UUID resolvedDeviceId = resolveDeviceIdCached(event.deviceId()).orElse(null);
             if (resolvedDeviceId == null) {
                 LOGGER.warn("Skipping telemetry event: unknown device identifier {}", event.deviceId());
-                // Skip is intentional; do not retry forever.
+                // Skip is intentional; do not retry forever if device is unknown.
                 kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
                 return;
             }
 
+            LocalTime deviceTime;
+            try {
+                deviceTime = LocalTime.parse(event.deviceTime());
+            } catch (DateTimeParseException | NullPointerException e) {
+                LOGGER.warn("Invalid device_time format: {}. Defaulting to midnight.", event.deviceTime());
+                deviceTime = LocalTime.MIDNIGHT;
+            }
+
             var command = new EvaluateTelemetryCommand(
                     new com.claircore.evaluation.domain.model.valueobjects.DeviceId(resolvedDeviceId),
-                    event.deviceTime(),
-                    String.valueOf(event.uptimeSeconds()),
+                    deviceTime,
+                    event.uptimeSeconds(),
                     new AirQuality(event.co2(), event.temperature(), event.humidity()),
                     new ParticulateMatter(event.pm1_0(), event.pm2_5(), event.pm10()),
                     new Connectivity(event.wifiStatus(), event.networkName(), event.signalStrength()),
@@ -103,10 +118,22 @@ public class TelemetryRecordedKafkaConsumer {
         }
     }
 
-    private Optional<UUID> resolveDeviceId(String deviceIdOrHardwareId) {
+    private Optional<UUID> resolveDeviceIdCached(String deviceIdOrHardwareId) {
         if (deviceIdOrHardwareId == null || deviceIdOrHardwareId.isBlank()) {
             return Optional.empty();
         }
+
+        UUID cached = deviceIdCache.get(deviceIdOrHardwareId);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+
+        Optional<UUID> resolved = resolveDeviceId(deviceIdOrHardwareId);
+        resolved.ifPresent(uuid -> deviceIdCache.put(deviceIdOrHardwareId, uuid));
+        return resolved;
+    }
+
+    private Optional<UUID> resolveDeviceId(String deviceIdOrHardwareId) {
         try {
             return Optional.of(UUID.fromString(deviceIdOrHardwareId));
         } catch (IllegalArgumentException ignored) {

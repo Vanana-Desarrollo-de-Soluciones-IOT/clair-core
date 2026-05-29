@@ -9,8 +9,8 @@ public class TrendAnalysisDomainServiceImpl implements TrendAnalysisDomainServic
 
     @Override
     public MetricTrend calculateTrend(Double currentValue, Double previousValue) {
-        if (previousValue == null) {
-            return new MetricTrend(currentValue, null, null);
+        if (currentValue == null || previousValue == null) {
+            return new MetricTrend(currentValue, previousValue, null);
         }
         if (previousValue == 0.0) {
             return new MetricTrend(currentValue, 0.0, null);

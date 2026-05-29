@@ -148,85 +148,58 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             return new AggregatedMetrics(null, null, null, null, null, null, null, null, null, null, null, Freshness.NO_DATA);
         }
 
-        List<CompletableFuture<DeviceMetricsSnapshot>> snapshotFutures = deviceIds.stream()
-                .map(deviceId -> CompletableFuture.supplyAsync(() -> resolveLatestMetrics(deviceId)))
-                .toList();
+        // Dividir entre dispositivos en caché (LIVE) y los que necesitan Snapshot de la DB
+        List<UUID> liveDeviceIds = new ArrayList<>();
+        List<UUID> snapshotDeviceIds = new ArrayList<>();
+        Map<UUID, DeviceMetricsSnapshot> cachedSnapshots = new HashMap<>();
 
-        List<DeviceMetricsSnapshot> snapshots = snapshotFutures.stream()
-                .map(CompletableFuture::join)
-                .filter(Objects::nonNull)
-                .toList();
-
-        return metricsAggregationDomainService.aggregate(snapshots);
-    }
-
-    private DeviceMetricsSnapshot resolveLatestMetrics(UUID deviceId) {
-        if (deviceId == null) return null;
-
-        var live = liveMetricsCache.getIfPresent(deviceId);
-        if (live != null && !live.isEmpty()) {
-            var avg = live.computeAverages();
-            var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
-
-            var latestSnapshot = snapshotRepository
-                    .findLatestByDeviceId(deviceId, PageRequest.of(0, 1))
-                    .stream().findFirst().orElse(null);
-            
-            Double prevCo2 = latestSnapshot != null ? latestSnapshot.getAverageCo2() : null;
-            Double prevPm25 = latestSnapshot != null ? latestSnapshot.getAveragePm2_5() : null;
-            Double prevTemp = latestSnapshot != null ? latestSnapshot.getAverageTemperature() : null;
-            Double prevHum = latestSnapshot != null ? latestSnapshot.getAverageHumidity() : null;
-
-            Double co2Delta = trendAnalysisDomainService.calculateTrend(avg.co2(), prevCo2).deltaPercentage();
-            Double pm25Delta = trendAnalysisDomainService.calculateTrend(avg.pm2_5(), prevPm25).deltaPercentage();
-            Double tempDelta = trendAnalysisDomainService.calculateTrend(avg.temperature(), prevTemp).deltaPercentage();
-            Double humDelta = trendAnalysisDomainService.calculateTrend(avg.humidity(), prevHum).deltaPercentage();
-
-            return new DeviceMetricsSnapshot(
-                    DeviceMetricsSnapshot.Source.LIVE,
-                    aqi.value(),
-                    avg.co2(),
-                    avg.pm2_5(),
-                    avg.temperature(),
-                    avg.humidity(),
-                    co2Delta,
-                    pm25Delta,
-                    tempDelta,
-                    humDelta,
-                    Instant.now()
-            );
+        for (UUID deviceId : deviceIds) {
+            var live = liveMetricsCache.getIfPresent(deviceId);
+            if (live != null && !live.isEmpty()) {
+                liveDeviceIds.add(deviceId);
+                cachedSnapshots.put(deviceId, resolveLiveMetrics(deviceId, live));
+            } else {
+                snapshotDeviceIds.add(deviceId);
+            }
         }
 
-        var snapshots = snapshotRepository.findLatestByDeviceId(deviceId, PageRequest.of(0, 2));
-        var latestSnapshot = snapshots.stream().findFirst().orElse(null);
-        if (latestSnapshot == null) return null;
-        var previousSnapshot = snapshots.size() > 1 ? snapshots.get(1) : null;
+        // Carga por lotes para los que no están en caché
+        List<DeviceMetricsSnapshot> allSnapshots = new ArrayList<>(cachedSnapshots.values());
+        if (!snapshotDeviceIds.isEmpty()) {
+            var latestSnapshots = snapshotRepository.findLatestByDeviceIds(snapshotDeviceIds);
+            for (var snapshot : latestSnapshots) {
+                allSnapshots.add(new DeviceMetricsSnapshot(
+                        DeviceMetricsSnapshot.Source.SNAPSHOT,
+                        snapshot.getCalculatedAqi().value(),
+                        snapshot.getAverageCo2(),
+                        snapshot.getAveragePm2_5(),
+                        snapshot.getAverageTemperature(),
+                        snapshot.getAverageHumidity(),
+                        null, // Delta simplificado para resumen batch
+                        null,
+                        null,
+                        null,
+                        snapshot.getTimeWindowEnd()
+                ));
+            }
+        }
 
-        Double co2Delta = previousSnapshot != null
-                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageCo2(), previousSnapshot.getAverageCo2()).deltaPercentage()
-                : null;
-        Double pm25Delta = previousSnapshot != null
-                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAveragePm2_5(), previousSnapshot.getAveragePm2_5()).deltaPercentage()
-                : null;
-        Double tempDelta = previousSnapshot != null
-                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageTemperature(), previousSnapshot.getAverageTemperature()).deltaPercentage()
-                : null;
-        Double humDelta = previousSnapshot != null
-                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageHumidity(), previousSnapshot.getAverageHumidity()).deltaPercentage()
-                : null;
+        return metricsAggregationDomainService.aggregate(allSnapshots);
+    }
+
+    private DeviceMetricsSnapshot resolveLiveMetrics(UUID deviceId, com.claircore.analytics.application.internal.services.KpiLiveMetricsBuffer live) {
+        var avg = live.computeAverages();
+        var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
 
         return new DeviceMetricsSnapshot(
-                DeviceMetricsSnapshot.Source.SNAPSHOT,
-                latestSnapshot.getCalculatedAqi().value(),
-                latestSnapshot.getAverageCo2(),
-                latestSnapshot.getAveragePm2_5(),
-                latestSnapshot.getAverageTemperature(),
-                latestSnapshot.getAverageHumidity(),
-                co2Delta,
-                pm25Delta,
-                tempDelta,
-                humDelta,
-                latestSnapshot.getTimeWindowEnd()
+                DeviceMetricsSnapshot.Source.LIVE,
+                aqi.value(),
+                avg.co2(),
+                avg.pm2_5(),
+                avg.temperature(),
+                avg.humidity(),
+                null, null, null, null,
+                Instant.now()
         );
     }
 

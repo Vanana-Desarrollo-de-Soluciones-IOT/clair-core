@@ -6,6 +6,7 @@ import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.TrendPeriod;
 import com.claircore.analytics.domain.services.KpiDashboardMetricsQueryService;
 import com.claircore.analytics.domain.services.KpiHistoricalTrendQueryService;
+import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
 import com.claircore.analytics.interfaces.rest.resources.DashboardMetricsResponse;
 import com.claircore.analytics.interfaces.rest.resources.TrendChartResponse;
 import com.claircore.analytics.interfaces.rest.transform.AnalyticsTransform;
@@ -50,10 +51,11 @@ public class AnalyticsController {
             @RequestParam(required = false) Instant endDate
     ) {
         var query = new GetDashboardMetricsQuery(new DeviceId(deviceId), period, startDate, endDate);
+        boolean isLive = (startDate == null || endDate == null) && (period == null || period.equalsIgnoreCase("LIVE"));
         return kpiDashboardMetricsQueryService.handle(query)
                 .map(AnalyticsTransform::toDashboardResponse)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, isLive));
     }
 
     @GetMapping("/devices/{deviceId}/trends")

@@ -33,5 +33,9 @@ public record KpiDashboardMetrics(
         if (calculatedAt == null) {
             throw new IllegalArgumentException("calculatedAt must not be null");
         }
+        averageCo2 = Math.round(averageCo2 * 100.0) / 100.0;
+        averagePm2_5 = Math.round(averagePm2_5 * 100.0) / 100.0;
+        averageTemperature = Math.round(averageTemperature * 100.0) / 100.0;
+        averageHumidity = Math.round(averageHumidity * 100.0) / 100.0;
     }
 }

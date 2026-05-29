@@ -14,7 +14,7 @@ import java.util.UUID;
 @Repository
 public interface DeviceAnalyticsSnapshotRepository extends JpaRepository<DeviceAnalyticsSnapshot, UUID> {
 
-    @Query("SELECT s FROM DeviceAnalyticsSnapshot s WHERE s.deviceId.value = :deviceId AND s.timeWindowStart BETWEEN :start AND :end ORDER BY s.timeWindowStart ASC")
+    @Query("SELECT s FROM DeviceAnalyticsSnapshot s WHERE s.deviceId.value = :deviceId AND s.timeWindowStart >= :start AND s.timeWindowStart < :end ORDER BY s.timeWindowStart ASC")
     List<DeviceAnalyticsSnapshot> findByDeviceIdAndTimeWindowStartBetween(
             @Param("deviceId") UUID deviceId,
             @Param("start") Instant start,

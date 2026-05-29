@@ -24,6 +24,10 @@ public record OverviewDashboardSnapshot(
             Double averagePm2_5,
             Double averageTemperature,
             Double averageHumidity,
+            Double co2DeltaPercentage,
+            Double pm2_5DeltaPercentage,
+            Double temperatureDeltaPercentage,
+            Double humidityDeltaPercentage,
             Instant recordedAt,
             Integer organizationCount,
             Integer spaceCount,
@@ -100,4 +104,3 @@ public record OverviewDashboardSnapshot(
         }
     }
 }
-

@@ -10,6 +10,7 @@ import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot;
 import com.claircore.analytics.domain.services.AqiCalculationDomainService;
 import com.claircore.analytics.domain.services.OverviewDashboardQueryService;
+import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
 import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceAnalyticsSnapshotRepository;
 import com.claircore.device.interfaces.acl.OrganizationSummary;
 import com.claircore.device.interfaces.acl.SpaceSummary;
@@ -30,19 +31,22 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
     private final KpiLiveMetricsCache liveMetricsCache;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
     private final AqiCalculationDomainService aqiCalculationDomainService;
+    private final TrendAnalysisDomainService trendAnalysisDomainService;
 
     public OverviewDashboardQueryServiceImpl(
             ExternalDeviceService externalDeviceService,
             AlertingContextFacade alertingContextFacade,
             KpiLiveMetricsCache liveMetricsCache,
             DeviceAnalyticsSnapshotRepository snapshotRepository,
-            AqiCalculationDomainService aqiCalculationDomainService
+            AqiCalculationDomainService aqiCalculationDomainService,
+            TrendAnalysisDomainService trendAnalysisDomainService
     ) {
         this.externalDeviceService = externalDeviceService;
         this.alertingContextFacade = alertingContextFacade;
         this.liveMetricsCache = liveMetricsCache;
         this.snapshotRepository = snapshotRepository;
         this.aqiCalculationDomainService = aqiCalculationDomainService;
+        this.trendAnalysisDomainService = trendAnalysisDomainService;
     }
 
     @Override
@@ -103,6 +107,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
                 overall.averagePm2_5(),
                 overall.averageTemperature(),
                 overall.averageHumidity(),
+                overall.co2DeltaPercentage(),
+                overall.pm2_5DeltaPercentage(),
+                overall.temperatureDeltaPercentage(),
+                overall.humidityDeltaPercentage(),
                 overall.recordedAt(),
                 orgs.size(),
                 spaceCount,
@@ -120,13 +128,30 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             Double averagePm2_5,
             Double averageTemperature,
             Double averageHumidity,
+            Double co2DeltaPercentage,
+            Double pm2_5DeltaPercentage,
+            Double temperatureDeltaPercentage,
+            Double humidityDeltaPercentage,
             Instant recordedAt,
             String freshness
     ) {}
 
     private AggregatedMetrics aggregateAcrossDevices(List<UUID> deviceIds) {
         if (deviceIds == null || deviceIds.isEmpty()) {
-            return new AggregatedMetrics(null, null, null, null, null, null, null, "NO_DATA");
+            return new AggregatedMetrics(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "NO_DATA"
+            );
         }
 
         List<Double> co2 = new ArrayList<>();
@@ -134,6 +159,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         List<Double> temp = new ArrayList<>();
         List<Double> hum = new ArrayList<>();
         List<Integer> aqi = new ArrayList<>();
+        List<Double> co2Delta = new ArrayList<>();
+        List<Double> pm25Delta = new ArrayList<>();
+        List<Double> tempDelta = new ArrayList<>();
+        List<Double> humDelta = new ArrayList<>();
         Instant latest = null;
         boolean hasLive = false;
         boolean hasSnapshot = false;
@@ -149,6 +178,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             if (snapshot.averageTemperature != null && Double.isFinite(snapshot.averageTemperature)) temp.add(snapshot.averageTemperature);
             if (snapshot.averageHumidity != null && Double.isFinite(snapshot.averageHumidity)) hum.add(snapshot.averageHumidity);
             if (snapshot.aqiValue != null) aqi.add(snapshot.aqiValue);
+            if (snapshot.co2DeltaPercentage != null && Double.isFinite(snapshot.co2DeltaPercentage)) co2Delta.add(snapshot.co2DeltaPercentage);
+            if (snapshot.pm2_5DeltaPercentage != null && Double.isFinite(snapshot.pm2_5DeltaPercentage)) pm25Delta.add(snapshot.pm2_5DeltaPercentage);
+            if (snapshot.temperatureDeltaPercentage != null && Double.isFinite(snapshot.temperatureDeltaPercentage)) tempDelta.add(snapshot.temperatureDeltaPercentage);
+            if (snapshot.humidityDeltaPercentage != null && Double.isFinite(snapshot.humidityDeltaPercentage)) humDelta.add(snapshot.humidityDeltaPercentage);
 
             if (snapshot.recordedAt != null) {
                 latest = (latest == null || snapshot.recordedAt.isAfter(latest)) ? snapshot.recordedAt : latest;
@@ -159,6 +192,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         Double avgPm25 = average(pm25);
         Double avgTemp = average(temp);
         Double avgHum = average(hum);
+        Double avgCo2Delta = average(co2Delta);
+        Double avgPm25Delta = average(pm25Delta);
+        Double avgTempDelta = average(tempDelta);
+        Double avgHumDelta = average(humDelta);
 
         Integer avgAqi = averageInt(aqi);
         String aqiCategory = null;
@@ -181,7 +218,20 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             latest = null;
         }
 
-        return new AggregatedMetrics(avgAqi, aqiCategory, round1(avgCo2), round1(avgPm25), round1(avgTemp), round1(avgHum), latest, freshness);
+        return new AggregatedMetrics(
+                avgAqi,
+                aqiCategory,
+                round1(avgCo2),
+                round1(avgPm25),
+                round1(avgTemp),
+                round1(avgHum),
+                round1(avgCo2Delta),
+                round1(avgPm25Delta),
+                round1(avgTempDelta),
+                round1(avgHumDelta),
+                latest,
+                freshness
+        );
     }
 
     private static Double average(List<Double> values) {
@@ -212,6 +262,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         final Double averagePm2_5;
         final Double averageTemperature;
         final Double averageHumidity;
+        final Double co2DeltaPercentage;
+        final Double pm2_5DeltaPercentage;
+        final Double temperatureDeltaPercentage;
+        final Double humidityDeltaPercentage;
         final Instant recordedAt;
 
         private DeviceMetricsSnapshot(
@@ -221,6 +275,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
                 Double averagePm2_5,
                 Double averageTemperature,
                 Double averageHumidity,
+                Double co2DeltaPercentage,
+                Double pm2_5DeltaPercentage,
+                Double temperatureDeltaPercentage,
+                Double humidityDeltaPercentage,
                 Instant recordedAt
         ) {
             this.source = source;
@@ -229,6 +287,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             this.averagePm2_5 = averagePm2_5;
             this.averageTemperature = averageTemperature;
             this.averageHumidity = averageHumidity;
+            this.co2DeltaPercentage = co2DeltaPercentage;
+            this.pm2_5DeltaPercentage = pm2_5DeltaPercentage;
+            this.temperatureDeltaPercentage = temperatureDeltaPercentage;
+            this.humidityDeltaPercentage = humidityDeltaPercentage;
             this.recordedAt = recordedAt;
         }
     }
@@ -241,6 +303,20 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         if (live != null && !live.isEmpty()) {
             var avg = live.computeAverages();
             var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
+
+            var latestSnapshot = snapshotRepository
+                    .findLatestByDeviceId(deviceId, PageRequest.of(0, 1))
+                    .stream().findFirst().orElse(null);
+            Double prevCo2 = latestSnapshot != null ? latestSnapshot.getAverageCo2() : null;
+            Double prevPm25 = latestSnapshot != null ? latestSnapshot.getAveragePm2_5() : null;
+            Double prevTemp = latestSnapshot != null ? latestSnapshot.getAverageTemperature() : null;
+            Double prevHum = latestSnapshot != null ? latestSnapshot.getAverageHumidity() : null;
+
+            Double co2Delta = trendAnalysisDomainService.calculateTrend(avg.co2(), prevCo2).deltaPercentage();
+            Double pm25Delta = trendAnalysisDomainService.calculateTrend(avg.pm2_5(), prevPm25).deltaPercentage();
+            Double tempDelta = trendAnalysisDomainService.calculateTrend(avg.temperature(), prevTemp).deltaPercentage();
+            Double humDelta = trendAnalysisDomainService.calculateTrend(avg.humidity(), prevHum).deltaPercentage();
+
             return new DeviceMetricsSnapshot(
                     Source.LIVE,
                     aqi.value(),
@@ -248,13 +324,31 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
                     avg.pm2_5(),
                     avg.temperature(),
                     avg.humidity(),
+                    co2Delta,
+                    pm25Delta,
+                    tempDelta,
+                    humDelta,
                     Instant.now()
             );
         }
 
-        var latestSnapshot = snapshotRepository.findLatestByDeviceId(deviceId, PageRequest.of(0, 1))
-                .stream().findFirst().orElse(null);
+        var snapshots = snapshotRepository.findLatestByDeviceId(deviceId, PageRequest.of(0, 2));
+        var latestSnapshot = snapshots.stream().findFirst().orElse(null);
         if (latestSnapshot == null) return null;
+        var previousSnapshot = snapshots.size() > 1 ? snapshots.get(1) : null;
+
+        Double co2Delta = previousSnapshot != null
+                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageCo2(), previousSnapshot.getAverageCo2()).deltaPercentage()
+                : null;
+        Double pm25Delta = previousSnapshot != null
+                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAveragePm2_5(), previousSnapshot.getAveragePm2_5()).deltaPercentage()
+                : null;
+        Double tempDelta = previousSnapshot != null
+                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageTemperature(), previousSnapshot.getAverageTemperature()).deltaPercentage()
+                : null;
+        Double humDelta = previousSnapshot != null
+                ? trendAnalysisDomainService.calculateTrend(latestSnapshot.getAverageHumidity(), previousSnapshot.getAverageHumidity()).deltaPercentage()
+                : null;
 
         return new DeviceMetricsSnapshot(
                 Source.SNAPSHOT,
@@ -263,6 +357,10 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
                 latestSnapshot.getAveragePm2_5(),
                 latestSnapshot.getAverageTemperature(),
                 latestSnapshot.getAverageHumidity(),
+                co2Delta,
+                pm25Delta,
+                tempDelta,
+                humDelta,
                 latestSnapshot.getTimeWindowEnd()
         );
     }

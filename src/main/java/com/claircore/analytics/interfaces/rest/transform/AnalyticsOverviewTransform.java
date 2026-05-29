@@ -16,6 +16,10 @@ public class AnalyticsOverviewTransform {
                 core.averagePm2_5(),
                 core.averageTemperature(),
                 core.averageHumidity(),
+                core.co2DeltaPercentage(),
+                core.pm2_5DeltaPercentage(),
+                core.temperatureDeltaPercentage(),
+                core.humidityDeltaPercentage(),
                 core.recordedAt(),
                 core.organizationCount(),
                 core.spaceCount(),
@@ -59,4 +63,3 @@ public class AnalyticsOverviewTransform {
         return new AnalyticsOverviewResponse(coreResource, organizations, alerts, snapshot.updatedAt());
     }
 }
-

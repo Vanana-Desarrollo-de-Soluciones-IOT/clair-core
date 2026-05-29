@@ -40,6 +40,18 @@ public record AnalyticsOverviewResponse(
             @Schema(description = "Average humidity in percent", example = "52.0", nullable = true)
             Double averageHumidity,
 
+            @Schema(description = "CO2 trend delta percentage", example = "-5.2", nullable = true)
+            Double co2DeltaPercentage,
+
+            @Schema(description = "PM2.5 trend delta percentage", example = "2.1", nullable = true)
+            Double pm2_5DeltaPercentage,
+
+            @Schema(description = "Temperature trend delta percentage", example = "0.5", nullable = true)
+            Double temperatureDeltaPercentage,
+
+            @Schema(description = "Humidity trend delta percentage", example = "-1.3", nullable = true)
+            Double humidityDeltaPercentage,
+
             @Schema(description = "Latest recorded time among included device metrics", nullable = true)
             Instant recordedAt,
 
@@ -125,4 +137,3 @@ public record AnalyticsOverviewResponse(
             Instant occurredAt
     ) {}
 }
-

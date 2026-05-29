@@ -4,8 +4,15 @@ import com.claircore.device.domain.model.queries.GetDeviceByApiKeyQuery;
 import com.claircore.device.domain.model.queries.GetDeviceByIdQuery;
 import com.claircore.device.domain.model.queries.GetDeviceByHardwareIdQuery;
 import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
+import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
+import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
+import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
+import com.claircore.device.domain.model.valueobjects.UserId;
+import com.claircore.device.domain.model.entities.DeviceAssignment;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
+import com.claircore.device.interfaces.acl.OrganizationSummaryDto;
+import com.claircore.device.interfaces.acl.SpaceSummaryDto;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -91,5 +98,33 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     @Override
     public Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds) {
         return deviceQueryService.findSpaceNamesBySpaceIds(spaceIds);
+    }
+
+    @Override
+    public List<OrganizationSummaryDto> findOrganizationsByOwnerId(UUID ownerUserId) {
+        var query = new GetOrganizationsByOwnerQuery(new UserId(ownerUserId));
+        return deviceQueryService.handle(query)
+                .stream()
+                .map(o -> new OrganizationSummaryDto(o.getId(), o.getName()))
+                .toList();
+    }
+
+    @Override
+    public List<SpaceSummaryDto> findSpacesByOrganizationId(UUID organizationId) {
+        var query = new GetSpacesByOrganizationQuery(organizationId);
+        return deviceQueryService.handle(query)
+                .stream()
+                .map(s -> new SpaceSummaryDto(s.getId(), s.getName(), s.getOrganizationId()))
+                .toList();
+    }
+
+    @Override
+    public List<UUID> findDeviceIdsBySpaceId(UUID spaceId, int limit) {
+        int size = limit > 0 ? limit : 200;
+        var page = deviceQueryService.handle(new GetDevicesBySpaceQuery(spaceId, 0, size));
+        return page.getContent().stream()
+                .map(DeviceAssignment::getDevice)
+                .map(d -> d.getId())
+                .toList();
     }
 }

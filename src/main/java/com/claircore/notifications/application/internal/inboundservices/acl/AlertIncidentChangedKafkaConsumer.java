@@ -2,7 +2,7 @@ package com.claircore.notifications.application.internal.inboundservices.acl;
 
 import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentChangedIntegrationEvent;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
-import com.claircore.alerting.interfaces.acl.AlertDetailsDto;
+import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalAlertingService;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.notifications.domain.model.entities.PushNotificationLog;
@@ -79,9 +79,9 @@ public class AlertIncidentChangedKafkaConsumer {
                 if (ownerUserIdOpt.isPresent()) {
                     UUID userId = ownerUserIdOpt.get();
                     
-                    Optional<AlertDetailsDto> alertDetailsOpt = externalAlertingService.fetchAlertDetailsById(event.alertId());
+                    Optional<AlertDetails> alertDetailsOpt = externalAlertingService.fetchAlertDetailsById(event.alertId());
                     if (alertDetailsOpt.isPresent()) {
-                        AlertDetailsDto alert = alertDetailsOpt.get();
+                        AlertDetails alert = alertDetailsOpt.get();
                         String deviceName = externalDeviceService.fetchDeviceNameByDeviceId(deviceId)
                                 .orElse(alert.deviceName() != null ? alert.deviceName() : "Unknown Device");
 

@@ -1,4 +1,4 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.domain.services;
 
 import com.claircore.analytics.domain.model.valueobjects.MetricTrend;
 import com.claircore.analytics.domain.services.TrendAnalysisDomainService;

@@ -11,7 +11,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,6 +25,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/analytics")
 @Tag(name = "Analytics Overview", description = "Aggregated overview dashboard endpoints")
+@Validated
 public class AnalyticsOverviewController {
 
     private final OverviewDashboardQueryService overviewDashboardQueryService;
@@ -38,8 +42,8 @@ public class AnalyticsOverviewController {
     })
     public ResponseEntity<AnalyticsOverviewResponse> getOverview(
             HttpServletRequest request,
-            @RequestParam(required = false) Integer deviceLimitPerSpace,
-            @RequestParam(required = false) Integer alertLimit
+            @RequestParam(required = false, defaultValue = "50") @Min(1) @Max(200) Integer deviceLimitPerSpace,
+            @RequestParam(required = false, defaultValue = "10") @Min(1) @Max(50) Integer alertLimit
     ) {
         UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         var query = new GetOverviewDashboardQuery(userId, deviceLimitPerSpace, alertLimit);

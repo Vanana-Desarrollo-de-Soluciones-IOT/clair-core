@@ -2,6 +2,7 @@ package com.claircore.alerting.application.internal.queryservices;
 
 import com.claircore.alerting.domain.model.entities.Alert;
 import com.claircore.alerting.domain.model.queries.GetAlertsByDeviceQuery;
+import com.claircore.alerting.domain.model.queries.GetAlertsByOwnerQuery;
 import com.claircore.alerting.domain.model.queries.GetAlertsBySpaceQuery;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.DailyAlertCount;
@@ -40,6 +41,15 @@ public class AlertQueryServiceImpl implements AlertQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<Alert> fetchByOwner(GetAlertsByOwnerQuery query, List<UUID> ownerDeviceIds) {
+        if (ownerDeviceIds == null || ownerDeviceIds.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
+        return alertRepository.findByDeviceIdIn(ownerDeviceIds, query.pageable());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<Alert> fetchByDeviceAndStatus(GetAlertsByDeviceQuery query, List<AlertStatus> statuses) {
         return alertRepository.findByDeviceIdAndStatusIn(query.deviceId(), statuses, query.pageable());
     }
@@ -52,9 +62,36 @@ public class AlertQueryServiceImpl implements AlertQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<Alert> fetchByOwnerAndStatus(GetAlertsByOwnerQuery query, List<UUID> ownerDeviceIds, List<AlertStatus> statuses) {
+        if (ownerDeviceIds == null || ownerDeviceIds.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
+        if (statuses == null || statuses.isEmpty()) {
+            return fetchByOwner(query, ownerDeviceIds);
+        }
+        return alertRepository.findByDeviceIdInAndStatusIn(ownerDeviceIds, statuses, query.pageable());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<DailyAlertCount> fetchDailySummaryBySpace(UUID spaceId, int days) {
         Instant since = LocalDate.now(ZoneOffset.UTC).minusDays(days).atStartOfDay(ZoneOffset.UTC).toInstant();
         List<Object[]> results = alertRepository.countAlertsPerDay(spaceId, since);
+        return toDailyAlertCounts(results);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DailyAlertCount> fetchDailySummaryByOwner(UUID ownerUserId, List<UUID> ownerDeviceIds, int days) {
+        if (ownerDeviceIds == null || ownerDeviceIds.isEmpty()) {
+            return List.of();
+        }
+        Instant since = LocalDate.now(ZoneOffset.UTC).minusDays(days).atStartOfDay(ZoneOffset.UTC).toInstant();
+        List<Object[]> results = alertRepository.countAlertsPerDayByDeviceIds(ownerDeviceIds, since);
+        return toDailyAlertCounts(results);
+    }
+
+    private List<DailyAlertCount> toDailyAlertCounts(List<Object[]> results) {
         return results.stream()
                 .map(row -> new DailyAlertCount((LocalDate) row[0], ((Number) row[1]).longValue()))
                 .toList();

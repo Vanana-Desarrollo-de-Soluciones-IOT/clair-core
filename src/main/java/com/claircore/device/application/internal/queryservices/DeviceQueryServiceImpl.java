@@ -138,6 +138,13 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId) {
+        if (ownerUserId == null) return List.of();
+        return deviceAssignmentRepository.findDeviceIdsByOwnerUserId(new UserId(ownerUserId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds) {
         if (deviceIds == null || deviceIds.isEmpty()) return Map.of();
         return deviceRepository.findAllById(deviceIds)

@@ -33,4 +33,7 @@ public interface DeviceAssignmentRepository extends JpaRepository<DeviceAssignme
 
     @Query("SELECT a.device.id FROM DeviceAssignment a WHERE a.ownerUserId = :ownerUserId")
     List<UUID> findDeviceIdsByOwnerUserId(@Param("ownerUserId") UserId ownerUserId);
+
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM DeviceAssignment a WHERE a.device.id = :deviceId AND a.ownerUserId = :ownerUserId")
+    boolean existsByDeviceIdAndOwnerUserId(@Param("deviceId") UUID deviceId, @Param("ownerUserId") UserId ownerUserId);
 }

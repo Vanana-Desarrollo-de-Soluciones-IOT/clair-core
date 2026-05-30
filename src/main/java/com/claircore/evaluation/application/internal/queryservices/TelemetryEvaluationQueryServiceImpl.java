@@ -32,7 +32,6 @@ public class TelemetryEvaluationQueryServiceImpl implements TelemetryEvaluationQ
     @Override
     @Transactional(readOnly = true)
     public Optional<TelemetryEvaluation> handle(GetLatestEvaluationByDeviceQuery query) {
-        var results = telemetryEvaluationRepository.findLatestByDeviceId(query.deviceId(), PageRequest.of(0, 1));
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        return telemetryEvaluationRepository.findFirstByDeviceIdValueOrderByRecordedAtDesc(query.deviceId());
     }
 }

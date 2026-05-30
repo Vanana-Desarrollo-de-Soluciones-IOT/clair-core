@@ -8,8 +8,7 @@ import jakarta.persistence.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,6 +41,10 @@ public class DeviceAssignment {
     @MapKeyColumn(name = "config_key")
     @Column(name = "config_value")
     private Map<String, String> configuration = new HashMap<>();
+
+    @ElementCollection
+    @CollectionTable(name = "device_thresholds", joinColumns = @JoinColumn(name = "assignment_id"))
+    private java.util.List<com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration> thresholds = new ArrayList<>();
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "claim_token", unique = true))
@@ -121,6 +124,21 @@ public class DeviceAssignment {
         if (status != DeviceStatus.OFFLINE) {
             this.lastSeenAt = occurredAt != null ? occurredAt : Instant.now();
         }
+    }
+
+    public List<com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration> getThresholds() {
+        return new ArrayList<>(thresholds);
+    }
+
+    public void updateThreshold(com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration configuration) {
+        if (configuration == null) throw new IllegalArgumentException("Threshold configuration must not be null");
+        thresholds.removeIf(t -> t.metric().equals(configuration.metric()));
+        thresholds.add(configuration);
+    }
+
+    public void removeThreshold(com.claircore.device.domain.model.valueobjects.MetricThreshold metric) {
+        if (metric == null) throw new IllegalArgumentException("Metric must not be null");
+        thresholds.removeIf(t -> t.metric().equals(metric));
     }
 
     public UUID getId() { return id; }

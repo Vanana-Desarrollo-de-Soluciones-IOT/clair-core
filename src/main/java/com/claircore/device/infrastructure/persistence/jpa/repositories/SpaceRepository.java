@@ -15,4 +15,6 @@ public interface SpaceRepository extends JpaRepository<Space, UUID> {
     int countByOwnerUserId(UserId ownerUserId);
     boolean existsByOrganizationId(UUID organizationId);
     void deleteByOrganizationId(UUID organizationId);
+
+    boolean existsByIdAndOwnerUserId(UUID id, UserId ownerUserId);
 }

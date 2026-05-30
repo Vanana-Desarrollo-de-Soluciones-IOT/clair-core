@@ -9,7 +9,8 @@ public record GetHistoricalTrendQuery(
         DeviceId deviceId,
         TrendPeriod period,
         Instant startDate,
-        Instant endDate
+        Instant endDate,
+        Integer limit
 ) {
     public GetHistoricalTrendQuery {
         if (deviceId == null) {
@@ -17,6 +18,9 @@ public record GetHistoricalTrendQuery(
         }
         if (period == null && (startDate == null || endDate == null)) {
             throw new IllegalArgumentException("Either period or both startDate and endDate must be provided");
+        }
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("Limit must be positive");
         }
     }
 }

@@ -12,13 +12,11 @@ import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
 import com.claircore.device.interfaces.rest.resources.SpaceResponse;
 import com.claircore.device.interfaces.rest.resources.UpdateSpaceNameRequest;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,11 +40,10 @@ public class SpaceController {
     @PostMapping
     @Operation(summary = "Create a new space")
     public ResponseEntity<SpaceResponse> createSpace(
-            HttpServletRequest request,
             @RequestParam UUID organizationId,
             @RequestBody CreateSpaceRequest req) {
 
-        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new CreateSpaceCommand(
             req.name(),
             organizationId,
@@ -94,6 +91,14 @@ public class SpaceController {
 
         spaceCommandService.handle(new UpdateSpaceNameCommand(spaceId, request.name()));
         return ResponseEntity.ok().build();
+    }
+
+    private UUID getAuthenticatedUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails)) {
+            throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
+        }
+        return UUID.fromString(userDetails.getUsername());
     }
 
     private SpaceResponse toResponse(Space space) {

@@ -12,13 +12,11 @@ import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
 import com.claircore.device.interfaces.rest.resources.OrganizationResponse;
 import com.claircore.device.interfaces.rest.resources.UpdateOrganizationNameRequest;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,10 +42,9 @@ public class OrganizationController {
     @PostMapping
     @Operation(summary = "Create a new organization")
     public ResponseEntity<OrganizationResponse> createOrganization(
-            HttpServletRequest request,
             @RequestBody CreateOrganizationRequest req) {
 
-        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+        UUID userId = getAuthenticatedUserId();
         var command = new CreateOrganizationCommand(
             req.name(),
             new UserId(userId)
@@ -68,8 +65,8 @@ public class OrganizationController {
 
     @GetMapping
     @Operation(summary = "Get organizations for current user")
-    public ResponseEntity<List<OrganizationResponse>> getUserOrganizations(HttpServletRequest request) {
-        UUID userId = (UUID) request.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
+    public ResponseEntity<List<OrganizationResponse>> getUserOrganizations() {
+        UUID userId = getAuthenticatedUserId();
         var query = new GetOrganizationsByOwnerQuery(new UserId(userId));
         List<Organization> orgs = deviceQueryService.handle(query);
         return ResponseEntity.ok(orgs.stream().map(this::toResponse).toList());
@@ -95,6 +92,14 @@ public class OrganizationController {
 
         organizationCommandService.handle(new UpdateOrganizationNameCommand(organizationId, request.name()));
         return ResponseEntity.ok().build();
+    }
+
+    private UUID getAuthenticatedUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails)) {
+            throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
+        }
+        return UUID.fromString(userDetails.getUsername());
     }
 
     private OrganizationResponse toResponse(Organization org) {

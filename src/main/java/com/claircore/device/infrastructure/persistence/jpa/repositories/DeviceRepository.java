@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +23,8 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     }
 
     Optional<Device> findBySerialNumber(String serialNumber);
+
+    List<Device> findAllBySerialNumberIn(java.util.Collection<String> serialNumbers);
 
     @Query("SELECT d FROM Device d WHERE d.hardwareId.value = :hardwareId")
     Optional<Device> findByHardwareId(@Param("hardwareId") String hardwareId);

@@ -1,16 +1,14 @@
 package com.claircore.analytics.application.internal.services;
 
+import com.claircore.analytics.application.internal.outboundservices.acl.ExternalEvaluationService;
 import com.claircore.analytics.domain.model.entities.DeviceAnalyticsSnapshot;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.services.AqiCalculationDomainService;
 import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceAnalyticsSnapshotRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -20,45 +18,28 @@ import java.util.UUID;
 @Service
 public class SnapshotAggregationScheduler {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ExternalEvaluationService externalEvaluationService;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
     private final AqiCalculationDomainService aqiCalculationDomainService;
 
     public SnapshotAggregationScheduler(
-            JdbcTemplate jdbcTemplate,
+            ExternalEvaluationService externalEvaluationService,
             DeviceAnalyticsSnapshotRepository snapshotRepository,
             AqiCalculationDomainService aqiCalculationDomainService
     ) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.externalEvaluationService = externalEvaluationService;
         this.snapshotRepository = snapshotRepository;
         this.aqiCalculationDomainService = aqiCalculationDomainService;
     }
 
     @Scheduled(cron = "0 0 * * * *") // cada hora en punto
-    //@Scheduled(cron = "*/10 * * * * *")
     @Transactional
     public void aggregateHourlySnapshots() {
 
         Instant windowEnd = Instant.now().truncatedTo(ChronoUnit.HOURS);
         Instant windowStart = windowEnd.minus(1, ChronoUnit.HOURS);
 
-
-        String sql = """
-                SELECT device_id,
-                       AVG(aq_co2) as avg_co2,
-                       AVG(pm_pm2_5) as avg_pm2_5,
-                       AVG(aq_temperature) as avg_temperature,
-                       AVG(aq_humidity) as avg_humidity
-                FROM telemetry_evaluations
-                WHERE recorded_at >= ? AND recorded_at < ?
-                GROUP BY device_id
-                """;
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                sql,
-                Timestamp.from(windowStart),
-                Timestamp.from(windowEnd)
-        );
+        List<Map<String, Object>> rows = externalEvaluationService.fetchHourlyTelemetryAggregation(windowStart, windowEnd);
 
         for (Map<String, Object> row : rows) {
             // SOLUCION AL CLASS CAST EXCEPTION

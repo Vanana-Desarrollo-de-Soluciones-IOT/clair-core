@@ -8,13 +8,11 @@ import com.claircore.analytics.domain.services.KpiDashboardMetricsQueryService;
 import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
 import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceAnalyticsSnapshotRepository;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,20 +23,17 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     private final AqiCalculationDomainService aqiCalculationDomainService;
     private final TrendAnalysisDomainService trendAnalysisDomainService;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
-    private final JdbcTemplate jdbcTemplate;
 
     public KpiDashboardMetricsQueryServiceImpl(
             KpiLiveMetricsCache liveMetricsCache,
             AqiCalculationDomainService aqiCalculationDomainService,
             TrendAnalysisDomainService trendAnalysisDomainService,
-            DeviceAnalyticsSnapshotRepository snapshotRepository,
-            JdbcTemplate jdbcTemplate
+            DeviceAnalyticsSnapshotRepository snapshotRepository
     ) {
         this.liveMetricsCache = liveMetricsCache;
         this.aqiCalculationDomainService = aqiCalculationDomainService;
         this.trendAnalysisDomainService = trendAnalysisDomainService;
         this.snapshotRepository = snapshotRepository;
-        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -123,7 +118,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
 
             var avgResult = getAverages(query.deviceId().value(), start, end);
             if (!avgResult.hasData()) {
-                return Optional.empty();
+                throw new com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException(query.deviceId().value(), false);
             }
 
             var avg = avgResult.averages();
@@ -158,62 +153,16 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     }
 
     private AveragesResult getAverages(UUID deviceId, Instant start, Instant end) {
-        long hours = Duration.between(start, end).toHours();
-        if (hours <= 24) {
-            return getRawAverages(deviceId, start, end);
-        } else {
-            return getSnapshotAverages(deviceId, start, end);
-        }
-    }
-
-    private AveragesResult getRawAverages(UUID deviceId, Instant start, Instant end) {
-        String sql = """
-                SELECT COUNT(*) as cnt,
-                       AVG(aq_co2) as avg_co2,
-                       AVG(pm_pm2_5) as avg_pm2_5,
-                       AVG(aq_temperature) as avg_temperature,
-                       AVG(aq_humidity) as avg_humidity
-                FROM telemetry_evaluations
-                WHERE device_id = ? AND recorded_at >= ? AND recorded_at < ?
-                """;
-        try {
-            Map<String, Object> row = jdbcTemplate.queryForMap(
-                    sql,
-                    deviceId,
-                    java.sql.Timestamp.from(start),
-                    java.sql.Timestamp.from(end)
-            );
-            long count = ((Number) row.getOrDefault("cnt", 0L)).longValue();
-            if (count == 0) {
-                return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
-            }
-            double co2 = row.get("avg_co2") != null ? ((Number) row.get("avg_co2")).doubleValue() : 0.0;
-            double pm25 = row.get("avg_pm2_5") != null ? ((Number) row.get("avg_pm2_5")).doubleValue() : 0.0;
-            double temp = row.get("avg_temperature") != null ? ((Number) row.get("avg_temperature")).doubleValue() : 0.0;
-            double hum = row.get("avg_humidity") != null ? ((Number) row.get("avg_humidity")).doubleValue() : 0.0;
-            return new AveragesResult(new Averages(co2, pm25, temp, hum), true);
-        } catch (Exception e) {
+        Object[] result = (Object[]) snapshotRepository.findAveragesByDeviceIdAndTimeWindow(deviceId, start, end);
+        if (result == null || result.length == 0 || result[0] == null) {
             return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
         }
-    }
-
-    private AveragesResult getSnapshotAverages(UUID deviceId, Instant start, Instant end) {
-        var snapshots = snapshotRepository.findByDeviceIdAndTimeWindowStartBetween(deviceId, start, end);
-        if (snapshots.isEmpty()) {
-            return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
-        }
-        double sumCo2 = 0.0;
-        double sumPm25 = 0.0;
-        double sumTemp = 0.0;
-        double sumHum = 0.0;
-        for (var s : snapshots) {
-            sumCo2 += s.getAverageCo2();
-            sumPm25 += s.getAveragePm2_5();
-            sumTemp += s.getAverageTemperature();
-            sumHum += s.getAverageHumidity();
-        }
-        int count = snapshots.size();
-        return new AveragesResult(new Averages(sumCo2 / count, sumPm25 / count, sumTemp / count, sumHum / count), true);
+        return new AveragesResult(new Averages(
+                ((Number) result[0]).doubleValue(),
+                ((Number) result[1]).doubleValue(),
+                ((Number) result[2]).doubleValue(),
+                ((Number) result[3]).doubleValue()
+        ), true);
     }
 
     private record Averages(double co2, double pm2_5, double temperature, double humidity) {}

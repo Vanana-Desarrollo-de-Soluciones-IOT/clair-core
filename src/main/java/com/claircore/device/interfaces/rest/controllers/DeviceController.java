@@ -174,6 +174,9 @@ public class DeviceController {
                 assignment.getSpaceId(),
                 assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
                 assignment.getConfiguration(),
+                assignment.getThresholds().stream()
+                        .map(t -> DeviceThresholdResponse.from(t, device.getId()))
+                        .toList(),
                 device.getHardwareId().value(),
                 device.getDeviceType().value(),
                 assignment.getActivatedAt(),
@@ -192,6 +195,7 @@ public class DeviceController {
                 null,
                 null,
                 Map.of(),
+                java.util.List.of(),
                 device.getHardwareId().value(),
                 device.getDeviceType().value(),
                 null,

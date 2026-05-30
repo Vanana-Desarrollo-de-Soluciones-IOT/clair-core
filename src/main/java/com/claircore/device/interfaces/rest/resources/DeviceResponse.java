@@ -14,6 +14,7 @@ public record DeviceResponse(
     UUID spaceId,
     UUID ownerUserId,
     Map<String, String> configuration,
+    java.util.List<DeviceThresholdResponse> thresholds,
     String hardwareId,
     String deviceType,
     Instant activatedAt,

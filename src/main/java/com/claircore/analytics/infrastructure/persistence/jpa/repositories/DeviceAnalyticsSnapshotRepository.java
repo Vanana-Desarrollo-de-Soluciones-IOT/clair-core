@@ -40,5 +40,5 @@ public interface DeviceAnalyticsSnapshotRepository extends JpaRepository<DeviceA
         FROM DeviceAnalyticsSnapshot s 
         WHERE s.deviceId.value = :deviceId AND s.timeWindowStart >= :start AND s.timeWindowStart < :end
     """)
-    Object[] findAveragesByDeviceIdAndTimeWindow(@Param("deviceId") UUID deviceId, @Param("start") Instant start, @Param("end") Instant end);
+    List<Object[]> findAveragesByDeviceIdAndTimeWindow(@Param("deviceId") UUID deviceId, @Param("start") Instant start, @Param("end") Instant end);
 }

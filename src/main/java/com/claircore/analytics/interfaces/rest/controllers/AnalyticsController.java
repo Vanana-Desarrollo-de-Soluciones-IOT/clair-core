@@ -16,7 +16,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.claircore.analytics.application.internal.services.AnalyticsSseService;
 import org.springframework.format.annotation.DateTimeFormat;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -31,13 +34,16 @@ public class AnalyticsController {
 
     private final KpiDashboardMetricsQueryService kpiDashboardMetricsQueryService;
     private final KpiHistoricalTrendQueryService kpiHistoricalTrendQueryService;
+    private final AnalyticsSseService analyticsSseService;
 
     public AnalyticsController(
             KpiDashboardMetricsQueryService kpiDashboardMetricsQueryService,
-            KpiHistoricalTrendQueryService kpiHistoricalTrendQueryService
+            KpiHistoricalTrendQueryService kpiHistoricalTrendQueryService,
+            AnalyticsSseService analyticsSseService
     ) {
         this.kpiDashboardMetricsQueryService = kpiDashboardMetricsQueryService;
         this.kpiHistoricalTrendQueryService = kpiHistoricalTrendQueryService;
+        this.analyticsSseService = analyticsSseService;
     }
 
     @GetMapping("/devices/{deviceId}/live")
@@ -55,6 +61,16 @@ public class AnalyticsController {
                 .map(AnalyticsTransform::toDashboardResponse)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, true));
+    }
+
+    @GetMapping(value = "/devices/{deviceId}/live/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream live telemetry updates for a device using Server-Sent Events (SSE)")
+    @ApiResponse(responseCode = "200", description = "SSE stream established")
+    public SseEmitter streamLiveMetrics(
+            @Parameter(description = "Device UUID", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+            @PathVariable @NotNull UUID deviceId
+    ) {
+        return analyticsSseService.registerClient(deviceId);
     }
 
     @GetMapping("/devices/{deviceId}/historical")

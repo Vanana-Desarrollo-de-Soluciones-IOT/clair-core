@@ -8,9 +8,9 @@ import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,12 +41,7 @@ public class DeviceThresholdQueryServiceImpl implements DeviceThresholdQueryServ
             throw new AccessDeniedException("Device does not belong to user");
         }
 
-        return Stream.of(MetricThreshold.values())
-                .map(metric -> assignment.findConfigurationValue(thresholdConfigKey(metric))
-                        .flatMap(this::deserializeOptional)
-                        .orElse(null))
-                .filter(t -> t != null)
-                .toList();
+        return readThresholdsFromConfig(assignment);
     }
 
     @Override
@@ -54,19 +49,14 @@ public class DeviceThresholdQueryServiceImpl implements DeviceThresholdQueryServ
     public Optional<DeviceMetricThresholdConfiguration> handle(GetDeviceThresholdByMetricQuery query) {
         return deviceAssignmentRepository.findById(query.assignmentId())
                 .flatMap(a -> a.findConfigurationValue(thresholdConfigKey(query.metric())))
-                .flatMap(this::deserializeOptional);
+                .flatMap(this::deserialize);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DeviceMetricThresholdConfiguration> findAllByAssignmentId(UUID assignmentId) {
         return deviceAssignmentRepository.findById(assignmentId)
-                .map(a -> Stream.of(MetricThreshold.values())
-                        .map(metric -> a.findConfigurationValue(thresholdConfigKey(metric))
-                                .flatMap(this::deserializeOptional)
-                                .orElse(null))
-                        .filter(t -> t != null)
-                        .toList())
+                .map(this::readThresholdsFromConfig)
                 .orElseGet(List::of);
     }
 
@@ -78,15 +68,24 @@ public class DeviceThresholdQueryServiceImpl implements DeviceThresholdQueryServ
                 .toList();
     }
 
-    private Optional<DeviceMetricThresholdConfiguration> deserializeOptional(String rawJson) {
+    private List<DeviceMetricThresholdConfiguration> readThresholdsFromConfig(DeviceAssignment assignment) {
+        return Stream.of(MetricThreshold.values())
+                .map(metric -> assignment.findConfigurationValue(thresholdConfigKey(metric))
+                        .flatMap(this::deserialize)
+                        .orElse(null))
+                .filter(t -> t != null)
+                .toList();
+    }
+
+    private Optional<DeviceMetricThresholdConfiguration> deserialize(String json) {
         try {
-            return Optional.of(objectMapper.readValue(rawJson, DeviceMetricThresholdConfiguration.class));
+            return Optional.of(objectMapper.readValue(json, DeviceMetricThresholdConfiguration.class));
         } catch (Exception e) {
             return Optional.empty();
         }
     }
 
-    private static String thresholdConfigKey(MetricThreshold metric) {
+    static String thresholdConfigKey(MetricThreshold metric) {
         return "threshold." + metric.name();
     }
 }

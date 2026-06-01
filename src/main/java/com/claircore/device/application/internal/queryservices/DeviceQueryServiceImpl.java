@@ -165,4 +165,10 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
                         (a, b) -> a
                 ));
     }
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DeviceAssignment> findAssignmentByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId);
+    }
 }
+

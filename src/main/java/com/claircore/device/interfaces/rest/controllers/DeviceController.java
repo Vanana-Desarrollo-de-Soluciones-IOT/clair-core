@@ -4,17 +4,17 @@ import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
-import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.model.queries.GetDeviceByIdQuery;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
 import com.claircore.device.domain.model.queries.GetDeviceStatusByDeviceIdForUserQuery;
-import com.claircore.device.domain.model.valueobjects.DeviceStatus;
+import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
+import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.services.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,8 +25,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/api/v1/devices")
@@ -36,14 +39,17 @@ public class DeviceController {
     private final DeviceCommandService deviceCommandService;
     private final DeviceQueryService deviceQueryService;
     private final DeviceStatusQueryService deviceStatusQueryService;
+    private final ObjectMapper objectMapper;
 
     public DeviceController(
             DeviceCommandService deviceCommandService,
             DeviceQueryService deviceQueryService,
-            DeviceStatusQueryService deviceStatusQueryService) {
+            DeviceStatusQueryService deviceStatusQueryService,
+            ObjectMapper objectMapper) {
         this.deviceCommandService = deviceCommandService;
         this.deviceQueryService = deviceQueryService;
         this.deviceStatusQueryService = deviceStatusQueryService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/pair")
@@ -99,9 +105,8 @@ public class DeviceController {
     @GetMapping("/{deviceId}")
     @Operation(summary = "Get device by ID")
     public ResponseEntity<DeviceResponse> getDevice(@PathVariable UUID deviceId) {
-        var query = new GetDeviceByIdQuery(deviceId);
-        return deviceQueryService.handle(query)
-                .map(device -> ResponseEntity.ok(toResponse(device)))
+        return deviceQueryService.findAssignmentByDeviceId(deviceId)
+                .map(assignment -> ResponseEntity.ok(toResponse(assignment)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -165,7 +170,7 @@ public class DeviceController {
     }
 
     private DeviceResponse toResponse(DeviceAssignment assignment) {
-        Device device = assignment.getDevice();
+        var device = assignment.getDevice();
         return new DeviceResponse(
                 device.getId(),
                 device.getSerialNumber(),
@@ -174,9 +179,7 @@ public class DeviceController {
                 assignment.getSpaceId(),
                 assignment.getOwnerUserId() != null ? assignment.getOwnerUserId().userId() : null,
                 assignment.getConfiguration(),
-                assignment.getThresholds().stream()
-                        .map(t -> DeviceThresholdResponse.from(t, device.getId()))
-                        .toList(),
+                buildThresholdResponses(assignment, device.getId()),
                 device.getHardwareId().value(),
                 device.getDeviceType().value(),
                 assignment.getActivatedAt(),
@@ -186,22 +189,24 @@ public class DeviceController {
         );
     }
 
-    private DeviceResponse toResponse(Device device) {
-        return new DeviceResponse(
-                device.getId(),
-                device.getSerialNumber(),
-                device.getName(),
-                DeviceStatus.OFFLINE,
-                null,
-                null,
-                Map.of(),
-                java.util.List.of(),
-                device.getHardwareId().value(),
-                device.getDeviceType().value(),
-                null,
-                null,
-                device.getAuditFields().getCreatedAt() != null ? device.getAuditFields().getCreatedAt().toInstant() : null,
-                device.getAuditFields().getUpdatedAt() != null ? device.getAuditFields().getUpdatedAt().toInstant() : null
-        );
+    private List<DeviceThresholdResponse> buildThresholdResponses(DeviceAssignment assignment, UUID deviceId) {
+        return Stream.of(MetricThreshold.values())
+                .map(metric -> {
+                    String key = "threshold." + metric.name();
+                    return assignment.findConfigurationValue(key)
+                            .flatMap(json -> deserialize(json))
+                            .map(config -> DeviceThresholdResponse.from(config, deviceId))
+                            .orElse(null);
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private Optional<DeviceMetricThresholdConfiguration> deserialize(String json) {
+        try {
+            return Optional.of(objectMapper.readValue(json, DeviceMetricThresholdConfiguration.class));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 }

@@ -10,9 +10,9 @@ import com.claircore.device.domain.services.DeviceThresholdCommandService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -21,10 +21,13 @@ import java.util.UUID;
 public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommandService {
 
     private final DeviceAssignmentRepository deviceAssignmentRepository;
+    private final ObjectMapper objectMapper;
 
     public DeviceThresholdCommandServiceImpl(
-            DeviceAssignmentRepository deviceAssignmentRepository) {
+            DeviceAssignmentRepository deviceAssignmentRepository,
+            ObjectMapper objectMapper) {
         this.deviceAssignmentRepository = deviceAssignmentRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -32,8 +35,8 @@ public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommand
     public DeviceMetricThresholdConfiguration handle(WriteDeviceThresholdCommand command) {
         DeviceAssignment assignment = loadOwnedAssignment(command.deviceId(), command.userId());
 
-        boolean exists = assignment.getThresholds().stream()
-                .anyMatch(t -> t.metric().equals(command.metric()));
+        String configKey = thresholdConfigKey(command.metric());
+        boolean exists = assignment.findConfigurationValue(configKey).isPresent();
 
         switch (command.intent()) {
             case CREATE -> {
@@ -50,9 +53,35 @@ public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommand
                 command.enabled()
         );
 
-        assignment.updateThreshold(configuration);
+        try {
+            String json = objectMapper.writeValueAsString(configuration);
+            assignment.putConfigurationValue(configKey, json);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize threshold configuration", e);
+        }
+
         deviceAssignmentRepository.save(assignment);
         return configuration;
+    }
+
+    @Override
+    @Transactional
+    public void handle(RemoveDeviceThresholdCommand command) {
+        DeviceAssignment assignment = loadOwnedAssignment(command.deviceId(), command.userId());
+
+        String configKey = thresholdConfigKey(command.metric());
+        boolean exists = assignment.findConfigurationValue(configKey).isPresent();
+        if (!exists) throw new IllegalArgumentException("Threshold not found for the specified metric");
+
+        assignment.removeConfigurationValue(configKey);
+        deviceAssignmentRepository.save(assignment);
+    }
+
+    @Override
+    public Optional<DeviceMetricThresholdConfiguration> findByDeviceAndMetric(UUID deviceId, MetricThreshold metric) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .flatMap(a -> a.findConfigurationValue(thresholdConfigKey(metric)))
+                .flatMap(json -> deserialize(json));
     }
 
     private DeviceAssignment loadOwnedAssignment(UUID deviceId, UserId userId) {
@@ -67,24 +96,15 @@ public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommand
         return assignment;
     }
 
-    @Override
-    @Transactional
-    public void handle(RemoveDeviceThresholdCommand command) {
-        DeviceAssignment assignment = loadOwnedAssignment(command.deviceId(), command.userId());
-
-        boolean exists = assignment.getThresholds().stream()
-                .anyMatch(t -> t.metric().equals(command.metric()));
-        if (!exists) throw new IllegalArgumentException("Threshold not found for the specified metric");
-
-        assignment.removeThreshold(command.metric());
-        deviceAssignmentRepository.save(assignment);
+    private Optional<DeviceMetricThresholdConfiguration> deserialize(String json) {
+        try {
+            return Optional.of(objectMapper.readValue(json, DeviceMetricThresholdConfiguration.class));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
-    @Override
-    public Optional<DeviceMetricThresholdConfiguration> findByDeviceAndMetric(UUID deviceId, MetricThreshold metric) {
-        return deviceAssignmentRepository.findByDeviceId(deviceId)
-                .flatMap(a -> a.getThresholds().stream()
-                        .filter(t -> t.metric().equals(metric))
-                        .findFirst());
+    static String thresholdConfigKey(MetricThreshold metric) {
+        return "threshold." + metric.name();
     }
 }

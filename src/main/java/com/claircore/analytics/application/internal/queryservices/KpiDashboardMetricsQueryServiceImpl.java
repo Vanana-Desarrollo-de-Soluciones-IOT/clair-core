@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -153,15 +154,19 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     }
 
     private AveragesResult getAverages(UUID deviceId, Instant start, Instant end) {
-        Object[] result = (Object[]) snapshotRepository.findAveragesByDeviceIdAndTimeWindow(deviceId, start, end);
-        if (result == null || result.length == 0 || result[0] == null) {
+        List<Object[]> results = snapshotRepository.findAveragesByDeviceIdAndTimeWindow(deviceId, start, end);
+        if (results == null || results.isEmpty() || results.get(0) == null) {
+            return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
+        }
+        Object[] row = results.get(0);
+        if (row.length == 0 || row[0] == null) {
             return new AveragesResult(new Averages(0.0, 0.0, 0.0, 0.0), false);
         }
         return new AveragesResult(new Averages(
-                ((Number) result[0]).doubleValue(),
-                ((Number) result[1]).doubleValue(),
-                ((Number) result[2]).doubleValue(),
-                ((Number) result[3]).doubleValue()
+                ((Number) row[0]).doubleValue(),
+                ((Number) row[1]).doubleValue(),
+                ((Number) row[2]).doubleValue(),
+                ((Number) row[3]).doubleValue()
         ), true);
     }
 

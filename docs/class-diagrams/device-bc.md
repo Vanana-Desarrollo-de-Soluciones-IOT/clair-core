@@ -1,6 +1,8 @@
-# Device Bounded Context Class Diagram
+# Device Bounded Context Class Diagrams
 
-This diagram displays the complete 4-layer DDD architecture for the Device Bounded Context, representing all the aggregates (`Device`, `DeviceAssignment`, `DeviceCommand`, `Space`, and `Organization`).
+This document contains both the unified Bounded Context class diagram and the layered individual diagrams.
+
+## Unified Class Diagram
 
 ```mermaid
 ---
@@ -235,4 +237,220 @@ JpaDeviceAssignmentRepository ..|> DeviceAssignmentRepository : implements
 JpaDeviceCommandRepository ..|> DeviceCommandRepository : implements
 JpaOrganizationRepository ..|> OrganizationRepository : implements
 JpaSpaceRepository ..|> SpaceRepository : implements
+```
+
+---
+
+## Layered Diagrams
+
+### 1. Interfaces Layer
+
+```mermaid
+classDiagram
+class DeviceController {
+    -DeviceCommandService deviceCommandService
+    -DeviceQueryService deviceQueryService
+    -DeviceStatusQueryService deviceStatusQueryService
+    +pairDevice(request)
+    +claimDevice(request)
+    +getDevices(spaceId, page, size)
+    +getDevice(deviceId)
+    +getDeviceStatus(deviceId)
+    +deleteDevice(deviceId)
+    +updateDeviceName(deviceId, request)
+}
+class DeviceCommandController {
+    -DeviceControlCommandService deviceControlCommandService
+    -DeviceCommandQueryService deviceCommandQueryService
+    +createDeviceCommand(deviceId, request)
+    +getDeviceCommand(commandId)
+}
+class DeviceThresholdController {
+    -DeviceThresholdCommandService thresholdCommandService
+    -DeviceThresholdQueryService thresholdQueryService
+    +writeThreshold(deviceId, request)
+    +removeThreshold(deviceId, metric)
+    +getThresholds(deviceId)
+}
+class OrganizationController {
+    -OrganizationCommandService organizationCommandService
+    +createOrganization(request)
+    +updateOrganizationName(id, request)
+    +deleteOrganization(id)
+}
+class SpaceController {
+    -SpaceCommandService spaceCommandService
+    +createSpace(request)
+    +updateSpaceName(id, request)
+    +deleteSpace(id)
+}
+```
+
+### 2. Application Layer
+
+```mermaid
+classDiagram
+class DeviceCommandServiceImpl {
+    -DeviceRepository deviceRepository
+    -DeviceAssignmentRepository deviceAssignmentRepository
+    -SpaceRepository spaceRepository
+    -ProvisioningDevicesChangedKafkaPublisher publisher
+    +handle(PairDeviceCommand) DeviceAssignment
+    +handle(ClaimDeviceCommand) DeviceAssignment
+    +handle(ResetDeviceAssignmentCommand)
+    +handle(UpdateDeviceNameCommand)
+    +handle(SeedDevicesCommand) List~Device~
+}
+class DeviceControlCommandServiceImpl {
+    -DeviceCommandRepository deviceCommandRepository
+    -DeviceAssignmentRepository deviceAssignmentRepository
+    -DeviceCommandsPendingKafkaPublisher publisher
+    +handle(CreateDeviceCommandCommand) DeviceCommand
+    +handle(DispatchPendingDeviceCommandsCommand)
+}
+class DevicePresenceCommandServiceImpl {
+    -DeviceAssignmentRepository deviceAssignmentRepository
+    +handle(UpdateDevicePresenceStatusCommand)
+}
+class DeviceThresholdCommandServiceImpl {
+    -DeviceAssignmentRepository deviceAssignmentRepository
+    +handle(WriteDeviceThresholdCommand)
+    +handle(RemoveDeviceThresholdCommand)
+}
+class OrganizationCommandServiceImpl {
+    -OrganizationRepository organizationRepository
+    +handle(CreateOrganizationCommand) Organization
+    +handle(UpdateOrganizationNameCommand)
+    +handle(DeleteOrganizationCommand)
+}
+class SpaceCommandServiceImpl {
+    -SpaceRepository spaceRepository
+    -OrganizationRepository organizationRepository
+    -DeviceAssignmentRepository deviceAssignmentRepository
+    -ExternalBillingService externalBillingService
+    +handle(CreateSpaceCommand) Space
+    +handle(UpdateSpaceNameCommand)
+    +handle(DeleteSpaceCommand)
+}
+```
+
+### 3. Domain Layer
+
+```mermaid
+classDiagram
+class Device {
+    -UUID id
+    -String serialNumber
+    -String name
+    -String factoryName
+    -HardwareId hardwareId
+    -ApiKey apiKey
+    -DeviceType deviceType
+    +rotateApiKey(apiKey)
+    +updateName(name)
+    +resetNameToFactoryDefault()
+}
+class DeviceAssignment {
+    -UUID id
+    -Device device
+    -UserId ownerUserId
+    -UUID spaceId
+    -DeviceStatus status
+    -ClaimToken claimToken
+    -Instant activatedAt
+    -Instant lastSeenAt
+    +claimToSpace(spaceId, userId)
+    +markOnline()
+    +markOffline()
+    +updatePresence(status, occurredAt)
+}
+class DeviceCommand {
+    -UUID id
+    -UUID deviceId
+    -String commandType
+    -String payload
+    -String status
+    -Instant createdAt
+    -Instant acknowledgedAt
+    +acknowledge()
+}
+class Organization {
+    -UUID id
+    -String name
+    -UserId ownerUserId
+    +updateName(name)
+}
+class Space {
+    -UUID id
+    -String name
+    -UUID organizationId
+    -UserId ownerUserId
+    +updateName(name)
+}
+class DeviceRepository {
+    <<interface>>
+    +save(device) Device
+    +findById(id) Optional~Device~
+    +findByHardwareId(hardwareId) Optional~Device~
+}
+class DeviceAssignmentRepository {
+    <<interface>>
+    +save(assignment) DeviceAssignment
+    +findByDeviceId(deviceId) Optional~DeviceAssignment~
+    +findByClaimToken(claimToken) Optional~DeviceAssignment~
+    +findBySpaceId(spaceId, pageable) Page~DeviceAssignment~
+    +existsBySpaceId(spaceId) boolean
+}
+class DeviceCommandRepository {
+    <<interface>>
+    +save(command) DeviceCommand
+    +findById(id) Optional~DeviceCommand~
+}
+class OrganizationRepository {
+    <<interface>>
+    +save(organization) Organization
+    +findById(id) Optional~Organization~
+}
+class SpaceRepository {
+    <<interface>>
+    +save(space) Space
+    +findById(id) Optional~Space~
+    +countByOwnerUserId(ownerUserId) int
+}
+
+DeviceAssignment --> Device : contains
+Space --> Organization : belongs to organizationId
+```
+
+### 4. Infrastructure Layer
+
+```mermaid
+classDiagram
+class JpaDeviceRepository {
+    <<interface>>
+    +findByHardwareId(hardwareId)
+    +findBySerialNumber(serialNumber)
+}
+class JpaDeviceAssignmentRepository {
+    <<interface>>
+    +findByClaimToken(claimToken)
+    +findByDeviceId(deviceId)
+}
+class JpaDeviceCommandRepository {
+    <<interface>>
+}
+class JpaOrganizationRepository {
+    <<interface>>
+}
+class JpaSpaceRepository {
+    <<interface>>
+}
+class ProvisioningDevicesChangedKafkaPublisher {
+    -KafkaTemplate kafkaTemplate
+    +publish(DeviceChangedIntegrationEvent)
+}
+class DeviceCommandsPendingKafkaPublisher {
+    -KafkaTemplate kafkaTemplate
+    +publish(DeviceCommandIssuedIntegrationEvent)
+}
 ```

@@ -6,10 +6,16 @@ import jakarta.persistence.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "telemetry_evaluations")
+@Table(
+        name = "telemetry_evaluations",
+        indexes = {
+                @Index(name = "idx_telemetry_eval_device_recorded", columnList = "device_id, recorded_at")
+        }
+)
 @EntityListeners(AuditingEntityListener.class)
 public class TelemetryEvaluation {
 
@@ -44,10 +50,10 @@ public class TelemetryEvaluation {
     private Location location;
 
     @Column(name = "device_time", nullable = false)
-    private String deviceTime;
+    private LocalTime deviceTime;
 
-    @Column(name = "uptime", nullable = false)
-    private String uptime;
+    @Column(name = "uptime_seconds", nullable = false)
+    private Long uptime;
 
     @Column(nullable = false)
     private String status;
@@ -65,8 +71,8 @@ public class TelemetryEvaluation {
 
     public TelemetryEvaluation(
             DeviceId deviceId,
-            String deviceTime,
-            String uptime,
+            LocalTime deviceTime,
+            Long uptime,
             AirQuality airQuality,
             ParticulateMatter particulateMatter,
             Connectivity connectivity,
@@ -78,11 +84,11 @@ public class TelemetryEvaluation {
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
-        if (deviceTime == null || deviceTime.isBlank()) {
-            throw new IllegalArgumentException("deviceTime must not be null or blank");
+        if (deviceTime == null) {
+            throw new IllegalArgumentException("deviceTime must not be null");
         }
-        if (uptime == null || uptime.isBlank()) {
-            throw new IllegalArgumentException("uptime must not be null or blank");
+        if (uptime == null || uptime < 0) {
+            throw new IllegalArgumentException("uptime must not be null or negative");
         }
         if (airQuality == null) {
             throw new IllegalArgumentException("airQuality must not be null");
@@ -124,8 +130,8 @@ public class TelemetryEvaluation {
     public ParticulateMatter getParticulateMatter() { return particulateMatter; }
     public Connectivity getConnectivity() { return connectivity; }
     public Location getLocation() { return location; }
-    public String getDeviceTime() { return deviceTime; }
-    public String getUptime() { return uptime; }
+    public LocalTime getDeviceTime() { return deviceTime; }
+    public Long getUptime() { return uptime; }
     public Integer getHealthStatus() { return healthStatus; }
     public String getStatus() { return status; }
     public Instant getRecordedAt() { return recordedAt; }

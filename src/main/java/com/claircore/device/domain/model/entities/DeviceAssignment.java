@@ -43,6 +43,7 @@ public class DeviceAssignment {
     @Column(name = "config_value")
     private Map<String, String> configuration = new HashMap<>();
 
+
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "claim_token", unique = true))
     private ClaimToken claimToken;
@@ -122,6 +123,7 @@ public class DeviceAssignment {
             this.lastSeenAt = occurredAt != null ? occurredAt : Instant.now();
         }
     }
+
 
     public UUID getId() { return id; }
     public Device getDevice() { return device; }

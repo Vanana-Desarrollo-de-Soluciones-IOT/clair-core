@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -35,6 +36,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         logger.warn("AccessDeniedException: {}", ex.getMessage());
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler(DeviceTelemetryUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleDeviceTelemetryUnavailable(DeviceTelemetryUnavailableException ex) {
+        logger.warn("DeviceTelemetryUnavailableException: {}", ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

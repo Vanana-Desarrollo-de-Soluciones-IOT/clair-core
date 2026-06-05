@@ -113,10 +113,8 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Override
     @Transactional(readOnly = true)
     public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
-        return deviceAssignmentRepository.findByDeviceId(deviceId)
-                .map(assignment -> assignment.getOwnerUserId() != null &&
-                        assignment.getOwnerUserId().userId().equals(userId))
-                .orElse(false);
+        if (deviceId == null || userId == null) return false;
+        return deviceAssignmentRepository.existsByDeviceIdAndOwnerUserId(deviceId, new UserId(userId));
     }
 
     @Override
@@ -131,9 +129,15 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Override
     @Transactional(readOnly = true)
     public boolean isSpaceOwnedByUser(UUID spaceId, UUID userId) {
-        return spaceRepository.findById(spaceId)
-                .map(space -> space.getOwnerUserId().userId().equals(userId))
-                .orElse(false);
+        if (spaceId == null || userId == null) return false;
+        return spaceRepository.existsByIdAndOwnerUserId(spaceId, new UserId(userId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId) {
+        if (ownerUserId == null) return List.of();
+        return deviceAssignmentRepository.findDeviceIdsByOwnerUserId(new UserId(ownerUserId));
     }
 
     @Override
@@ -161,4 +165,10 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
                         (a, b) -> a
                 ));
     }
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DeviceAssignment> findAssignmentByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId);
+    }
 }
+

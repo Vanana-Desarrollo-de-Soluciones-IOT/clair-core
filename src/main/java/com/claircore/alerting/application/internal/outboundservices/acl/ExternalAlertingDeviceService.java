@@ -68,6 +68,10 @@ public class ExternalAlertingDeviceService {
         return deviceContextFacade.isSpaceOwnedByUser(spaceId, userId);
     }
 
+    public List<UUID> fetchDeviceIdsByOwnerId(UUID ownerUserId) {
+        return deviceContextFacade.findDeviceIdsByOwnerId(ownerUserId);
+    }
+
     @Cacheable(value = "alerting:space-name", key = "#spaceId")
     public Optional<String> fetchSpaceNameBySpaceId(UUID spaceId) {
         return deviceContextFacade.findSpaceNameBySpaceId(spaceId);

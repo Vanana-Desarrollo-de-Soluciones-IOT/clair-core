@@ -21,6 +21,8 @@ public interface DeviceContextFacade {
 
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
 
+    List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId);
+
     Optional<String> findSpaceNameBySpaceId(UUID spaceId);
 
     Optional<String> findDeviceNameByDeviceId(UUID deviceId);
@@ -34,4 +36,19 @@ public interface DeviceContextFacade {
      * Batch lookup to avoid N+1 queries in consumer contexts.
      */
     Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds);
+
+    /**
+     * Ownership-scoped organization summaries for read models.
+     */
+    List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId);
+
+    /**
+     * Spaces within an organization for read models.
+     */
+    List<SpaceSummary> findSpacesByOrganizationId(UUID organizationId);
+
+    /**
+     * Device IDs assigned to a space (bounded by limit) for read models.
+     */
+    List<UUID> findDeviceIdsBySpaceId(UUID spaceId, int limit);
 }

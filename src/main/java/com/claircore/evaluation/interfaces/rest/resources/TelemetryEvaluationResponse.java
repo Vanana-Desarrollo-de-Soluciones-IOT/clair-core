@@ -3,6 +3,7 @@ package com.claircore.evaluation.interfaces.rest.resources;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Schema(description = "Response representing a stored telemetry record")
@@ -14,10 +15,10 @@ public record TelemetryEvaluationResponse(
         UUID deviceId,
 
         @Schema(description = "Device local time", example = "14:30:25")
-        String deviceTime,
+        LocalTime deviceTime,
 
-        @Schema(description = "System uptime", example = "00:00:20")
-        String uptime,
+        @Schema(description = "System uptime in seconds", example = "20")
+        Long uptime,
 
         @Schema(description = "Air quality sensor data")
         AirQualityResponse airQuality,

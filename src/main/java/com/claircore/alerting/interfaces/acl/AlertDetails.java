@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-public record AlertDetailsDto(
+public record AlertDetails(
         UUID alertId,
         UUID deviceId,
         UUID spaceId,

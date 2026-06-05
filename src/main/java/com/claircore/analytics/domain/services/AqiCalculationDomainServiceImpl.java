@@ -1,4 +1,4 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.domain.services;
 
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
@@ -42,7 +42,7 @@ public class AqiCalculationDomainServiceImpl implements AqiCalculationDomainServ
         if (c == null || c < 0) {
             return 0;
         }
-        for (int i = 0; i < breakpoints.length; i += 6) {
+        for (int i = 0; i < breakpoints.length; i += 4) {
             double bpLo = breakpoints[i];
             double bpHi = breakpoints[i + 1];
             int iLo = (int) breakpoints[i + 2];

@@ -24,4 +24,8 @@ public class ExternalDeviceService {
     public Optional<UUID> findDeviceIdByHardwareId(String hardwareId) {
         return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
     }
+
+    public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
+        return deviceContextFacade.isDeviceOwnedByUser(deviceId, userId);
+    }
 }

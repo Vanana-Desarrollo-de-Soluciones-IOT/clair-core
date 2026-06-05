@@ -29,6 +29,8 @@ public class ExternalDeviceService {
 
     public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
         return deviceContextFacade.isDeviceOwnedByUser(deviceId, userId);
+    }
+
     public List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId) {
         if (ownerUserId == null) return List.of();
         return deviceContextFacade.findOrganizationsByOwnerId(ownerUserId);

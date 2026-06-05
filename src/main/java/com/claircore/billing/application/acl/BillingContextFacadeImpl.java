@@ -25,6 +25,16 @@ public class BillingContextFacadeImpl implements BillingContextFacade {
                 .orElse(PlanType.FREEMIUM);
     }
 
+    /**
+     * Effective plan after honouring premium expiry. An expired premium plan is
+     * treated as freemium for entitlement decisions (paid features must lock back).
+     */
+    private PlanType resolveEffectivePlanType(UUID userId) {
+        return userPlanRepository.findByUserId(new UserId(userId))
+                .map(plan -> plan.isPremiumExpired() ? PlanType.FREEMIUM : plan.getPlanType())
+                .orElse(PlanType.FREEMIUM);
+    }
+
     @Override
     public int getMaxOrganizations(UUID userId) {
         return resolveUserPlanType(userId).maxOrganizations();
@@ -38,5 +48,10 @@ public class BillingContextFacadeImpl implements BillingContextFacade {
     @Override
     public int getMaxDevices(UUID userId) {
         return resolveUserPlanType(userId).maxDevices();
+    }
+
+    @Override
+    public boolean canAccessMonthlyReports(UUID userId) {
+        return resolveEffectivePlanType(userId).monthlyReports();
     }
 }

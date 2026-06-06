@@ -13,7 +13,6 @@ import com.claircore.iam.domain.services.GoogleTokenVerifier;
 import com.claircore.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,8 +41,12 @@ class GoogleAuthenticationCommandServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
     private GoogleAuthenticationCommandServiceImpl service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        service = new GoogleAuthenticationCommandServiceImpl(googleTokenVerifier, userRepository, eventPublisher);
+    }
 
     @Test
     void shouldCreateNewUserAndPublishEventsWhenGoogleIdentityIsNew() {
@@ -68,7 +70,8 @@ class GoogleAuthenticationCommandServiceImplTest {
         assertEquals(OAuthProvider.GOOGLE, result.get().getOauthProvider());
         assertEquals("google-subject", result.get().getOauthSubject());
         verify(userRepository).save(any(User.class));
-        verify(eventPublisher, times(2)).publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(UserRegisteredEvent.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(UserAuthenticatedWithGoogleEvent.class));
     }
 
     @Test
@@ -90,7 +93,7 @@ class GoogleAuthenticationCommandServiceImplTest {
         assertEquals(OAuthProvider.GOOGLE, result.get().getOauthProvider());
         assertEquals("google-subject", result.get().getOauthSubject());
         verify(userRepository, never()).save(any());
-        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(UserAuthenticatedWithGoogleEvent.class));
     }
 
     @Test

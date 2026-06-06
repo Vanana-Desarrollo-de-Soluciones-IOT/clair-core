@@ -16,7 +16,6 @@ import com.claircore.iam.infrastructure.persistence.redis.repositories.Registrat
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -56,8 +55,18 @@ class UserCommandServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
     private UserCommandServiceImpl service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        service = new UserCommandServiceImpl(
+                userRepository,
+                registrationSessionRepository,
+                passwordEncoder,
+                asyncNotificationService,
+                eventPublisher
+        );
+    }
 
     @Test
     void shouldInitiateRegistrationWhenEmailDoesNotExist() {
@@ -112,7 +121,7 @@ class UserCommandServiceImplTest {
         assertTrue(result.get().isActive());
         verify(registrationSessionRepository).deleteById(session.sessionId());
         verify(asyncNotificationService).sendWelcomeEmail("user@example.com");
-        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(UserRegisteredEvent.class));
     }
 
     @Test

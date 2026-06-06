@@ -19,7 +19,7 @@ class GoogleOAuthStateManagerTest {
     @Test
     void shouldRejectStateWhenTokenIsTampered() {
         String state = stateManager.generateState();
-        String tampered = state.substring(0, state.length() - 1) + (state.endsWith("a") ? "b" : "a");
+        String tampered = state + "x";
 
         assertFalse(stateManager.validateState(tampered));
     }

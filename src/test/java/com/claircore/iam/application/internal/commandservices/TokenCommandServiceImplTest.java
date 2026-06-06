@@ -10,9 +10,9 @@ import com.claircore.iam.domain.model.valueobjects.TokenType;
 import com.claircore.iam.infrastructure.persistence.redis.repositories.TokenSessionRepository;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtTokenEncoder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -38,8 +38,12 @@ class TokenCommandServiceImplTest {
     @Mock
     private TokenSessionRepository tokenSessionRepository;
 
-    @InjectMocks
     private TokenCommandServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new TokenCommandServiceImpl(jwtTokenEncoder, tokenSessionRepository, 60000L, 120000L);
+    }
 
     @Test
     void shouldCreateAccessTokenAndReplaceSessionWhenUserIsValid() {

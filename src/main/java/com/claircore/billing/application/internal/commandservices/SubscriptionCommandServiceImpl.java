@@ -58,6 +58,11 @@ public class SubscriptionCommandServiceImpl implements SubscriptionCommandServic
         paymentRecordRepository.findByStripePaymentIntentId(command.stripePaymentIntentId())
                 .ifPresentOrElse(
                         paymentRecord -> {
+                            if (paymentRecord.getStatus() == com.claircore.billing.domain.model.valueobjects.PaymentStatus.COMPLETED) {
+                                log.info("PaymentRecord with ID: {} is already COMPLETED. Ignoring duplicate webhook.", paymentRecord.getId());
+                                return;
+                            }
+
                             log.info("Found paymentRecord with ID: {} in PENDING state. Marking as COMPLETED.", paymentRecord.getId());
                             paymentRecord.markAsCompleted();
                             paymentRecordRepository.save(paymentRecord);

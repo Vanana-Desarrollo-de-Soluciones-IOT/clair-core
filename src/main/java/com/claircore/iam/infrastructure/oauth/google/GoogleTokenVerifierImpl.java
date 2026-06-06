@@ -19,7 +19,7 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
     private static final String ISSUER_GOOGLE = "https://accounts.google.com";
     private static final String ISSUER_GOOGLE_SHORT = "accounts.google.com";
 
-    private final RestTemplate restTemplate;
+    private RestTemplate restTemplate;
     private final Set<String> allowedClientIds;
 
     public GoogleTokenVerifierImpl(

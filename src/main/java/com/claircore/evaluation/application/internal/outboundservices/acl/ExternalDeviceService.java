@@ -25,6 +25,10 @@ public class ExternalDeviceService {
         return deviceContextFacade.findDeviceIdByHardwareId(hardwareId);
     }
 
+    public Optional<String> findHardwareIdByDeviceId(UUID deviceId) {
+        return deviceContextFacade.findHardwareIdByDeviceId(deviceId);
+    }
+
     public boolean isDeviceOwnedByUser(UUID deviceId, UUID userId) {
         return deviceContextFacade.isDeviceOwnedByUser(deviceId, userId);
     }

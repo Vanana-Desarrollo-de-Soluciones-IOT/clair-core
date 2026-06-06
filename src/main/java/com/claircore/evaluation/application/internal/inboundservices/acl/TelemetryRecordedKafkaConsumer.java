@@ -91,8 +91,7 @@ public class TelemetryRecordedKafkaConsumer {
             try {
                 deviceTime = LocalTime.parse(event.deviceTime());
             } catch (DateTimeParseException | NullPointerException e) {
-                LOGGER.warn("Invalid device_time format: {}. Defaulting to midnight.", event.deviceTime());
-                deviceTime = LocalTime.MIDNIGHT;
+                throw new IllegalArgumentException("Invalid device_time format: " + event.deviceTime(), e);
             }
 
             var command = new EvaluateTelemetryCommand(
@@ -105,7 +104,7 @@ public class TelemetryRecordedKafkaConsumer {
                     new Location(event.country()),
                     event.healthStatus(),
                     event.status(),
-                    Instant.parse(event.recordedAt())
+                    parseRecordedAt(event.recordedAt())
             );
 
             telemetryEvaluationCommandService.handle(command);
@@ -135,10 +134,21 @@ public class TelemetryRecordedKafkaConsumer {
 
     private Optional<UUID> resolveDeviceId(String deviceIdOrHardwareId) {
         try {
-            return Optional.of(UUID.fromString(deviceIdOrHardwareId));
+            UUID deviceId = UUID.fromString(deviceIdOrHardwareId);
+            return externalDeviceService.findHardwareIdByDeviceId(deviceId).isPresent()
+                    ? Optional.of(deviceId)
+                    : Optional.empty();
         } catch (IllegalArgumentException ignored) {
             // Edge historically sent hardwareId in the device_id field.
             return externalDeviceService.findDeviceIdByHardwareId(deviceIdOrHardwareId);
+        }
+    }
+
+    private Instant parseRecordedAt(String recordedAt) {
+        try {
+            return Instant.parse(recordedAt);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid recorded_at format: " + recordedAt, e);
         }
     }
 }

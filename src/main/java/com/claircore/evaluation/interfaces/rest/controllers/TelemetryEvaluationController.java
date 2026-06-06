@@ -72,7 +72,12 @@ public class TelemetryEvaluationController {
             throw new IllegalArgumentException("Invalid uptime format: " + request.uptime(), e);
         }
 
-        Instant recordedAt = request.created_at() != null ? Instant.parse(request.created_at()) : Instant.now();
+        Instant recordedAt;
+        try {
+            recordedAt = request.created_at() != null ? Instant.parse(request.created_at()) : Instant.now();
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid created_at format: " + request.created_at(), e);
+        }
 
         var command = new EvaluateTelemetryCommand(
                 new DeviceId(deviceId),
@@ -144,7 +149,10 @@ public class TelemetryEvaluationController {
 
     private java.util.Optional<UUID> resolveDeviceId(String deviceIdOrHardwareId) {
         try {
-            return java.util.Optional.of(UUID.fromString(deviceIdOrHardwareId));
+            UUID deviceId = UUID.fromString(deviceIdOrHardwareId);
+            return externalDeviceService.findHardwareIdByDeviceId(deviceId).isPresent()
+                    ? java.util.Optional.of(deviceId)
+                    : java.util.Optional.empty();
         } catch (IllegalArgumentException e) {
             return externalDeviceService.findDeviceIdByHardwareId(deviceIdOrHardwareId);
         }

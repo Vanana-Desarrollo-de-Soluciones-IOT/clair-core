@@ -77,8 +77,9 @@ class TelemetryRecordedKafkaConsumerTest {
     void shouldProcessAndStoreEvaluationWhenPayloadIsValidAndDeviceIsUuid() {
         // Arrange
         UUID deviceId = UUID.randomUUID();
-        String json = "{"
-                + "\"device_id\":\"" + deviceId + "\","
+        when(externalDeviceService.findHardwareIdByDeviceId(deviceId)).thenReturn(Optional.of("HW-001"));
+        String json = "{" 
+                + "\"device_id\":\"" + deviceId + "\"," 
                 + "\"device_time\":\"12:00:00\","
                 + "\"uptime_seconds\":3600,"
                 + "\"co2\":400.0,"
@@ -144,8 +145,9 @@ class TelemetryRecordedKafkaConsumerTest {
     void shouldThrowExceptionWhenDeviceTimeIsInvalid() {
         // Arrange
         UUID deviceId = UUID.randomUUID();
-        String json = "{"
-                + "\"device_id\":\"" + deviceId + "\","
+        when(externalDeviceService.findHardwareIdByDeviceId(deviceId)).thenReturn(Optional.of("HW-002"));
+        String json = "{" 
+                + "\"device_id\":\"" + deviceId + "\"," 
                 + "\"device_time\":\"invalid-time-format\","
                 + "\"uptime_seconds\":3600,"
                 + "\"co2\":400.0,"

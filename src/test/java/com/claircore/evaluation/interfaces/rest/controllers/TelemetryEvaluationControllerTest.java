@@ -63,6 +63,7 @@ class TelemetryEvaluationControllerTest {
     void shouldReturnCreatedWhenEvaluatingValidTelemetryWithUuidDevice() throws Exception {
         // Arrange
         UUID resolvedDeviceId = UUID.randomUUID();
+        when(externalDeviceService.findHardwareIdByDeviceId(resolvedDeviceId)).thenReturn(Optional.of("HW-001"));
 
         TelemetryEvaluation evaluation = new TelemetryEvaluation(
                 new DeviceId(resolvedDeviceId), LocalTime.NOON, 3600L,
@@ -96,6 +97,7 @@ class TelemetryEvaluationControllerTest {
 
         // Verification: Since a UUID was passed, findDeviceIdByHardwareId should NOT be called
         verify(externalDeviceService, never()).findDeviceIdByHardwareId(anyString());
+        verify(externalDeviceService).findHardwareIdByDeviceId(resolvedDeviceId);
     }
 
     @Test
@@ -143,6 +145,7 @@ class TelemetryEvaluationControllerTest {
     void shouldReturnBadRequestWhenTimestampIsInvalid() throws Exception {
         // Arrange
         UUID resolvedDeviceId = UUID.randomUUID();
+        when(externalDeviceService.findHardwareIdByDeviceId(resolvedDeviceId)).thenReturn(Optional.of("HW-002"));
 
         var requestBody = new EvaluateTelemetryRequest(
                 resolvedDeviceId.toString(),
@@ -168,6 +171,7 @@ class TelemetryEvaluationControllerTest {
     void shouldReturnBadRequestWhenUptimeIsInvalid() throws Exception {
         // Arrange
         UUID resolvedDeviceId = UUID.randomUUID();
+        when(externalDeviceService.findHardwareIdByDeviceId(resolvedDeviceId)).thenReturn(Optional.of("HW-003"));
 
         var requestBody = new EvaluateTelemetryRequest(
                 resolvedDeviceId.toString(),
@@ -190,6 +194,33 @@ class TelemetryEvaluationControllerTest {
     }
 
     @Test
+    void shouldReturnBadRequestWhenCreatedAtIsInvalid() throws Exception {
+        // Arrange
+        String hardwareId = "CLAIR-002";
+        UUID resolvedDeviceId = UUID.randomUUID();
+        when(externalDeviceService.findDeviceIdByHardwareId(hardwareId)).thenReturn(Optional.of(resolvedDeviceId));
+
+        var requestBody = new EvaluateTelemetryRequest(
+                hardwareId,
+                "12:00:00",
+                "3600",
+                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
+                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
+                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                85,
+                "STABLE",
+                "invalid-instant"
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/evaluations/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldReturnNotFoundWhenEvaluatingTelemetryForUnknownDevice() throws Exception {
         // Arrange
         String unknownDevice = "unknown-device-id";
@@ -197,6 +228,32 @@ class TelemetryEvaluationControllerTest {
 
         var requestBody = new EvaluateTelemetryRequest(
                 unknownDevice,
+                "12:00:00",
+                "3600",
+                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
+                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
+                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                85,
+                "STABLE",
+                null
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/evaluations/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenEvaluatingTelemetryForUnknownUuidDevice() throws Exception {
+        // Arrange
+        UUID unknownDevice = UUID.randomUUID();
+        when(externalDeviceService.findHardwareIdByDeviceId(unknownDevice)).thenReturn(Optional.empty());
+
+        var requestBody = new EvaluateTelemetryRequest(
+                unknownDevice.toString(),
                 "12:00:00",
                 "3600",
                 new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),

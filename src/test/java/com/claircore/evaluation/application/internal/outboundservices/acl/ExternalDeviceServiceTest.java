@@ -50,4 +50,15 @@ class ExternalDeviceServiceTest {
         assertThat(result).isTrue();
         verify(deviceContextFacade).isDeviceOwnedByUser(deviceId, userId);
     }
+
+    @Test
+    void shouldReturnHardwareIdWhenDeviceIdExists() {
+        UUID deviceId = UUID.randomUUID();
+        when(deviceContextFacade.findHardwareIdByDeviceId(deviceId)).thenReturn(Optional.of("HW-12345"));
+
+        Optional<String> result = externalDeviceService.findHardwareIdByDeviceId(deviceId);
+
+        assertThat(result).isPresent().contains("HW-12345");
+        verify(deviceContextFacade).findHardwareIdByDeviceId(deviceId);
+    }
 }

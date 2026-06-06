@@ -77,6 +77,7 @@ class GoogleAuthenticationCommandServiceImplTest {
     @Test
     void shouldActivateAndLinkExistingMailUserWhenGoogleIdentityMatchesExistingAccount() {
         User existingUser = new User(new EmailAddress("user@example.com"), new Password("encoded-password"));
+        ReflectionTestUtils.setField(existingUser, "id", UUID.randomUUID());
         when(googleTokenVerifier.verify(any())).thenReturn(Optional.of(
                 new com.claircore.iam.domain.model.valueobjects.VerifiedGoogleIdentity(
                         new EmailAddress("user@example.com"),

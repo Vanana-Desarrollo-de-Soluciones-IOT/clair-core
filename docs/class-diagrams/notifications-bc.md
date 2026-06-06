@@ -13,24 +13,40 @@ classDiagram
 
 namespace interfaces {
     class NotificationController {
-        +testEmail() ResponseEntity
+        +getUserNotifications(page) ResponseEntity
     }
     class NotificationsContextFacade {
         <<interface>>
+        +sendWelcomeEmail(emailAddress) void
         +sendVerificationCode(email, code) void
+    }
+    class PushNotificationResponse {
+        +UUID id
+        +UUID userId
+        +UUID alertId
+        +String title
+        +String message
+        +String status
+        +String errorMessage
+        +Instant createdAt
     }
 }
 
 namespace application {
     class EmailCommandServiceImpl {
         -EmailDeliveryService emailDeliveryService
-        -EmailLogRepository emailLogRepository
+        -EmailLogPersistence emailLogPersistence
         +handle(SendVerificationCodeCommand) void
         +handle(SendWelcomeEmailCommand) void
     }
     class NotificationsContextFacadeImpl {
         -EmailCommandService emailCommandService
+        +sendWelcomeEmail(emailAddress) void
         +sendVerificationCode(email, code) void
+    }
+    class PushNotificationHistoryQueryServiceImpl {
+        -PushNotificationHistoryRepository pushNotificationHistoryRepository
+        +handle(GetPushNotificationHistoryQuery) Page
     }
     class AlertIncidentChangedKafkaConsumer {
         -PushNotificationDeliveryService pushNotificationDeliveryService
@@ -54,6 +70,10 @@ namespace application {
     class SendWelcomeEmailCommand {
         +EmailRecipient recipient
         +String name
+    }
+    class GetPushNotificationHistoryQuery {
+        +UUID userId
+        +Pageable pageable
     }
 }
 
@@ -101,6 +121,15 @@ namespace domain {
         <<interface>>
         +save(pushNotificationLog) PushNotificationLog
     }
+    class EmailLogPersistence {
+        <<interface>>
+        +save(emailLog) EmailLog
+    }
+    class PushNotificationHistoryRepository {
+        <<interface>>
+        +save(pushNotificationLog) PushNotificationLog
+        +findByUserId(userId, pageable) Page
+    }
 }
 
 namespace infrastructure {
@@ -121,17 +150,18 @@ namespace infrastructure {
     }
 }
 
-NotificationController --> EmailCommandServiceImpl : uses
 AlertIncidentChangedKafkaConsumer --> PushNotificationDeliveryService : uses
-AlertIncidentChangedKafkaConsumer --> PushNotificationLogRepository : uses
+AlertIncidentChangedKafkaConsumer --> PushNotificationHistoryRepository : uses
 AlertIncidentChangedKafkaConsumer --> ExternalDeviceService : uses
 AlertIncidentChangedKafkaConsumer --> ExternalAlertingService : uses
+NotificationController --> PushNotificationHistoryQueryServiceImpl : uses
 
 EmailCommandServiceImpl --> EmailDeliveryService : uses
-EmailCommandServiceImpl --> EmailLogRepository : uses
+EmailCommandServiceImpl --> EmailLogPersistence : uses
 
 NotificationsContextFacadeImpl ..|> NotificationsContextFacade : implements
 NotificationsContextFacadeImpl --> EmailCommandServiceImpl : uses
+PushNotificationHistoryQueryServiceImpl --> PushNotificationHistoryRepository : uses
 
 EmailLog --> EmailRecipient : contains
 EmailLog --> EmailSubject : contains
@@ -141,6 +171,8 @@ SmtpEmailService ..|> EmailDeliveryService : implements
 OneSignalPushNotificationService ..|> PushNotificationDeliveryService : implements
 JpaEmailLogRepository ..|> EmailLogRepository : implements
 JpaPushNotificationLogRepository ..|> PushNotificationLogRepository : implements
+JpaEmailLogRepository ..|> EmailLogPersistence : implements
+JpaPushNotificationLogRepository ..|> PushNotificationHistoryRepository : implements
 ```
 
 ---
@@ -152,11 +184,22 @@ JpaPushNotificationLogRepository ..|> PushNotificationLogRepository : implements
 ```mermaid
 classDiagram
 class NotificationController {
-    +testEmail() ResponseEntity
+    +getUserNotifications(page) ResponseEntity
 }
 class NotificationsContextFacade {
     <<interface>>
+    +sendWelcomeEmail(emailAddress) void
     +sendVerificationCode(email, code) void
+}
+class PushNotificationResponse {
+    +UUID id
+    +UUID userId
+    +UUID alertId
+    +String title
+    +String message
+    +String status
+    +String errorMessage
+    +Instant createdAt
 }
 ```
 
@@ -166,17 +209,22 @@ class NotificationsContextFacade {
 classDiagram
 class EmailCommandServiceImpl {
     -EmailDeliveryService emailDeliveryService
-    -EmailLogRepository emailLogRepository
+    -EmailLogPersistence emailLogPersistence
     +handle(SendVerificationCodeCommand) void
     +handle(SendWelcomeEmailCommand) void
 }
 class NotificationsContextFacadeImpl {
     -EmailCommandService emailCommandService
+    +sendWelcomeEmail(emailAddress) void
     +sendVerificationCode(email, code) void
+}
+class PushNotificationHistoryQueryServiceImpl {
+    -PushNotificationHistoryRepository pushNotificationHistoryRepository
+    +handle(GetPushNotificationHistoryQuery) Page
 }
 class AlertIncidentChangedKafkaConsumer {
     -PushNotificationDeliveryService pushNotificationDeliveryService
-    -PushNotificationLogRepository pushNotificationLogRepository
+    -PushNotificationHistoryRepository pushNotificationHistoryRepository
     -ExternalDeviceService externalDeviceService
     -ExternalAlertingService externalAlertingService
     +consume(record) void
@@ -197,10 +245,16 @@ class SendWelcomeEmailCommand {
     +EmailRecipient recipient
     +String name
 }
+class GetPushNotificationHistoryQuery {
+    +UUID userId
+    +Pageable pageable
+}
 
 NotificationsContextFacadeImpl --> EmailCommandServiceImpl : uses
 AlertIncidentChangedKafkaConsumer --> ExternalDeviceService : uses
 AlertIncidentChangedKafkaConsumer --> ExternalAlertingService : uses
+PushNotificationHistoryQueryServiceImpl --> PushNotificationHistoryRepository : uses
+NotificationController --> PushNotificationHistoryQueryServiceImpl : uses
 ```
 
 ### 3. Domain Layer
@@ -250,6 +304,14 @@ class PushNotificationLogRepository {
     <<interface>>
     +save(pushNotificationLog) PushNotificationLog
 }
+class EmailLogPersistence {
+    <<interface>>
+    +save(emailLog) EmailLog
+}
+class PushNotificationHistoryRepository {
+    <<interface>>
+    +findByUserId(userId, pageable) Page
+}
 
 EmailLog --> EmailRecipient : contains
 EmailLog --> EmailSubject : contains
@@ -275,4 +337,7 @@ class OneSignalPushNotificationService {
     -String oneSignalApiKey
     +sendPush(userId, title, message) String
 }
+
+JpaEmailLogRepository ..|> EmailLogPersistence : implements
+JpaPushNotificationLogRepository ..|> PushNotificationHistoryRepository : implements
 ```

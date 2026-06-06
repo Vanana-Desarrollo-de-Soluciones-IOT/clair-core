@@ -6,8 +6,8 @@ import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalAlertingService;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.notifications.domain.model.entities.PushNotificationLog;
+import com.claircore.notifications.domain.repositories.PushNotificationHistoryRepository;
 import com.claircore.notifications.domain.services.PushNotificationDeliveryService;
-import com.claircore.notifications.infrastructure.persistence.jpa.repositories.PushNotificationLogRepository;
 import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -30,7 +30,7 @@ public class AlertIncidentChangedKafkaConsumer {
     private final ExternalAlertingService externalAlertingService;
     private final ExternalDeviceService externalDeviceService;
     private final PushNotificationDeliveryService pushNotificationDeliveryService;
-    private final PushNotificationLogRepository pushNotificationLogRepository;
+    private final PushNotificationHistoryRepository pushNotificationHistoryRepository;
     private final KafkaInboxService kafkaInboxService;
     private final ObjectMapper objectMapper;
 
@@ -38,14 +38,14 @@ public class AlertIncidentChangedKafkaConsumer {
             ExternalAlertingService externalAlertingService,
             ExternalDeviceService externalDeviceService,
             PushNotificationDeliveryService pushNotificationDeliveryService,
-            PushNotificationLogRepository pushNotificationLogRepository,
+            PushNotificationHistoryRepository pushNotificationHistoryRepository,
             KafkaInboxService kafkaInboxService,
             ObjectMapper objectMapper
     ) {
         this.externalAlertingService = externalAlertingService;
         this.externalDeviceService = externalDeviceService;
         this.pushNotificationDeliveryService = pushNotificationDeliveryService;
-        this.pushNotificationLogRepository = pushNotificationLogRepository;
+        this.pushNotificationHistoryRepository = pushNotificationHistoryRepository;
         this.kafkaInboxService = kafkaInboxService;
         this.objectMapper = objectMapper.copy()
                 .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
@@ -92,11 +92,11 @@ public class AlertIncidentChangedKafkaConsumer {
                         
                         try {
                             pushNotificationDeliveryService.sendPushNotification(userId, title, message);
-                            pushNotificationLogRepository.save(PushNotificationLog.sent(userId, alert.alertId(), title, message));
+                            pushNotificationHistoryRepository.save(PushNotificationLog.sent(userId, alert.alertId(), title, message));
                             LOGGER.info("Push notification sent successfully via OneSignal to user {} for alert {} (status={})", 
                                     userId, alert.alertId(), alert.status());
                         } catch (Exception e) {
-                            pushNotificationLogRepository.save(PushNotificationLog.failed(userId, alert.alertId(), title, message, e.getMessage()));
+                            pushNotificationHistoryRepository.save(PushNotificationLog.failed(userId, alert.alertId(), title, message, e.getMessage()));
                             LOGGER.error("Failed to send push notification to user {} for alert {}: {}", userId, alert.alertId(), e.getMessage());
                         }
                     } else {

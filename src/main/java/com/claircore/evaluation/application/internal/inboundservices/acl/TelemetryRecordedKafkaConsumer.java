@@ -91,8 +91,7 @@ public class TelemetryRecordedKafkaConsumer {
             try {
                 deviceTime = LocalTime.parse(event.deviceTime());
             } catch (DateTimeParseException | NullPointerException e) {
-                LOGGER.warn("Invalid device_time format: {}. Defaulting to midnight.", event.deviceTime());
-                deviceTime = LocalTime.MIDNIGHT;
+                throw new IllegalArgumentException("Invalid device_time format: " + event.deviceTime(), e);
             }
 
             var command = new EvaluateTelemetryCommand(

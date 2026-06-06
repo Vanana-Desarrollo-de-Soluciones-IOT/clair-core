@@ -25,7 +25,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.time.LocalTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,10 +60,9 @@ class TelemetryEvaluationControllerTest {
     private TokenQueryService tokenQueryService; // Required to satisfy context dependencies
 
     @Test
-    void shouldReturnCreatedWhenEvaluatingValidTelemetry() throws Exception {
+    void shouldReturnCreatedWhenEvaluatingValidTelemetryWithUuidDevice() throws Exception {
         // Arrange
         UUID resolvedDeviceId = UUID.randomUUID();
-        when(externalDeviceService.findDeviceIdByHardwareId(any())).thenReturn(Optional.of(resolvedDeviceId));
 
         TelemetryEvaluation evaluation = new TelemetryEvaluation(
                 new DeviceId(resolvedDeviceId), LocalTime.NOON, 3600L,
@@ -94,18 +92,21 @@ class TelemetryEvaluationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.deviceId").value(resolvedDeviceId.toString()))
-                .andExpect(jsonPath("$.status").value("STABLE"));
+                .andExpect(jsonPath("$.deviceId").value(resolvedDeviceId.toString()));
+
+        // Verification: Since a UUID was passed, findDeviceIdByHardwareId should NOT be called
+        verify(externalDeviceService, never()).findDeviceIdByHardwareId(anyString());
     }
 
     @Test
-    void shouldFallbackGracefullyWhenTimestampAndUptimeAreInvalid() throws Exception {
+    void shouldReturnCreatedWhenEvaluatingValidTelemetryWithHardwareIdDevice() throws Exception {
         // Arrange
+        String hardwareId = "CLAIR-001";
         UUID resolvedDeviceId = UUID.randomUUID();
-        when(externalDeviceService.findDeviceIdByHardwareId(any())).thenReturn(Optional.of(resolvedDeviceId));
+        when(externalDeviceService.findDeviceIdByHardwareId(hardwareId)).thenReturn(Optional.of(resolvedDeviceId));
 
         TelemetryEvaluation evaluation = new TelemetryEvaluation(
-                new DeviceId(resolvedDeviceId), LocalTime.MIDNIGHT, 0L,
+                new DeviceId(resolvedDeviceId), LocalTime.NOON, 3600L,
                 new AirQuality(400.0, 22.0, 45.0),
                 new ParticulateMatter(10, 15, 25),
                 new Connectivity("ONLINE", "WiFi", -50),
@@ -115,9 +116,38 @@ class TelemetryEvaluationControllerTest {
         when(telemetryEvaluationCommandService.handle(any(EvaluateTelemetryCommand.class))).thenReturn(evaluation);
 
         var requestBody = new EvaluateTelemetryRequest(
+                hardwareId,
+                "12:00:00",
+                "3600",
+                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
+                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
+                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                85,
+                "STABLE",
+                Instant.now().toString()
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/evaluations/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deviceId").value(resolvedDeviceId.toString()));
+
+        // Verification: Verify findDeviceIdByHardwareId is explicitly called
+        verify(externalDeviceService, times(1)).findDeviceIdByHardwareId(hardwareId);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenTimestampIsInvalid() throws Exception {
+        // Arrange
+        UUID resolvedDeviceId = UUID.randomUUID();
+
+        var requestBody = new EvaluateTelemetryRequest(
                 resolvedDeviceId.toString(),
-                "invalid-time",
-                "invalid-uptime-string",
+                "invalid-time-format",
+                "3600",
                 new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
                 new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
                 new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
@@ -131,7 +161,32 @@ class TelemetryEvaluationControllerTest {
         mockMvc.perform(post("/api/v1/evaluations/telemetry")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUptimeIsInvalid() throws Exception {
+        // Arrange
+        UUID resolvedDeviceId = UUID.randomUUID();
+
+        var requestBody = new EvaluateTelemetryRequest(
+                resolvedDeviceId.toString(),
+                "12:00:00",
+                "invalid-uptime-format",
+                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
+                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
+                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                85,
+                "STABLE",
+                null
+        );
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/evaluations/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -161,6 +216,16 @@ class TelemetryEvaluationControllerTest {
     }
 
     @Test
+    void shouldReturnUnauthorizedWhenUserIdIsMissingFromRequestAttributes() throws Exception {
+        // Arrange
+        UUID deviceId = UUID.randomUUID();
+
+        // Act & Assert
+        mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void shouldReturnForbiddenWhenUserDoesNotOwnDevice() throws Exception {
         // Arrange
         UUID deviceId = UUID.randomUUID();
@@ -170,16 +235,6 @@ class TelemetryEvaluationControllerTest {
         // Act & Assert
         mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId)
                         .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void shouldReturnForbiddenWhenUserIdIsMissingFromRequestAttributes() throws Exception {
-        // Arrange
-        UUID deviceId = UUID.randomUUID();
-
-        // Act & Assert
-        mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId))
                 .andExpect(status().isForbidden());
     }
 

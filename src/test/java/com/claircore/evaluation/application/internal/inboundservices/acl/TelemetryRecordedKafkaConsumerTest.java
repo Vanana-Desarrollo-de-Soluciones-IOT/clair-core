@@ -141,7 +141,7 @@ class TelemetryRecordedKafkaConsumerTest {
     }
 
     @Test
-    void shouldFallbackToMidnightWhenDeviceTimeIsInvalid() {
+    void shouldThrowExceptionWhenDeviceTimeIsInvalid() {
         // Arrange
         UUID deviceId = UUID.randomUUID();
         String json = "{"
@@ -165,14 +165,10 @@ class TelemetryRecordedKafkaConsumerTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 100L, "key", json);
         when(kafkaInboxService.shouldProcess("core-evaluation-consumer", "topic", 0, 100L)).thenReturn(true);
 
-        ArgumentCaptor<EvaluateTelemetryCommand> commandCaptor = ArgumentCaptor.forClass(EvaluateTelemetryCommand.class);
-
-        // Act
-        consumer.consume(record);
-
-        // Assert
-        verify(telemetryEvaluationCommandService).handle(commandCaptor.capture());
-        assertThat(commandCaptor.getValue().deviceTime()).isEqualTo(LocalTime.MIDNIGHT);
+        // Act & Assert
+        assertThatThrownBy(() -> consumer.consume(record))
+                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(telemetryEvaluationCommandService);
     }
 
     @Test

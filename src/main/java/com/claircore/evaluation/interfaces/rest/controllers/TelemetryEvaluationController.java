@@ -62,15 +62,14 @@ public class TelemetryEvaluationController {
         try {
             deviceTime = LocalTime.parse(request.timestamp());
         } catch (DateTimeParseException e) {
-            deviceTime = LocalTime.now();
+            throw new IllegalArgumentException("Invalid timestamp format: " + request.timestamp(), e);
         }
 
         Long uptimeSeconds;
         try {
-            // Edge may send "20" or "00:00:20". If it's a number, use it directly.
             uptimeSeconds = Long.parseLong(request.uptime());
         } catch (NumberFormatException e) {
-            uptimeSeconds = 0L; // Fallback or more complex parsing if needed
+            throw new IllegalArgumentException("Invalid uptime format: " + request.uptime(), e);
         }
 
         Instant recordedAt = request.created_at() != null ? Instant.parse(request.created_at()) : Instant.now();
@@ -106,7 +105,10 @@ public class TelemetryEvaluationController {
             @RequestParam(defaultValue = "20") Integer size
     ) {
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
-        if (userId == null || !externalDeviceService.isDeviceOwnedByUser(deviceId, userId)) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!externalDeviceService.isDeviceOwnedByUser(deviceId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -127,7 +129,10 @@ public class TelemetryEvaluationController {
             @PathVariable UUID deviceId
     ) {
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
-        if (userId == null || !externalDeviceService.isDeviceOwnedByUser(deviceId, userId)) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!externalDeviceService.isDeviceOwnedByUser(deviceId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

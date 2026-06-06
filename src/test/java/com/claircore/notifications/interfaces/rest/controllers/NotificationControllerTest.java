@@ -3,6 +3,7 @@ package com.claircore.notifications.interfaces.rest.controllers;
 import com.claircore.notifications.domain.model.entities.PushNotificationLog;
 import com.claircore.notifications.domain.services.PushNotificationHistoryQueryService;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.iam.domain.services.TokenQueryService;
 import com.claircore.shared.interfaces.rest.exceptions.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ class NotificationControllerTest {
 
     @MockitoBean
     private PushNotificationHistoryQueryService pushNotificationHistoryQueryService;
+
+    @MockitoBean
+    private TokenQueryService tokenQueryService;
 
     @Test
     void shouldReturnNotificationHistoryForAuthenticatedUser() throws Exception {

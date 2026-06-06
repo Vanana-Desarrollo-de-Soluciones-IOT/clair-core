@@ -24,7 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -59,28 +59,28 @@ class AuthenticationControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private UserCommandService userCommandService;
 
-    @MockBean
+    @MockitoBean
     private UserQueryService userQueryService;
 
-    @MockBean
+    @MockitoBean
     private TokenCommandService tokenCommandService;
 
-    @MockBean
+    @MockitoBean
     private TokenQueryService tokenQueryService;
 
-    @MockBean
+    @MockitoBean
     private GoogleAuthenticationCommandService googleAuthenticationCommandService;
 
-    @MockBean
+    @MockitoBean
     private GoogleOAuthCallbackApplicationService googleOAuthCallbackApplicationService;
 
-    @MockBean
+    @MockitoBean
     private GoogleOAuthStateManager googleOAuthStateManager;
 
-    @MockBean
+    @MockitoBean
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Test

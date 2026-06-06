@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -42,25 +42,25 @@ class ReportControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private DailyReportQueryService dailyReportQueryService;
 
-    @MockBean
+    @MockitoBean
     private MonthlyReportQueryService monthlyReportQueryService;
 
-    @MockBean
+    @MockitoBean
     private ExternalDeviceService externalDeviceService;
 
-    @MockBean
+    @MockitoBean
     private ExternalBillingService externalBillingService;
 
-    @MockBean
+    @MockitoBean
     private com.claircore.iam.domain.services.TokenQueryService tokenQueryService;
 
-    @MockBean
+    @MockitoBean
     private com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @MockBean
+    @MockitoBean
     private com.claircore.iam.infrastructure.config.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @org.junit.jupiter.api.BeforeEach

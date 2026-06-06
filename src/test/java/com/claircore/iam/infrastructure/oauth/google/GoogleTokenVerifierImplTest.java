@@ -5,7 +5,6 @@ import com.claircore.iam.domain.model.valueobjects.GoogleIdToken;
 import com.claircore.iam.domain.model.valueobjects.VerifiedGoogleIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -27,7 +26,7 @@ class GoogleTokenVerifierImplTest {
     void setUp() {
         restTemplate = mock(RestTemplate.class);
         verifier = new GoogleTokenVerifierImpl("primary-client-id", "");
-        ReflectionTestUtils.setField(verifier, "restTemplate", restTemplate);
+        verifier.setRestTemplate(restTemplate);
     }
 
     @Test

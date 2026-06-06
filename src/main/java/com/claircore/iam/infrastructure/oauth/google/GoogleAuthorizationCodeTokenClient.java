@@ -23,6 +23,10 @@ public class GoogleAuthorizationCodeTokenClient {
         this.restTemplate = new RestTemplate();
     }
 
+    void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     public Optional<String> exchangeCodeForIdToken(String code, String clientId, String clientSecret, String redirectUri) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);

@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -24,7 +23,7 @@ class GoogleAuthorizationCodeTokenClientTest {
     void setUp() {
         restTemplate = mock(RestTemplate.class);
         client = new GoogleAuthorizationCodeTokenClient();
-        ReflectionTestUtils.setField(client, "restTemplate", restTemplate);
+        client.setRestTemplate(restTemplate);
     }
 
     @Test

@@ -39,6 +39,10 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     @Override
     public Optional<VerifiedGoogleIdentity> verify(GoogleIdToken idToken) {
         try {

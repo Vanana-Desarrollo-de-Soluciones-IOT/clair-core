@@ -15,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -133,9 +132,13 @@ class TokenCommandServiceImplTest {
     }
 
     private User userWithId(String email) {
-        User user = new User(new EmailAddress(email), new Password("encoded-password"));
-        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
-        user.activate();
-        return user;
+        return User.rehydrate(
+                UUID.randomUUID(),
+                new EmailAddress(email),
+                new Password("encoded-password"),
+                com.claircore.iam.domain.model.valueobjects.UserStatus.ACTIVE,
+                com.claircore.iam.domain.model.valueobjects.OAuthProvider.MAIL,
+                null
+        );
     }
 }

@@ -96,13 +96,13 @@ public class UserCommandServiceImpl implements UserCommandService {
         );
         user.activate();
 
-        userRepository.save(user);
-        eventPublisher.publishEvent(new UserRegisteredEvent(this, user.getId()));
+        var savedUser = userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(this, savedUser.getId()));
         
         registrationSessionRepository.deleteById(command.sessionId());
-        asyncNotificationService.sendWelcomeEmail(user.getEmail().address());
+        asyncNotificationService.sendWelcomeEmail(savedUser.getEmail().address());
 
-        return Optional.of(user);
+        return Optional.of(savedUser);
     }
 
     private VerificationCode generateVerificationCode() {

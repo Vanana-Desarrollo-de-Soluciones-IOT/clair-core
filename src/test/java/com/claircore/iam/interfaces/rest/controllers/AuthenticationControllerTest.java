@@ -26,7 +26,6 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -235,9 +234,13 @@ class AuthenticationControllerTest {
     }
 
     private User activeUser(String email) {
-        User user = new User(new EmailAddress(email), new Password("encoded-password"));
-        user.activate();
-        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
-        return user;
+        return User.rehydrate(
+                UUID.randomUUID(),
+                new EmailAddress(email),
+                new Password("encoded-password"),
+                com.claircore.iam.domain.model.valueobjects.UserStatus.ACTIVE,
+                com.claircore.iam.domain.model.valueobjects.OAuthProvider.MAIL,
+                null
+        );
     }
 }

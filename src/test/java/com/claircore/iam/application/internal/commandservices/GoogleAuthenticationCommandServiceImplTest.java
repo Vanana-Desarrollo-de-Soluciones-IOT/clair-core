@@ -16,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -60,8 +59,14 @@ class GoogleAuthenticationCommandServiceImplTest {
         when(userRepository.findByEmail(new EmailAddress("user@example.com"))).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
-            return user;
+            return User.rehydrate(
+                    UUID.randomUUID(),
+                    user.getEmail(),
+                    user.getPassword(),
+                    user.getStatus(),
+                    user.getOauthProvider(),
+                    user.getOauthSubject()
+            );
         });
 
         Optional<User> result = service.handle(new AuthenticateWithGoogleCommand(new GoogleIdToken("token")));
@@ -76,8 +81,14 @@ class GoogleAuthenticationCommandServiceImplTest {
 
     @Test
     void shouldActivateAndLinkExistingMailUserWhenGoogleIdentityMatchesExistingAccount() {
-        User existingUser = new User(new EmailAddress("user@example.com"), new Password("encoded-password"));
-        ReflectionTestUtils.setField(existingUser, "id", UUID.randomUUID());
+        User existingUser = User.rehydrate(
+                UUID.randomUUID(),
+                new EmailAddress("user@example.com"),
+                new Password("encoded-password"),
+                com.claircore.iam.domain.model.valueobjects.UserStatus.ACTIVE,
+                com.claircore.iam.domain.model.valueobjects.OAuthProvider.MAIL,
+                null
+        );
         when(googleTokenVerifier.verify(any())).thenReturn(Optional.of(
                 new com.claircore.iam.domain.model.valueobjects.VerifiedGoogleIdentity(
                         new EmailAddress("user@example.com"),

@@ -56,6 +56,24 @@ public class User extends AuditableModel {
         this.oauthSubject = oauthSubject;
     }
 
+    public static User rehydrate(
+            UUID id,
+            EmailAddress email,
+            Password password,
+            UserStatus status,
+            OAuthProvider oauthProvider,
+            String oauthSubject
+    ) {
+        User user = new User();
+        user.id = id;
+        user.email = email;
+        user.password = password;
+        user.status = status;
+        user.oauthProvider = oauthProvider;
+        user.oauthSubject = oauthSubject;
+        return user;
+    }
+
     public void activate() {
         this.status = UserStatus.ACTIVE;
     }

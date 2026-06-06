@@ -20,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -108,8 +107,14 @@ class UserCommandServiceImplTest {
         when(userRepository.existsByEmail(session.email())).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
-            ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
-            return user;
+            return User.rehydrate(
+                    UUID.randomUUID(),
+                    user.getEmail(),
+                    user.getPassword(),
+                    com.claircore.iam.domain.model.valueobjects.UserStatus.ACTIVE,
+                    user.getOauthProvider(),
+                    user.getOauthSubject()
+            );
         });
 
         var result = service.handle(new ConfirmRegistrationCommand(session.sessionId(), "6G13-789D"));

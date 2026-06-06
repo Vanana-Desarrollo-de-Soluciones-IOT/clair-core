@@ -6,9 +6,9 @@ import com.claircore.notifications.domain.model.entities.EmailLog;
 import com.claircore.notifications.domain.model.valueobjects.EmailContent;
 import com.claircore.notifications.domain.model.valueobjects.EmailRecipient;
 import com.claircore.notifications.domain.model.valueobjects.EmailSubject;
+import com.claircore.notifications.domain.repositories.EmailLogPersistence;
 import com.claircore.notifications.domain.services.EmailCommandService;
 import com.claircore.notifications.domain.services.EmailDeliveryService;
-import com.claircore.notifications.infrastructure.persistence.jpa.repositories.EmailLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,11 +20,11 @@ public class EmailCommandServiceImpl implements EmailCommandService {
     private static final Logger logger = LoggerFactory.getLogger(EmailCommandServiceImpl.class);
 
     private final EmailDeliveryService emailDeliveryService;
-    private final EmailLogRepository emailLogRepository;
+    private final EmailLogPersistence emailLogPersistence;
 
-    public EmailCommandServiceImpl(EmailDeliveryService emailDeliveryService, EmailLogRepository emailLogRepository) {
+    public EmailCommandServiceImpl(EmailDeliveryService emailDeliveryService, EmailLogPersistence emailLogPersistence) {
         this.emailDeliveryService = emailDeliveryService;
-        this.emailLogRepository = emailLogRepository;
+        this.emailLogPersistence = emailLogPersistence;
     }
 
     @Override
@@ -49,10 +49,10 @@ public class EmailCommandServiceImpl implements EmailCommandService {
     private void sendAndLog(EmailRecipient recipient, EmailSubject subject, EmailContent content) {
         try {
             emailDeliveryService.sendEmail(recipient, subject, content);
-            emailLogRepository.save(EmailLog.sent(recipient, subject, content));
+            emailLogPersistence.save(EmailLog.sent(recipient, subject, content));
             logger.info("Email sent successfully to {}", recipient.address());
         } catch (Exception e) {
-            emailLogRepository.save(EmailLog.failed(recipient, subject, content, e.getMessage()));
+            emailLogPersistence.save(EmailLog.failed(recipient, subject, content, e.getMessage()));
             logger.error("Failed to send email to {}: {}", recipient.address(), e.getMessage());
         }
     }

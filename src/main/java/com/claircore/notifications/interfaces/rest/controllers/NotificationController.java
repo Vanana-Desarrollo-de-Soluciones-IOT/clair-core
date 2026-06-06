@@ -1,7 +1,8 @@
 package com.claircore.notifications.interfaces.rest.controllers;
 
-import com.claircore.notifications.domain.model.entities.PushNotificationLog;
-import com.claircore.notifications.infrastructure.persistence.jpa.repositories.PushNotificationLogRepository;
+import com.claircore.notifications.domain.model.queries.GetPushNotificationHistoryQuery;
+import com.claircore.notifications.domain.services.PushNotificationHistoryQueryService;
+import com.claircore.notifications.interfaces.rest.resources.PushNotificationResponse;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,27 +27,28 @@ import java.util.UUID;
 @Tag(name = "Notifications", description = "Push notifications management endpoints")
 public class NotificationController {
 
-    private final PushNotificationLogRepository pushNotificationLogRepository;
+    private final PushNotificationHistoryQueryService pushNotificationHistoryQueryService;
 
-    public NotificationController(PushNotificationLogRepository pushNotificationLogRepository) {
-        this.pushNotificationLogRepository = pushNotificationLogRepository;
+    public NotificationController(PushNotificationHistoryQueryService pushNotificationHistoryQueryService) {
+        this.pushNotificationHistoryQueryService = pushNotificationHistoryQueryService;
     }
 
     @GetMapping("/notifications/push")
     @Operation(summary = "Get push notification logs for the authenticated user")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Notifications returned successfully")
+            @ApiResponse(responseCode = "200", description = "Notifications returned successfully"),
+            @ApiResponse(responseCode = "401", description = "Authentication required")
     })
-    public ResponseEntity<Page<PushNotificationLog>> getUserNotifications(
+    public ResponseEntity<Page<PushNotificationResponse>> getUserNotifications(
             HttpServletRequest httpRequest,
             @Parameter(description = "Page number (default: 0)") @RequestParam(defaultValue = "0") Integer page) {
 
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
 
-        // Always fetch the first 20 notifications per page, sorted by creation date descending.
-        // The page size is fixed to 20 and not modifiable by the client.
         Pageable pageable = PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<PushNotificationLog> logs = pushNotificationLogRepository.findByUserId(userId, pageable);
+        var query = new GetPushNotificationHistoryQuery(userId, pageable);
+        Page<PushNotificationResponse> logs = pushNotificationHistoryQueryService.handle(query)
+                .map(PushNotificationResponse::from);
 
         return ResponseEntity.ok(logs);
     }

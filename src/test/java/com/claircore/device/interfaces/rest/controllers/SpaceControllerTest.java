@@ -1,0 +1,115 @@
+package com.claircore.device.interfaces.rest.controllers;
+
+import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.commands.CreateSpaceCommand;
+import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
+import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
+import com.claircore.device.domain.model.valueobjects.UserId;
+import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.domain.services.SpaceCommandService;
+import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
+import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.shared.interfaces.rest.exceptions.GlobalExceptionHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Date;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(SpaceController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
+class SpaceControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private SpaceCommandService spaceCommandService;
+
+    @MockBean
+    private DeviceQueryService deviceQueryService;
+
+    @MockBean
+    private TokenQueryService tokenQueryService;
+
+    @BeforeEach
+    void clearAuthentication() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void shouldCreateSpaceWhenRequestIsValid() throws Exception {
+        authenticate("550e8400-e29b-41d4-a716-446655445000");
+        Space space = new Space("Kitchen", UUID.randomUUID(), new UserId(UUID.fromString("550e8400-e29b-41d4-a716-446655445000")));
+        org.springframework.test.util.ReflectionTestUtils.setField(space.getAuditFields(), "createdAt", new Date());
+        org.springframework.test.util.ReflectionTestUtils.setField(space.getAuditFields(), "updatedAt", new Date());
+        when(spaceCommandService.handle(org.mockito.ArgumentMatchers.any(CreateSpaceCommand.class))).thenReturn(space);
+
+        mockMvc.perform(post("/api/v1/spaces")
+                        .param("organizationId", UUID.randomUUID().toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new CreateSpaceRequest("Kitchen"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Kitchen"));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenCreatingSpaceWithoutAuthentication() throws Exception {
+        SecurityContextHolder.clearContext();
+        mockMvc.perform(post("/api/v1/spaces")
+                        .param("organizationId", UUID.randomUUID().toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new CreateSpaceRequest("Kitchen"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenSpaceDoesNotExist() throws Exception {
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetSpaceByIdQuery.class))).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/spaces/{spaceId}", UUID.randomUUID()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnSpacesWhenOrganizationHasSpaces() throws Exception {
+        authenticate("550e8400-e29b-41d4-a716-446655445000");
+        Space space = new Space("Kitchen", UUID.randomUUID(), new UserId(UUID.fromString("550e8400-e29b-41d4-a716-446655445000")));
+        org.springframework.test.util.ReflectionTestUtils.setField(space.getAuditFields(), "createdAt", new Date());
+        org.springframework.test.util.ReflectionTestUtils.setField(space.getAuditFields(), "updatedAt", new Date());
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetSpacesByOrganizationQuery.class))).thenReturn(List.of(space));
+
+        mockMvc.perform(get("/api/v1/spaces").param("organizationId", UUID.randomUUID().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Kitchen"));
+    }
+
+    private void authenticate(String userId) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(new User(userId, "N/A", Collections.emptyList()), null, Collections.emptyList())
+        );
+    }
+}

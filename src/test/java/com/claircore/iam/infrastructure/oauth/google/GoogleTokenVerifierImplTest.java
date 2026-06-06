@@ -61,4 +61,32 @@ class GoogleTokenVerifierImplTest {
 
         assertFalse(verifier.verify(new GoogleIdToken("id-token")).isPresent());
     }
+
+    @Test
+    void shouldReturnEmptyWhenEmailIsNotVerifiedByGoogle() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("iss", "https://accounts.google.com");
+        payload.put("aud", "primary-client-id");
+        payload.put("email_verified", "false");
+        payload.put("exp", String.valueOf(System.currentTimeMillis() / 1000 + 600));
+        payload.put("email", "user@example.com");
+        payload.put("sub", "google-subject");
+        when(restTemplate.getForObject(anyString(), org.mockito.ArgumentMatchers.eq(Map.class))).thenReturn(payload);
+
+        assertFalse(verifier.verify(new GoogleIdToken("id-token")).isPresent());
+    }
+
+    @Test
+    void shouldReturnEmptyWhenTokenIsExpired() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("iss", "https://accounts.google.com");
+        payload.put("aud", "primary-client-id");
+        payload.put("email_verified", "true");
+        payload.put("exp", String.valueOf(System.currentTimeMillis() / 1000 - 10));
+        payload.put("email", "user@example.com");
+        payload.put("sub", "google-subject");
+        when(restTemplate.getForObject(anyString(), org.mockito.ArgumentMatchers.eq(Map.class))).thenReturn(payload);
+
+        assertFalse(verifier.verify(new GoogleIdToken("id-token")).isPresent());
+    }
 }

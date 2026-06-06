@@ -178,6 +178,19 @@ class AuthenticationControllerTest {
     }
 
     @Test
+    void shouldRedirectToErrorWhenGoogleCallbackReturnsNoUser() throws Exception {
+        when(googleOAuthStateManager.validateState("state")).thenReturn(true);
+        when(googleOAuthCallbackApplicationService.handle(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/auth/google/callback")
+                        .param("code", "code")
+                        .param("state", "state"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", containsString("http://frontend.local/auth/error?reason=google_oauth_failed")));
+    }
+
+    @Test
     void shouldReturnRedirectToErrorWhenGoogleCallbackStateIsInvalid() throws Exception {
         when(googleOAuthStateManager.validateState("bad-state")).thenReturn(false);
 

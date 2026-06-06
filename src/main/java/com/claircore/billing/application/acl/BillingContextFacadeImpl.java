@@ -37,17 +37,17 @@ public class BillingContextFacadeImpl implements BillingContextFacade {
 
     @Override
     public int getMaxOrganizations(UUID userId) {
-        return resolveUserPlanType(userId).maxOrganizations();
+        return resolveEffectivePlanType(userId).maxOrganizations();
     }
 
     @Override
     public int getMaxSpaces(UUID userId) {
-        return resolveUserPlanType(userId).maxSpaces();
+        return resolveEffectivePlanType(userId).maxSpaces();
     }
 
     @Override
     public int getMaxDevices(UUID userId) {
-        return resolveUserPlanType(userId).maxDevices();
+        return resolveEffectivePlanType(userId).maxDevices();
     }
 
     @Override

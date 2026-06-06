@@ -58,7 +58,6 @@ class DeviceCommandServiceImplTest {
 
     @Test
     void seedDevicesCreatesNonExistingOnes() {
-        when(deviceRepository.findBySerialNumber(any())).thenReturn(Optional.empty());
         when(deviceRepository.existsByHardwareId(any())).thenReturn(false);
         when(deviceRepository.save(any(Device.class))).thenAnswer(i -> {
             Device device = i.getArgument(0);

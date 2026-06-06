@@ -17,10 +17,14 @@ public class GoogleAuthorizationCodeTokenClient {
 
     private static final String TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-    private final RestTemplate restTemplate;
+    private RestTemplate restTemplate;
 
     public GoogleAuthorizationCodeTokenClient() {
         this.restTemplate = new RestTemplate();
+    }
+
+    void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
     }
 
     public Optional<String> exchangeCodeForIdToken(String code, String clientId, String clientSecret, String redirectUri) {

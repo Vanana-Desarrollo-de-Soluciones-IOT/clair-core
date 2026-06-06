@@ -56,7 +56,7 @@ public class GoogleAuthenticationCommandServiceImpl implements GoogleAuthenticat
             }
         } else {
             user = new User(email, OAuthProvider.GOOGLE, subject);
-            userRepository.save(user);
+            user = userRepository.save(user);
             eventPublisher.publishEvent(new UserRegisteredEvent(this, user.getId()));
         }
 

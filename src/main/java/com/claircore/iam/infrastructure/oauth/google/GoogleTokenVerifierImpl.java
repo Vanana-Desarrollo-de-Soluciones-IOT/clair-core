@@ -19,7 +19,7 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
     private static final String ISSUER_GOOGLE = "https://accounts.google.com";
     private static final String ISSUER_GOOGLE_SHORT = "accounts.google.com";
 
-    private final RestTemplate restTemplate;
+    private RestTemplate restTemplate;
     private final Set<String> allowedClientIds;
 
     public GoogleTokenVerifierImpl(
@@ -37,6 +37,10 @@ public class GoogleTokenVerifierImpl implements GoogleTokenVerifier {
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
     }
 
     @Override

@@ -1,40 +1,62 @@
-# Spring Template
+# clair-core
 
-A Spring Boot project with Swagger/OpenAPI and a simple REST endpoint.
+Spring Boot project (Java 25) with Swagger/OpenAPI.
 
 ## Features
 
-- Spring Boot 3.2.0
+- Spring Boot 3.x
 - REST API with Swagger/OpenAPI
-- Documented `hello-world` endpoint
 - Maven as dependency manager
-
-## Project Structure
-
-```
-src/
-├── main/
-│   ├── java/com/example/springtemplate/
-│   │   ├── SpringTemplateApplication.java
-│   │   └── controller/
-│   │       └── HelloController.java
-│   └── resources/
-│       └── application.yml
-└── test/java/com/example/springtemplate/
-```
+- JWT Authentication with Refresh Tokens
+- Email Verification Flow
+- Redis Caching
 
 ## Requirements
 
-- Java 25 or higher
+- Java 25 (Maven must run on JDK 25)
 - Maven 3.6 or higher
+- PostgreSQL 15+
+- Redis 7+
 
 ## Environment Variables
 
-This project uses a `.env` file for configuration. Create a `.env` file in the root directory of the project with the following (or desired) variables:
+This project uses a `.env` file for configuration. Create a `.env` file in the root directory:
 
 ```env
 PORT=8080
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5432/clair_core
+DB_USERNAME=postgres
+DB_PASSWORD=admin
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# SMTP Email (Resend)
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USERNAME=resend
+SMTP_PASSWORD=your_resend_api_key
+SMTP_FROM=noreply@yourdomain.com
+
+# JWT
+JWT_SECRET=your_super_secret_jwt_key_that_is_at_least_32_characters_long
+JWT_EXPIRATION=3600000
+JWT_REFRESH_EXPIRATION=604800000
+
+# Edge -> Core shared token (must match EDGE_TO_CORE_TOKEN in the edge service)
+EDGE_TO_CORE_TOKEN=change-me-long-random-secret
+
+# clair-core -> edge webhook (device change events)
+EDGE_WEBHOOK_DEVICES_URL=http://127.0.0.1:5000
+
+# CORS — tu web app Angular
+CORS_ALLOWED_ORIGINS=http://localhost:4200
 ```
+
+> ⚠️ **Importante:** Si borraste la base de datos, la primera vez corre con `ddl-auto: update` en `application.yml`. Cuando arranque bien, cámbialo a `validate`.
 
 ## Compile the Project
 
@@ -42,10 +64,34 @@ PORT=8080
 mvn clean compile
 ```
 
+Using Nix:
+```bash
+nix-shell -p maven jdk25 --run "mvn clean compile"
+```
+
 ## Run the Project
 
 ```bash
 mvn spring-boot:run
+```
+
+Using Nix:
+```bash
+nix-shell -p maven jdk25 --run "mvn spring-boot:run"
+```
+
+## Stripe CLI (Nix)
+
+If you want Stripe CLI available via Nix:
+
+```bash
+nix-shell -p stripe-cli --run "stripe version"
+```
+
+Example webhook forward:
+
+```bash
+nix-shell -p stripe-cli --run "stripe listen --forward-to localhost:8080/api/v1/billing/webhook"
 ```
 
 The server will be available at: `http://localhost:${PORT}` (Default: 8080)
@@ -62,18 +108,128 @@ Or view the OpenAPI JSON at:
 http://localhost:${PORT}/v3/api-docs
 ```
 
-## Endpoints
+## Authentication Endpoints
 
-### Hello World
-
-- **GET** `/api/hello-world`
-- Description: Returns a greeting message
-- Response:
+### 1. Sign Up
+- **POST** `/api/v1/auth/sign-up`
+- Body: `{ "email": "user@example.com", "password": "SecurePass123!" }`
+- Response (201):
   ```json
   {
-    "message": "Hello World"
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "message": "Registration initiated. Please check your email for the verification code."
   }
   ```
+
+### 2. Confirm Registration
+- **POST** `/api/v1/auth/confirm`
+- Body: `{ "sessionId": "550e8400-e29b-41d4-a716-446655440000", "verificationCode": "6G13-789D" }`
+- Response (201):
+  ```json
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com"
+  }
+  ```
+
+### 3. Sign In
+- **POST** `/api/v1/auth/sign-in`
+- Body: `{ "email": "user@example.com", "password": "SecurePass123!" }`
+- Response (200):
+  ```json
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+  }
+  ```
+
+### 4. Refresh Token
+- **POST** `/api/v1/auth/refresh`
+- Body: `{ "refreshToken": "eyJhbGciOiJIUzI1NiIs..." }`
+- Response (200):
+  ```json
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+  }
+  ```
+
+### 5. Verify Token
+- **GET** `/api/v1/auth/verify`
+- Header: `Authorization: Bearer <token>`
+- Response (200):
+  ```json
+  {
+    "valid": true,
+    "email": "user@example.com",
+    "expiresAt": "2026-05-05T17:43:27.000Z"
+  }
+  ```
+
+## Angular Integration
+
+Tu web app en `http://localhost:4200` ya está permitida por CORS.
+
+### Ejemplo de servicio en Angular:
+
+```typescript
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private apiUrl = 'http://localhost:8080/api/v1/auth';
+
+  constructor(private http: HttpClient) {}
+
+  signUp(email: string, password: string) {
+    return this.http.post(`${this.apiUrl}/sign-up`, { email, password });
+  }
+
+  confirm(sessionId: string, verificationCode: string) {
+    return this.http.post(`${this.apiUrl}/confirm`, { sessionId, verificationCode });
+  }
+
+  signIn(email: string, password: string) {
+    return this.http.post<{token: string, refreshToken: string}>(`${this.apiUrl}/sign-in`, { email, password });
+  }
+
+  refreshToken(refreshToken: string) {
+    return this.http.post<{token: string, refreshToken: string}>(`${this.apiUrl}/refresh`, { refreshToken });
+  }
+
+  verifyToken(token: string) {
+    return this.http.get(`${this.apiUrl}/verify`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
+}
+```
+
+### Guardar tokens después del login:
+
+```typescript
+this.authService.signIn(email, password).subscribe(response => {
+  localStorage.setItem('token', response.token);
+  localStorage.setItem('refreshToken', response.refreshToken);
+});
+```
+
+### Enviar token en cada request protegido:
+
+```typescript
+// Interceptor
+const token = localStorage.getItem('token');
+if (token) {
+  req = req.clone({
+    setHeaders: { Authorization: `Bearer ${token}` }
+  });
+}
+```
 
 ## Production Build
 
@@ -81,10 +237,18 @@ http://localhost:${PORT}/v3/api-docs
 mvn clean package
 ```
 
-The JAR file will be located at `target/spring-template-1.0.0.jar`
+The JAR file will be located under `target/`.
 
 ## Run the JAR
 
 ```bash
-java -jar target/spring-template-1.0.0.jar
+java -jar target/clair-core-1.0.0.jar
 ```
+
+## Security Checklist for Production
+
+- [ ] Change `ddl-auto` from `update` to `validate` in `application.yml`
+- [ ] Rotate the JWT secret (minimum 32 characters)
+- [ ] Rotate the Resend API key
+- [ ] Restrict `CORS_ALLOWED_ORIGINS` to your real domain(s)
+- [ ] Enable HTTPS (HSTS is already configured)

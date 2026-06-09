@@ -1,0 +1,55 @@
+package com.claircore.billing.application.internal.queryservices;
+
+import com.claircore.billing.domain.model.aggregates.PaymentRecord;
+import com.claircore.billing.domain.model.queries.GetSubscriptionByIdQuery;
+import com.claircore.billing.domain.model.queries.GetSubscriptionsByUserIdQuery;
+import com.claircore.billing.domain.model.queries.GetUserPlanQuery;
+import com.claircore.billing.domain.model.valueobjects.PlanType;
+import com.claircore.billing.domain.model.valueobjects.UserId;
+import com.claircore.billing.domain.services.SubscriptionQueryService;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.PaymentRecordRepository;
+import com.claircore.billing.infrastructure.persistence.jpa.repositories.UserPlanRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class SubscriptionQueryServiceImpl implements SubscriptionQueryService {
+
+    private final PaymentRecordRepository paymentRecordRepository;
+    private final UserPlanRepository userPlanRepository;
+
+    public SubscriptionQueryServiceImpl(PaymentRecordRepository paymentRecordRepository, UserPlanRepository userPlanRepository) {
+        this.paymentRecordRepository = paymentRecordRepository;
+        this.userPlanRepository = userPlanRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PaymentRecord> handle(GetSubscriptionByIdQuery query) {
+        return paymentRecordRepository.findById(query.subscriptionId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PaymentRecord> handle(GetSubscriptionsByUserIdQuery query) {
+        return paymentRecordRepository.findAllByUserId(query.userId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String resolveUserPlan(GetUserPlanQuery query) {
+        var uid = new UserId(UUID.fromString(query.userId()));
+        return userPlanRepository.findByUserId(uid)
+                .map(userPlan -> {
+                    if (userPlan.isPremiumExpired()) {
+                        return PlanType.FREEMIUM.name().toLowerCase();
+                    }
+                    return userPlan.getPlanType().name().toLowerCase();
+                })
+                .orElse(PlanType.FREEMIUM.name().toLowerCase());
+    }
+}

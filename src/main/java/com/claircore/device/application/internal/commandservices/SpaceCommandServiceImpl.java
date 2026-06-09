@@ -1,0 +1,105 @@
+package com.claircore.device.application.internal.commandservices;
+
+import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
+import com.claircore.device.domain.model.commands.CreateSpaceCommand;
+import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
+import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
+import com.claircore.device.domain.model.entities.Organization;
+import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.valueobjects.UserId;
+import com.claircore.device.domain.services.SpaceCommandService;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
+import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class SpaceCommandServiceImpl implements SpaceCommandService {
+
+    private final SpaceRepository spaceRepository;
+    private final OrganizationRepository organizationRepository;
+    private final DeviceAssignmentRepository deviceAssignmentRepository;
+    private final ExternalBillingService externalBillingService;
+
+    public SpaceCommandServiceImpl(
+            SpaceRepository spaceRepository,
+            OrganizationRepository organizationRepository,
+            DeviceAssignmentRepository deviceAssignmentRepository,
+            ExternalBillingService externalBillingService) {
+        this.spaceRepository = spaceRepository;
+        this.organizationRepository = organizationRepository;
+        this.deviceAssignmentRepository = deviceAssignmentRepository;
+        this.externalBillingService = externalBillingService;
+    }
+
+    @Override
+    @Transactional
+    public Space handle(CreateSpaceCommand command) {
+        Organization org = organizationRepository
+            .findById(command.organizationId())
+            .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        UUID userId = command.ownerUserId().userId();
+        int currentCount = spaceRepository.countByOwnerUserId(command.ownerUserId());
+        int maxAllowed = externalBillingService.getMaxSpaces(userId);
+
+        if (currentCount >= maxAllowed) {
+            throw new IllegalStateException(
+                "Cannot create space. User has " + currentCount + " spaces, max allowed is " + maxAllowed
+            );
+        }
+
+        Space space = new Space(
+            command.name(),
+            command.organizationId(),
+            command.ownerUserId()
+        );
+
+        return spaceRepository.save(space);
+    }
+
+    @Override
+    @Transactional
+    public void handle(DeleteSpaceCommand command) {
+        Space space = spaceRepository
+            .findById(command.spaceId())
+            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+
+        if (deviceAssignmentRepository.existsBySpaceId(command.spaceId())) {
+            throw new IllegalStateException("Cannot delete space with devices. Remove all devices first.");
+        }
+
+        spaceRepository.delete(space);
+    }
+
+    @Override
+    @Transactional
+    public void handle(UpdateSpaceNameCommand command) {
+        Space space = spaceRepository
+            .findById(command.spaceId())
+            .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+
+        space.updateName(command.name());
+        spaceRepository.save(space);
+    }
+
+    @Override
+    public Optional<Space> findById(UUID id) {
+        return spaceRepository.findById(id);
+    }
+
+    @Override
+    public List<Space> findByOrganizationId(UUID organizationId) {
+        return spaceRepository.findByOrganizationId(organizationId);
+    }
+
+    @Override
+    public int countByOrganizationId(UUID organizationId) {
+        return spaceRepository.countByOrganizationId(organizationId);
+    }
+}

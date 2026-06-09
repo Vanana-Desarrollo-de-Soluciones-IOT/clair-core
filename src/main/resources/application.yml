@@ -1,22 +1,131 @@
 spring:
   application:
     name: clair-core
-  webflux:
-    base-path: /
-  config:
-    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cache:
+    type: redis
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+        debug: false
+
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:3600000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+google:
+  oauth:
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+    allowed-client-ids: ${GOOGLE_OAUTH_ALLOWED_CLIENT_IDS:}
+    client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+    redirect-uri: ${GOOGLE_REDIRECT_URI}
+
+frontend:
+  url: ${FRONTEND_URL}
 
 server:
   port: ${PORT:8080}
-  servlet:
-    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-  show-actuator: false
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationService:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+      kafkaPublisher:
+        slidingWindowSize: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+      redisRepository:
+        slidingWindowSize: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 200ms
+  retry:
+    instances:
+      kafkaPublisher:
+        maxAttempts: 3
+        waitDuration: 200ms
+      redisRepository:
+        maxAttempts: 3
+        waitDuration: 100ms
+
+# Stripe Configuration
+stripe:
+  api:
+    key: ${STRIPE_PRIVATE_KEY}
+  public:
+    key: ${STRIPE_PUBLIC_KEY}
+  webhook:
+    secret: ${STRIPE_WEBHOOK_SECRET}
+
+# OneSignal Configuration
+onesignal:
+  api-url: ${ONESIGNAL_API_URL:https://onesignal.com/api/v1/notifications}
+  rest-api-key: ${ONESIGNAL_REST_API_KEY}
+  app-id: ${ONESIGNAL_APP_ID}
+  frontend-url: ${ONESIGNAL_FRONTEND_URL:http://localhost:4200}
+

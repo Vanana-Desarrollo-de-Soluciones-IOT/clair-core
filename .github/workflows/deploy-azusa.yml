@@ -1,4 +1,4 @@
-name: Deploy Azusa Backend
+name: Deploy Clair Backend
 
 on:
   push:
@@ -6,12 +6,12 @@ on:
       - main
 
 concurrency:
-  group: deploy-azusa-${{ github.ref }}
+  group: deploy-clair-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Build & Deploy Core (Backend)
+    name: Build & Deploy Clair Core
     runs-on: self-hosted
 
     steps:
@@ -21,19 +21,19 @@ jobs:
       - name: Build Application Package
         run: nix develop -c mvn -B clean package -DskipTests
 
-      - name: Publish Artifacts to /takodu/haimiya
+      - name: Publish Artifacts to /clair/core
         run: |
-          install -m 600 /dev/null /takodu/haimiya/.env
-          echo "${{ secrets.BACKEND_ENV }}" > /takodu/haimiya/.env
-          install -m 644 target/clair-core-1.0.0.jar /takodu/haimiya/haimiya.jar
+          install -m 600 /dev/null /clair/core/.env
+          echo "${{ secrets.BACKEND_ENV }}" > /clair/core/.env
+          install -m 644 target/clair-core-1.0.0.jar /clair/core/clair.jar
 
       - name: Wait for Backend Health
         run: |
-          # Publishing the jar triggers haimiya-deploy.path, which restarts the
+          # Publishing the jar triggers clair-deploy.path, which restarts the
           # service. The runner sandbox forbids calling systemctl itself.
           sleep 10
           for i in $(seq 1 30); do
-            if nix develop -c curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+            if nix develop -c curl -fsS http://127.0.0.1:49220/actuator/health | grep -q '"status":"UP"'; then
               echo "Backend started successfully."
               exit 0
             fi

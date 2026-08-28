@@ -23,7 +23,7 @@ Spring Boot project (Java 25) with Swagger/OpenAPI.
 This project uses a `.env` file for configuration. Create a `.env` file in the root directory:
 
 ```env
-PORT=8080
+PORT=49220
 
 # Database
 DB_URL=jdbc:postgresql://localhost:5432/clair_core
@@ -91,10 +91,10 @@ nix develop --command stripe version
 Example webhook forward:
 
 ```bash
-nix develop --command stripe listen --forward-to localhost:8080/api/v1/billing/webhook
+nix develop --command stripe listen --forward-to localhost:49220/api/v1/billing/webhook
 ```
 
-The server will be available at: `http://localhost:${PORT}` (Default: 8080)
+The server will be available at: `http://localhost:${PORT}` (Default: 49220)
 
 ## API Documentation
 
@@ -182,7 +182,7 @@ import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/api/v1/auth';
+  private apiUrl = 'http://localhost:49220/api/v1/auth';
 
   constructor(private http: HttpClient) {}
 

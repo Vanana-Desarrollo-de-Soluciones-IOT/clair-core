@@ -1,76 +1,46 @@
 package com.claircore.notifications.application.internal.inboundservices.acl;
 
-import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentChangedIntegrationEvent;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
+import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
 import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalAlertingService;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.notifications.domain.model.entities.PushNotificationLog;
 import com.claircore.notifications.domain.repositories.PushNotificationHistoryRepository;
 import com.claircore.notifications.domain.services.PushNotificationDeliveryService;
-import com.claircore.shared.infrastructure.kafka.KafkaInboxService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 import java.util.UUID;
 
-@Service
-public class AlertIncidentChangedKafkaConsumer {
+@Component
+public class AlertIncidentChangedEventListener {
 
-    private static final String CONSUMER_GROUP_ID = "core-notifications-alert-consumer";
-    private static final Logger LOGGER = LoggerFactory.getLogger(AlertIncidentChangedKafkaConsumer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AlertIncidentChangedEventListener.class);
 
     private final ExternalAlertingService externalAlertingService;
     private final ExternalDeviceService externalDeviceService;
     private final PushNotificationDeliveryService pushNotificationDeliveryService;
     private final PushNotificationHistoryRepository pushNotificationHistoryRepository;
-    private final KafkaInboxService kafkaInboxService;
-    private final ObjectMapper objectMapper;
 
-    public AlertIncidentChangedKafkaConsumer(
+    public AlertIncidentChangedEventListener(
             ExternalAlertingService externalAlertingService,
             ExternalDeviceService externalDeviceService,
             PushNotificationDeliveryService pushNotificationDeliveryService,
-            PushNotificationHistoryRepository pushNotificationHistoryRepository,
-            KafkaInboxService kafkaInboxService,
-            ObjectMapper objectMapper
+            PushNotificationHistoryRepository pushNotificationHistoryRepository
     ) {
         this.externalAlertingService = externalAlertingService;
         this.externalDeviceService = externalDeviceService;
         this.pushNotificationDeliveryService = pushNotificationDeliveryService;
         this.pushNotificationHistoryRepository = pushNotificationHistoryRepository;
-        this.kafkaInboxService = kafkaInboxService;
-        this.objectMapper = objectMapper.copy()
-                .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     }
 
-    @KafkaListener(
-            topics = "clair.device.alert.incident.changed",
-            groupId = CONSUMER_GROUP_ID,
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    @Transactional
-    public void consume(ConsumerRecord<String, String> record) {
-        if (!kafkaInboxService.shouldProcess(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset())) {
-            return;
-        }
-
-        String payload = record.value();
-        AlertIncidentChangedIntegrationEvent event;
-        try {
-            event = objectMapper.readValue(payload, AlertIncidentChangedIntegrationEvent.class);
-        } catch (Exception e) {
-            LOGGER.error("Failed to deserialize alert incident event payload: {}", payload, e);
-            throw new IllegalArgumentException("Invalid alert event payload", e);
-        }
-
+    @EventListener
+    public void onAlertIncidentChanged(AlertIncidentChangedEvent event) {
+        LOGGER.info("Notifications BC received AlertIncidentChangedEvent for alert {}", event.alertId());
         try {
             if (event.status() == AlertStatus.ACTIVE || event.status() == AlertStatus.RESOLVED) {
                 UUID deviceId = event.deviceId();
@@ -106,10 +76,8 @@ public class AlertIncidentChangedKafkaConsumer {
                     LOGGER.warn("No owner user found for device {}, skipping push notification", deviceId);
                 }
             }
-            kafkaInboxService.markProcessed(CONSUMER_GROUP_ID, record.topic(), record.partition(), record.offset());
         } catch (Exception e) {
             LOGGER.error("Failed to process alert incident event for notification, alert ID {}", event.alertId(), e);
-            throw e;
         }
     }
 }

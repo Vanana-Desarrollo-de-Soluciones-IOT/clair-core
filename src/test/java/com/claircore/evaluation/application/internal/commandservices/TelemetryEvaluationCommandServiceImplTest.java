@@ -23,6 +23,9 @@ class TelemetryEvaluationCommandServiceImplTest {
     @Mock
     private TelemetryEvaluationRepository telemetryEvaluationRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private TelemetryEvaluationCommandServiceImpl telemetryEvaluationCommandService;
 

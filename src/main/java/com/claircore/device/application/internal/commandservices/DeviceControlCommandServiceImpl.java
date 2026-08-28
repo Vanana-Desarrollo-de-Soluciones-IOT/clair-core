@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandIssuedIntegrationEvent;
-import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingKafkaPublisher;
+import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingPublisher;
 import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.CreateDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.DispatchPendingDeviceCommandsCommand;
@@ -24,16 +24,16 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
 
     private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final DeviceCommandRepository deviceCommandRepository;
-    private final DeviceCommandsPendingKafkaPublisher deviceCommandsPendingKafkaPublisher;
+    private final DeviceCommandsPendingPublisher deviceCommandsPendingPublisher;
 
     public DeviceControlCommandServiceImpl(
             DeviceAssignmentRepository deviceAssignmentRepository,
             DeviceCommandRepository deviceCommandRepository,
-            DeviceCommandsPendingKafkaPublisher deviceCommandsPendingKafkaPublisher
+            DeviceCommandsPendingPublisher deviceCommandsPendingPublisher
     ) {
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.deviceCommandRepository = deviceCommandRepository;
-        this.deviceCommandsPendingKafkaPublisher = deviceCommandsPendingKafkaPublisher;
+        this.deviceCommandsPendingPublisher = deviceCommandsPendingPublisher;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
         DeviceCommand deviceCommand = new DeviceCommand(assignment.getDevice(), command.type(), command.payload());
         DeviceCommand saved = deviceCommandRepository.save(deviceCommand);
 
-        deviceCommandsPendingKafkaPublisher.publish(new DeviceCommandIssuedIntegrationEvent(
+        deviceCommandsPendingPublisher.publish(new DeviceCommandIssuedIntegrationEvent(
                 saved.getId().toString(),
                 assignment.getDevice().getId().toString(),
                 assignment.getDevice().getHardwareId().value(),

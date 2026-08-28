@@ -1,6 +1,6 @@
 package com.claircore.device.application.internal.commandservices;
 
-import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingKafkaPublisher;
+import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingPublisher;
 import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.CreateDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.DispatchPendingDeviceCommandsCommand;
@@ -36,7 +36,7 @@ class DeviceControlCommandServiceImplTest {
     private DeviceCommandRepository deviceCommandRepository;
 
     @Mock
-    private DeviceCommandsPendingKafkaPublisher deviceCommandsPendingKafkaPublisher;
+    private DeviceCommandsPendingPublisher deviceCommandsPendingPublisher;
 
     @Test
     void shouldCreateDeviceCommandWhenDeviceBelongsToUser() {
@@ -51,7 +51,7 @@ class DeviceControlCommandServiceImplTest {
         DeviceCommand result = new DeviceControlCommandServiceImpl(
                 deviceAssignmentRepository,
                 deviceCommandRepository,
-                deviceCommandsPendingKafkaPublisher
+                deviceCommandsPendingPublisher
         ).handle(new CreateDeviceCommandCommand(
                 assignment.getDevice().getId(),
                 DeviceCommandType.WAKE,
@@ -70,7 +70,7 @@ class DeviceControlCommandServiceImplTest {
 
         assertThrowsExactly(
                 org.springframework.security.access.AccessDeniedException.class,
-                () -> new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingKafkaPublisher)
+                () -> new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingPublisher)
                         .handle(new CreateDeviceCommandCommand(
                                 assignment.getDevice().getId(),
                                 DeviceCommandType.WAKE,
@@ -90,7 +90,7 @@ class DeviceControlCommandServiceImplTest {
                 .thenReturn(List.of(first, second));
         when(deviceCommandRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        List<DeviceCommand> result = new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingKafkaPublisher)
+        List<DeviceCommand> result = new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingPublisher)
                 .handle(new DispatchPendingDeviceCommandsCommand(2));
 
         assertEquals(DeviceCommandStatus.SENT, result.get(0).getStatus());
@@ -107,7 +107,7 @@ class DeviceControlCommandServiceImplTest {
         when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
         when(deviceCommandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        DeviceCommand result = new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingKafkaPublisher)
+        DeviceCommand result = new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingPublisher)
                 .handle(new AcknowledgeDeviceCommandCommand(assignment.getDevice().getId(), command.getId(), DeviceCommandStatus.EXECUTED, null));
 
         assertEquals(DeviceCommandStatus.EXECUTED, result.getStatus());

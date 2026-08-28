@@ -27,7 +27,7 @@ public class ClairCoreApplication {
         });
 
         ConfigurableApplicationContext context = SpringApplication.run(ClairCoreApplication.class, args);
-        String port = context.getEnvironment().getProperty("server.port", "8080");
+        String port = context.getEnvironment().getProperty("server.port", "49220");
 
         log.info("Swagger UI: http://localhost:{}/swagger-ui.html", port);
         log.info("API Docs:   http://localhost:{}/v3/api-docs", port);

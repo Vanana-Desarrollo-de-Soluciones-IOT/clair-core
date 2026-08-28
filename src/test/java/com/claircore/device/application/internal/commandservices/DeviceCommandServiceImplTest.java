@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedKafkaPublisher;
+import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedPublisher;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
@@ -50,7 +50,7 @@ class DeviceCommandServiceImplTest {
     private ExternalBillingService externalBillingService;
 
     @Mock
-    private ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher;
+    private ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher;
 
 
     @InjectMocks
@@ -70,7 +70,7 @@ class DeviceCommandServiceImplTest {
 
         assertEquals(2, result.size());
         verify(deviceRepository, times(2)).save(any(Device.class));
-        verify(provisioningDevicesChangedKafkaPublisher, times(2)).publish(any());
+        verify(provisioningDevicesChangedPublisher, times(2)).publish(any());
     }
 
     @Test
@@ -132,7 +132,7 @@ class DeviceCommandServiceImplTest {
         assertEquals(spaceId, result.getSpaceId());
         assertEquals(new UserId(userId), result.getOwnerUserId());
         assertNotNull(result.getActivatedAt());
-        verify(provisioningDevicesChangedKafkaPublisher).publish(any());
+        verify(provisioningDevicesChangedPublisher).publish(any());
     }
 
     @Test
@@ -165,7 +165,7 @@ class DeviceCommandServiceImplTest {
 
         verify(deviceAssignmentRepository).delete(assignment);
         verify(deviceRepository, never()).delete(any(Device.class));
-        verify(provisioningDevicesChangedKafkaPublisher).publish(any());
+        verify(provisioningDevicesChangedPublisher).publish(any());
     }
 
     private Device deviceWithId(UUID deviceId, String serialNumber, String hardwareId) {

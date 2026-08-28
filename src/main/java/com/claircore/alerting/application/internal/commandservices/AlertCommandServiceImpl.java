@@ -3,7 +3,7 @@ package com.claircore.alerting.application.internal.commandservices;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
 import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentChangedIntegrationEvent;
-import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedKafkaPublisher;
+import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedPublisher;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.entities.Alert;
 import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
@@ -28,18 +28,18 @@ public class AlertCommandServiceImpl implements AlertCommandService {
     private final AlertRepository alertRepository;
     private final ExternalAlertingThresholdService externalThresholdService;
     private final ExternalAlertingDeviceService externalDeviceService;
-    private final AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher;
+    private final AlertIncidentsChangedPublisher alertIncidentsChangedPublisher;
 
     public AlertCommandServiceImpl(
             AlertRepository alertRepository,
             ExternalAlertingThresholdService externalThresholdService,
             ExternalAlertingDeviceService externalDeviceService,
-            AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher
+            AlertIncidentsChangedPublisher alertIncidentsChangedPublisher
     ) {
         this.alertRepository = alertRepository;
         this.externalThresholdService = externalThresholdService;
         this.externalDeviceService = externalDeviceService;
-        this.alertIncidentsChangedKafkaPublisher = alertIncidentsChangedKafkaPublisher;
+        this.alertIncidentsChangedPublisher = alertIncidentsChangedPublisher;
     }
 
     @Override
@@ -95,7 +95,7 @@ public class AlertCommandServiceImpl implements AlertCommandService {
         String hardwareId = externalDeviceService.fetchHardwareIdByDeviceId(alert.getDeviceId())
                 .orElse(alert.getDeviceId().toString());
 
-        alertIncidentsChangedKafkaPublisher.publish(new AlertIncidentChangedIntegrationEvent(
+        alertIncidentsChangedPublisher.publish(new AlertIncidentChangedIntegrationEvent(
                 alert.getId(),
                 alert.getDeviceId(),
                 hardwareId,

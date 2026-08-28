@@ -2,7 +2,7 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.DeviceChangedIntegrationEvent;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedKafkaPublisher;
+import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedPublisher;
 import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.entities.Device;
 import com.claircore.device.domain.model.entities.DeviceAssignment;
@@ -38,7 +38,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
-    private final ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher;
+    private final ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher;
 
     public DeviceCommandServiceImpl(
             DeviceRepository deviceRepository,
@@ -46,13 +46,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
-            ProvisioningDevicesChangedKafkaPublisher provisioningDevicesChangedKafkaPublisher) {
+            ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher) {
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
-        this.provisioningDevicesChangedKafkaPublisher = provisioningDevicesChangedKafkaPublisher;
+        this.provisioningDevicesChangedPublisher = provisioningDevicesChangedPublisher;
     }
 
     @Override
@@ -235,7 +235,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
 
     private void publishDeviceChanged(DeviceAssignment assignment, String status) {
         Device device = assignment.getDevice();
-        provisioningDevicesChangedKafkaPublisher.publish(new DeviceChangedIntegrationEvent(
+        provisioningDevicesChangedPublisher.publish(new DeviceChangedIntegrationEvent(
                 device.getId().toString(),
                 device.getHardwareId().value(),
                 device.getApiKey().value(),
@@ -246,7 +246,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     }
 
     private void publishDeviceChanged(Device device, String status, String changeType) {
-        provisioningDevicesChangedKafkaPublisher.publish(new DeviceChangedIntegrationEvent(
+        provisioningDevicesChangedPublisher.publish(new DeviceChangedIntegrationEvent(
                 device.getId().toString(),
                 device.getHardwareId().value(),
                 device.getApiKey().value(),

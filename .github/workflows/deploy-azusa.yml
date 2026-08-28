@@ -1,0 +1,43 @@
+name: Deploy Azusa Backend
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-azusa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & Deploy Core (Backend)
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Build Application Package
+        run: nix develop -c mvn -B clean package -DskipTests
+
+      - name: Publish Artifacts to /takodu/haimiya
+        run: |
+          install -m 600 /dev/null /takodu/haimiya/.env
+          echo "${{ secrets.BACKEND_ENV }}" > /takodu/haimiya/.env
+          install -m 644 target/clair-core-1.0.0.jar /takodu/haimiya/haimiya.jar
+
+      - name: Wait for Backend Health
+        run: |
+          # Publishing the jar triggers haimiya-deploy.path, which restarts the
+          # service. The runner sandbox forbids calling systemctl itself.
+          sleep 10
+          for i in $(seq 1 30); do
+            if nix develop -c curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+              echo "Backend started successfully."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Error: the backend did not become healthy."
+          exit 1

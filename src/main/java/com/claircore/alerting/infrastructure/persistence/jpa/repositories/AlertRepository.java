@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface AlertRepository extends JpaRepository<Alert, UUID> {
@@ -39,6 +41,10 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
 
     @Query("SELECT d.hardwareId.value FROM Alert a JOIN Device d ON d.id = a.deviceId WHERE a.id = :alertId")
     Optional<String> findHardwareIdByAlertId(@Param("alertId") UUID alertId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Alert a WHERE a.id = :alertId")
+    Optional<Alert> findByIdForAcknowledgement(@Param("alertId") UUID alertId);
 
     Optional<Alert> findFirstByDeviceIdAndMetricAndStatus(UUID deviceId, MetricType metric, AlertStatus status);
 

@@ -27,7 +27,7 @@ public class Device {
 
     // Nullable keeps ddl-auto update compatible with existing PostgreSQL rows; new entities default false.
     @Column(name = "deleted")
-    private boolean deleted = false;
+    private Boolean deleted = false;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "hardware_id", nullable = false, unique = true))
@@ -78,13 +78,14 @@ public class Device {
 
     /** Marks the device as decommissioned while retaining its row as a roster tombstone. */
     public void markDeleted() {
-        if (!this.deleted) {
+        if (!Boolean.TRUE.equals(this.deleted)) {
             this.deleted = true;
             auditFields.touchUpdatedAt();
         }
     }
 
-    public boolean isDeleted() { return deleted; }
+    /** Treats legacy NULL tombstone values as active devices without requiring a migration. */
+    public boolean isDeleted() { return Boolean.TRUE.equals(deleted); }
 
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }

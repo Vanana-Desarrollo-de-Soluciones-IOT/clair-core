@@ -1,13 +1,9 @@
 package com.claircore.device.interfaces.rest.controllers;
 
-import com.claircore.device.application.internal.inboundservices.acl.DeviceCommandAcknowledgedIntegrationEvent;
 import com.claircore.device.application.internal.inboundservices.acl.DevicePresenceChangedIntegrationEvent;
-import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.UpdateDevicePresenceStatusCommand;
-import com.claircore.device.domain.model.valueobjects.DeviceCommandStatus;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.HardwareId;
-import com.claircore.device.domain.services.DeviceControlCommandService;
 import com.claircore.device.domain.services.DevicePresenceCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,14 +20,11 @@ import java.util.UUID;
 public class DeviceEdgeController {
 
     private final DevicePresenceCommandService devicePresenceCommandService;
-    private final DeviceControlCommandService deviceControlCommandService;
 
     public DeviceEdgeController(
-            DevicePresenceCommandService devicePresenceCommandService,
-            DeviceControlCommandService deviceControlCommandService
+            DevicePresenceCommandService devicePresenceCommandService
     ) {
         this.devicePresenceCommandService = devicePresenceCommandService;
-        this.deviceControlCommandService = deviceControlCommandService;
     }
 
     @PostMapping("/presence/events")
@@ -47,20 +40,4 @@ public class DeviceEdgeController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{deviceId}/commands/{commandId}/ack")
-    @Operation(summary = "Acknowledge a device command execution from edge")
-    public ResponseEntity<Void> acknowledgeCommand(
-            @PathVariable UUID deviceId,
-            @PathVariable UUID commandId,
-            @Valid @RequestBody DeviceCommandAcknowledgedIntegrationEvent event
-    ) {
-        var command = new AcknowledgeDeviceCommandCommand(
-                deviceId,
-                commandId,
-                DeviceCommandStatus.valueOf(event.status()),
-                event.failureReason()
-        );
-        deviceControlCommandService.handle(command);
-        return ResponseEntity.ok().build();
-    }
 }

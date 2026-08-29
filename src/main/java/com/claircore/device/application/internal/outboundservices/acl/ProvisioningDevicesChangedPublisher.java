@@ -4,6 +4,8 @@ import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class ProvisioningDevicesChangedPublisher {
@@ -18,6 +20,20 @@ public class ProvisioningDevicesChangedPublisher {
 
     public void publish(DeviceChangedIntegrationEvent event) {
         LOGGER.info("Publishing device changed event for device {} (type={})", event.deviceId(), event.changeType());
-        edgeEventPublisher.notifyChange("device", event.deviceId());
+        publishAfterCommit(() -> edgeEventPublisher.notifyChange("device", event.deviceId()));
+    }
+
+    private void publishAfterCommit(Runnable notification) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()
+                || !TransactionSynchronizationManager.isActualTransactionActive()) {
+            notification.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                notification.run();
+            }
+        });
     }
 }

@@ -104,7 +104,7 @@ Headers: X-Core-Token: <EDGE_TO_CORE_TOKEN>
 ```
 POST /api/v1/edge/commands/{command_id}/ack
 Headers: X-Core-Token: <EDGE_TO_CORE_TOKEN>
-Body: { "hardware_id": "...", "acknowledged_at": "...", "result": "OK|FAILED", "detail": "..." }
+Body: { "hardware_id": "...", "result": "OK|FAILED", "detail": "..." }
 
 200 OK -> confirmado
 404    -> command_id no existe o ya no pertenece a un estado ack-able
@@ -121,6 +121,7 @@ Body: { "hardware_id": "...", "acknowledged_at": "...", "result": "OK|FAILED", "
 - El core repone, del lado del dominio `DeviceCommand`, una query que hoy
   probablemente ya exista para "comandos pendientes" (usada para poblar el
   evento Kafka); se expone como endpoint REST en vez de publicarse a un topic.
+- El edge responde al dispositivo después de persistir localmente el ACK y encolarlo en su outbox asíncrono; la entrega HTTP a este endpoint ocurre en segundo plano.
 - **Semántica de reintento**: el ack es idempotente (409 tratado como éxito);
   el poll de pendientes se repite indefinidamente con el intervalo configurado.
 
@@ -282,8 +283,9 @@ publish_command_acknowledged` (nueva clase) llama a este endpoint en vez de
 publicar a `DeviceKafkaTopics.COMMANDS_ACKNOWLEDGED`
 (`kafka_core_context_facade.py:51`). No se crea un endpoint adicional: el flujo
 de `DeviceCommandApplicationService.acknowledge_embedded_command`
-(`edge/device/application/services.py:170`) ya construye el payload
-`{device_id, command_id, status, failure_reason}` esperado por este contrato.
+(`edge/device/application/services.py:170`) adapta su resultado al payload exacto
+`{hardware_id, result, detail}` esperado por este contrato; `command_id` va en la
+ruta `POST /api/v1/edge/commands/{command_id}/ack`.
 
 ### 6. Sin cambios
 

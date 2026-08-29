@@ -48,7 +48,14 @@ public class DeviceRosterController {
                 ? page.getContent().getLast().getUpdatedAt().toInstant().toString() : null;
         String nextAfterId = page.hasNext() && !page.isEmpty()
                 ? page.getContent().getLast().getDeviceId().toString() : null;
-        return ResponseEntity.ok(new DeviceRosterResponse(Instant.now().toString(), devices, page.hasNext(), nextSince, nextAfterId));
+        // The watermark must reflect the last row actually handed back, never wall-clock time:
+        // an empty page (e.g. polled before any device exists yet) must not advance the cursor
+        // past devices the caller hasn't seen, or they become permanently unreachable since the
+        // cursor only ever moves forward and a device's updatedAt never revisits the past.
+        String watermark = !devices.isEmpty()
+                ? page.getContent().getLast().getUpdatedAt().toInstant().toString()
+                : since;
+        return ResponseEntity.ok(new DeviceRosterResponse(watermark, devices, page.hasNext(), nextSince, nextAfterId));
     }
 
     private Date parseSince(String value) {

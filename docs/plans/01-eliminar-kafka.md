@@ -40,7 +40,7 @@ final (Kafka → HTTP), aislado detrás de la interfaz `CoreContextFacade`.
 | `edge/device/infrastructure/outbox/outbox_record_model.py` | Modelo Peewee de la tabla `device_outbox`. | **Se conserva íntegramente.** |
 | `edge/device/application/services.py:78-85` (`DeviceTelemetryAppService.create_full_telemetry_record`) | Escribe la entrada de outbox en la misma transacción (`db.atomic()`) que la telemetría. | **Se conserva íntegramente.** Solo se actualiza el docstring del módulo (líneas 1-6) y de la clase (líneas 34-38), que dicen "via the outbox pattern and Kafka" / "forward to clair-core via Kafka" — pasan a decir "via HTTP". |
 | `edge/device/application/services.py:170` (`DeviceCommandApplicationService.acknowledge_embedded_command`, vía `self.external_core_service.publish_command_acknowledged(payload)`) | Publica el ack de un comando ejecutado/fallado por el dispositivo embebido. | **Se conserva la llamada**; el cambio de transporte es transparente porque pasa por `ExternalCoreService` → `CoreContextFacade`. |
-| `edge/shared/infrastructure/database.py:76-106` (tabla `device_outbox`, `_migrate_outbox_schema`) | Esquema y migración local de la tabla de outbox. | **Se conserva íntegramente**, no depende de Kafka. |
+| `edge/shared/infrastructure/database.py` (tabla `device_outbox`) | Inicialización local de la tabla de outbox; la compatibilidad de snapshots se resuelve con un modelo auxiliar Peewee creado por `init_db`. | **Se conserva la inicialización**, sin asumir una migración `_migrate_outbox_schema`. |
 | `edge/device/infrastructure/reliability/circuit_breaker.py` (`CircuitBreaker`, `CircuitBreakerOpenException`) | Protección genérica de sobrecarga, agnóstica de transporte. | **Se conserva íntegramente.** |
 
 Con esto, el único cambio real en este camino es de una línea de
@@ -114,7 +114,7 @@ Nota: `edge/device/application/outboundservices/acl/kafka_core_context_facade.py
 | `clair-core/src/main/java/com/claircore/device/application/internal/outboundservices/acl/DeviceChangedIntegrationEvent.java` | Javadoc con mención de topic Kafka — actualizar para describir el nuevo transporte (roster HTTP + webhook de notificación, plan 02/03). |
 | `clair-core/src/main/java/com/claircore/device/application/internal/outboundservices/acl/DeviceCommandIssuedIntegrationEvent.java` | Ídem, describir `GET /api/v1/edge/commands/pending`. |
 | `clair-core/src/main/java/com/claircore/device/application/internal/inboundservices/acl/DevicePresenceChangedIntegrationEvent.java` | Ídem, describir `POST /api/v1/edge/presence`. |
-| `clair-core/src/main/java/com/claircore/device/application/internal/inboundservices/acl/DeviceCommandAcknowledgedIntegrationEvent.java` | Ídem, describir `POST /api/v1/edge/commands/{id}/ack`. |
+| `src/main/java/com/claircore/device/interfaces/rest/controllers/EdgeCommandController.java` (`POST /api/v1/edge/commands/{commandId}/ack`) + `src/main/java/com/claircore/device/application/internal/commandservices/EdgeCommandAcknowledgementService.java` | Servicio HTTP actual que recibe el ACK del edge, valida `hardware_id` y transiciona el comando: `200` si se aplica, `409` si ya es terminal y `404` si no existe, no pertenece al dispositivo o no está en estado `SENT`. El cuerpo es `{ "hardware_id": "...", "result": "OK|FAILED", "detail": "..." }`. |
 
 Nota: en `clair-core` no queda ninguna dependencia real de Kafka en `pom.xml` /
 `build.gradle` (confirmado: `grep -rn kafka` solo devuelve el `.yml` y los

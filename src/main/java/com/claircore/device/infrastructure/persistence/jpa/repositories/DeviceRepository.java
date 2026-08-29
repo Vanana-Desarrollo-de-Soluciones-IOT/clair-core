@@ -59,7 +59,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
                    d.hardwareId.value as hardwareId,
                    d.apiKey.value as apiKey,
                    COALESCE(a.status, com.claircore.device.domain.model.valueobjects.DeviceStatus.OFFLINE) as status,
-                   d.deleted as deleted,
+                   COALESCE(d.deleted, false) as deleted,
                    CASE WHEN a.auditFields.updatedAt IS NOT NULL AND a.auditFields.updatedAt > d.auditFields.updatedAt
                         THEN a.auditFields.updatedAt ELSE d.auditFields.updatedAt END as updatedAt
             FROM Device d

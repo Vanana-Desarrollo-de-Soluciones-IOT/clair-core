@@ -79,7 +79,6 @@ public class SecurityConfiguration {
                         "/api/v1/evaluations/telemetry/batch",
                         "/api/v1/devices/provisioning",
                         "/api/v1/devices/commands/pending",
-                        "/api/v1/devices/*/commands/*/ack",
                         "/api/v1/evaluations/telemetry",
                         "/favicon.ico",
                                 "/error"

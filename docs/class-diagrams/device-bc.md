@@ -130,8 +130,6 @@ namespace domain {
         -String payload
         -String status
         -Instant createdAt
-        -Instant acknowledgedAt
-        +acknowledge()
     }
     class Organization {
         -UUID id
@@ -373,8 +371,6 @@ class DeviceCommand {
     -String payload
     -String status
     -Instant createdAt
-    -Instant acknowledgedAt
-    +acknowledge()
 }
 class Organization {
     -UUID id

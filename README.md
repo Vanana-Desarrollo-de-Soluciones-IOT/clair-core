@@ -66,7 +66,7 @@ mvn clean compile
 
 Using Nix:
 ```bash
-nix develop --command mvn clean compile
+nix-shell --command "mvn clean compile"
 ```
 
 ## Run the Project
@@ -77,7 +77,7 @@ mvn spring-boot:run
 
 Using Nix:
 ```bash
-nix develop --command mvn spring-boot:run
+nix-shell --command "mvn spring-boot:run"
 ```
 
 ## Stripe CLI (Nix)
@@ -85,13 +85,13 @@ nix develop --command mvn spring-boot:run
 If you want Stripe CLI available via Nix:
 
 ```bash
-nix develop --command stripe version
+nix-shell --command "stripe version"
 ```
 
 Example webhook forward:
 
 ```bash
-nix develop --command stripe listen --forward-to localhost:49220/api/v1/billing/webhook
+nix-shell --command "stripe listen --forward-to localhost:49220/api/v1/billing/webhook"
 ```
 
 The server will be available at: `http://localhost:${PORT}` (Default: 49220)

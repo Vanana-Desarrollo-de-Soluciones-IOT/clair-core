@@ -18,6 +18,6 @@ public class DeviceCommandsPendingPublisher {
 
     public void publish(DeviceCommandIssuedIntegrationEvent event) {
         LOGGER.info("Publishing pending command {} to Edge for device {}", event.commandId(), event.deviceId());
-        edgeEventPublisher.publishDeviceCommand(event);
+        edgeEventPublisher.notifyChange("command", event.commandId());
     }
 }

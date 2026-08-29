@@ -8,6 +8,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.Date;
+import java.time.Instant;
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
@@ -27,5 +28,10 @@ public abstract class AuditableModel {
 
     public Date getUpdatedAt() {
         return updatedAt;
+    }
+
+    /** Explicitly records domain mutations that may occur before a persistence callback. */
+    public void touchUpdatedAt() {
+        updatedAt = Date.from(Instant.now());
     }
 }

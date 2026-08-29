@@ -19,24 +19,31 @@ public class EdgeEventPublisher {
     private final String edgeToken;
 
     public EdgeEventPublisher(
-            @Value("${edge.webhook-url:http://localhost:5000}") String edgeWebhookUrl,
-            @Value("${edge.token:change-me-long-random-secret}") String edgeToken
+            @Value("${EDGE_WEBHOOK_URL:${EDGE_WEBHOOK_DEVICES_URL:${edge.webhook-url:http://localhost:5000}}}") String edgeWebhookUrl,
+            @Value("${EDGE_TOKEN:${edge.token:}}") String edgeToken
     ) {
         this.restTemplate = new RestTemplate();
         this.edgeWebhookUrl = edgeWebhookUrl;
         this.edgeToken = edgeToken;
     }
 
-    public void publishAlertIncident(Object event) {
-        sendPost("/api/v1/edge/alerts", event);
+    /** Sends only a hint; edge must reconcile through its authenticated pull endpoints. */
+    public void notifyChange(String resource, String hint) {
+        sendPost("/api/v1/edge/notify", java.util.Map.of("resource", resource, "hint", hint == null ? "" : hint));
     }
 
-    public void publishDeviceCommand(Object event) {
-        sendPost("/api/v1/edge/commands", event);
-    }
+    /** @deprecated use notifyChange; retained for source compatibility. */
+    @Deprecated
+    public void publishAlertIncident(Object event) { notifyChange("alert", null); }
 
+    /** @deprecated use notifyChange; retained for source compatibility. */
+    @Deprecated
+    public void publishDeviceCommand(Object event) { notifyChange("command", null); }
+
+    /** @deprecated use notifyChange; retained for source compatibility. */
+    @Deprecated
     public void publishDeviceChanged(Object event) {
-        sendPost("/api/v1/edge/devices", event);
+        notifyChange("device", null);
     }
 
     private void sendPost(String path, Object payload) {

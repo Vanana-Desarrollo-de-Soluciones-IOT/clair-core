@@ -1,8 +1,7 @@
 package com.claircore.device.application.internal.inboundservices.acl;
 
 /**
- * Inbound integration event consumed from Kafka topic
- * {@code clair.device.commands.acknowledged}.
+ * Inbound command acknowledgement integration event.
  */
 public record DeviceCommandAcknowledgedIntegrationEvent(
         String deviceId,

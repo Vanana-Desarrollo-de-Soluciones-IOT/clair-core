@@ -8,7 +8,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.util.UUID;
 
 @Entity
-@Table(name = "devices")
+@Table(name = "devices", indexes = @Index(name = "idx_devices_updated_at", columnList = "updated_at"))
 @EntityListeners(AuditingEntityListener.class)
 public class Device {
 
@@ -24,6 +24,10 @@ public class Device {
 
     @Column(name = "factory_name", nullable = false)
     private String factoryName;
+
+    // Nullable keeps ddl-auto update compatible with existing PostgreSQL rows; new entities default false.
+    @Column(name = "deleted")
+    private boolean deleted = false;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "hardware_id", nullable = false, unique = true))
@@ -56,6 +60,7 @@ public class Device {
 
     public void rotateApiKey(ApiKey apiKey) {
         this.apiKey = apiKey;
+        auditFields.touchUpdatedAt();
     }
 
     public void updateName(String name) {
@@ -63,11 +68,23 @@ public class Device {
             throw new IllegalArgumentException("Device name must not be null or blank");
         }
         this.name = name;
+        auditFields.touchUpdatedAt();
     }
 
     public void resetNameToFactoryDefault() {
         this.name = this.factoryName;
+        auditFields.touchUpdatedAt();
     }
+
+    /** Marks the device as decommissioned while retaining its row as a roster tombstone. */
+    public void markDeleted() {
+        if (!this.deleted) {
+            this.deleted = true;
+            auditFields.touchUpdatedAt();
+        }
+    }
+
+    public boolean isDeleted() { return deleted; }
 
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }

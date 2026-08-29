@@ -165,6 +165,7 @@ class DeviceCommandServiceImplTest {
 
         verify(deviceAssignmentRepository).delete(assignment);
         verify(deviceRepository, never()).delete(any(Device.class));
+        org.junit.jupiter.api.Assertions.assertFalse(device.isDeleted());
         verify(provisioningDevicesChangedPublisher).publish(any());
     }
 

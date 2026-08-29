@@ -18,6 +18,6 @@ public class ProvisioningDevicesChangedPublisher {
 
     public void publish(DeviceChangedIntegrationEvent event) {
         LOGGER.info("Publishing device changed event for device {} (type={})", event.deviceId(), event.changeType());
-        edgeEventPublisher.publishDeviceChanged(event);
+        edgeEventPublisher.notifyChange("device", event.deviceId());
     }
 }

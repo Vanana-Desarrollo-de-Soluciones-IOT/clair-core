@@ -43,13 +43,6 @@ namespace application {
         +getLatestEvaluationRecordedAt(deviceId) Optional~Instant~
         +getHourlyTelemetryAggregation(start, end) List~Map~
     }
-    class TelemetryRecordedKafkaConsumer {
-        -TelemetryEvaluationCommandService telemetryEvaluationCommandService
-        -ObjectMapper objectMapper
-        -ExternalDeviceService externalDeviceService
-        -KafkaInboxService kafkaInboxService
-        +consume(record) void
-    }
     class ExternalDeviceService {
         <<interface>>
         +findDeviceIdByHardwareId(hardwareId) Optional~UUID~
@@ -120,7 +113,7 @@ namespace infrastructure {
     }
 }
 
-TelemetryEvaluationController --> TelemetryEvaluationCommandServiceImpl : uses
+TelemetryEvaluationController --> TelemetryEvaluationCommandServiceImpl : invokes synchronously over HTTP request
 TelemetryEvaluationController --> TelemetryEvaluationQueryServiceImpl : uses
 TelemetryEvaluationController --> ExternalDeviceService : uses
 TelemetryEvaluationController --> EvaluateTelemetryCommand : receives
@@ -130,8 +123,6 @@ TelemetryEvaluationCommandServiceImpl --> TelemetryEvaluationRepository : uses
 
 TelemetryEvaluationQueryServiceImpl --> TelemetryEvaluationRepository : uses
 
-TelemetryRecordedKafkaConsumer --> TelemetryEvaluationCommandServiceImpl : uses
-TelemetryRecordedKafkaConsumer --> ExternalDeviceService : uses
 
 EvaluationContextFacadeImpl ..|> EvaluationContextFacade : implements
 EvaluationContextFacadeImpl --> TelemetryEvaluationQueryServiceImpl : uses
@@ -187,13 +178,6 @@ class EvaluationContextFacadeImpl {
     +getLatestEvaluationRecordedAt(deviceId) Optional~Instant~
     +getHourlyTelemetryAggregation(start, end) List~Map~
 }
-class TelemetryRecordedKafkaConsumer {
-    -TelemetryEvaluationCommandService telemetryEvaluationCommandService
-    -ObjectMapper objectMapper
-    -ExternalDeviceService externalDeviceService
-    -KafkaInboxService kafkaInboxService
-    +consume(record) void
-}
 class ExternalDeviceService {
     <<interface>>
     +findDeviceIdByHardwareId(hardwareId) Optional~UUID~
@@ -212,8 +196,6 @@ class EvaluateTelemetryCommand {
     +Instant recordedAt
 }
 
-TelemetryRecordedKafkaConsumer --> TelemetryEvaluationCommandServiceImpl : uses
-TelemetryRecordedKafkaConsumer --> ExternalDeviceService : uses
 EvaluationContextFacadeImpl --> TelemetryEvaluationQueryServiceImpl : uses
 ```
 

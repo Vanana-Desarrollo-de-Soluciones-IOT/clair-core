@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Date;
 
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
@@ -20,6 +21,8 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         String getHardwareId();
         String getApiKey();
         DeviceStatus getStatus();
+        boolean isDeleted();
+        Date getUpdatedAt();
     }
 
     Optional<Device> findBySerialNumber(String serialNumber);
@@ -39,9 +42,21 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
             SELECT d.id as deviceId,
                    d.hardwareId.value as hardwareId,
                    d.apiKey.value as apiKey,
-                   COALESCE(a.status, com.claircore.device.domain.model.valueobjects.DeviceStatus.OFFLINE) as status
+                   COALESCE(a.status, com.claircore.device.domain.model.valueobjects.DeviceStatus.OFFLINE) as status,
+                   d.deleted as deleted,
+                   CASE WHEN a.auditFields.updatedAt IS NOT NULL AND a.auditFields.updatedAt > d.auditFields.updatedAt
+                        THEN a.auditFields.updatedAt ELSE d.auditFields.updatedAt END as updatedAt
             FROM Device d
             LEFT JOIN DeviceAssignment a ON a.device.id = d.id
+            WHERE (:since IS NULL OR
+                   (CASE WHEN a.auditFields.updatedAt IS NOT NULL AND a.auditFields.updatedAt > d.auditFields.updatedAt
+                         THEN a.auditFields.updatedAt ELSE d.auditFields.updatedAt END > :since) OR
+                   ((CASE WHEN a.auditFields.updatedAt IS NOT NULL AND a.auditFields.updatedAt > d.auditFields.updatedAt
+                          THEN a.auditFields.updatedAt ELSE d.auditFields.updatedAt END = :since) AND (:afterId IS NULL OR d.id > :afterId)))
+            ORDER BY CASE WHEN a.auditFields.updatedAt IS NOT NULL AND a.auditFields.updatedAt > d.auditFields.updatedAt
+                          THEN a.auditFields.updatedAt ELSE d.auditFields.updatedAt END ASC, d.id ASC
             """)
-    Page<ProvisionedDeviceProjection> findProvisionedDevices(Pageable pageable);
+    Page<ProvisionedDeviceProjection> findProvisionedDevices(@Param("since") Date since,
+                                                               @Param("afterId") UUID afterId,
+                                                               Pageable pageable);
 }

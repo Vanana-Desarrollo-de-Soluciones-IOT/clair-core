@@ -1,8 +1,7 @@
 package com.claircore.device.application.internal.inboundservices.acl;
 
 /**
- * Inbound integration event consumed from Kafka topic
- * {@code clair.device.presence.changed}.
+ * Inbound device presence integration event.
  */
 public record DevicePresenceChangedIntegrationEvent(
         String deviceId,

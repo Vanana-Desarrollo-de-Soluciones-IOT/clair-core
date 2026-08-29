@@ -42,6 +42,6 @@ public class AlertIncidentsChangedPublisher {
         ));
 
         // 2. Publish external Edge event via HTTPS
-        edgeEventPublisher.publishAlertIncident(event);
+        edgeEventPublisher.notifyChange("alert", event.alertId().toString());
     }
 }

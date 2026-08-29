@@ -29,7 +29,7 @@ namespace application {
         -AlertRepository alertRepository
         -ExternalAlertingThresholdService externalThresholdService
         -ExternalAlertingDeviceService externalDeviceService
-        -AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher
+        -AlertIncidentsChangedPublisher alertIncidentsChangedPublisher
         +handle(EvaluateTelemetryForAlertsCommand) void
     }
     class AlertQueryServiceImpl {
@@ -43,10 +43,9 @@ namespace application {
         -AlertRepository alertRepository
         +findAlertDetailsById(alertId) Optional~AlertDetails~
     }
-    class AlertingTelemetryRecordedKafkaConsumer {
+    class AlertingTelemetryRecordedEventListener {
         -AlertCommandService alertCommandService
-        -ObjectMapper objectMapper
-        +consume(record) void
+        +onTelemetryRecorded(TelemetryRecordedEvent) void
     }
     class ExternalAlertingDeviceService {
         <<interface>>
@@ -70,6 +69,8 @@ namespace application {
 }
 
 namespace domain {
+    class TelemetryRecordedEvent
+    class AlertIncidentChangedEvent
     class Alert {
         -UUID id
         -UUID deviceId
@@ -125,20 +126,24 @@ namespace infrastructure {
         <<interface>>
         +findFirstByDeviceIdAndMetricAndStatusIn(deviceId, metric, statuses)
     }
-    class AlertIncidentsChangedKafkaPublisher {
-        -KafkaTemplate kafkaTemplate
+    class AlertIncidentsChangedPublisher {
+        -ApplicationEventPublisher eventPublisher
+        -EdgeEventPublisher edgeEventPublisher
         +publish(AlertIncidentChangedIntegrationEvent)
     }
 }
 
 AlertController --> AlertQueryServiceImpl : uses
-AlertingTelemetryRecordedKafkaConsumer --> AlertCommandServiceImpl : uses
+AlertingTelemetryRecordedEventListener --> AlertCommandServiceImpl : uses
+AlertingTelemetryRecordedEventListener --> TelemetryRecordedEvent : @EventListener
+AlertIncidentsChangedPublisher --> ApplicationEventPublisher : publishes AlertIncidentChangedEvent
+AlertIncidentsChangedPublisher --> EdgeEventPublisher : notifies edge via HTTP
 
 AlertCommandServiceImpl --> Alert : creates/updates
 AlertCommandServiceImpl --> AlertRepository : uses
 AlertCommandServiceImpl --> ExternalAlertingDeviceService : uses
 AlertCommandServiceImpl --> ExternalAlertingThresholdService : uses
-AlertCommandServiceImpl --> AlertIncidentsChangedKafkaPublisher : publishes
+AlertCommandServiceImpl --> AlertIncidentsChangedPublisher : publishes
 
 AlertQueryServiceImpl --> AlertRepository : uses
 
@@ -180,7 +185,7 @@ class AlertCommandServiceImpl {
     -AlertRepository alertRepository
     -ExternalAlertingThresholdService externalThresholdService
     -ExternalAlertingDeviceService externalDeviceService
-    -AlertIncidentsChangedKafkaPublisher alertIncidentsChangedKafkaPublisher
+    -AlertIncidentsChangedPublisher alertIncidentsChangedPublisher
     +handle(EvaluateTelemetryForAlertsCommand) void
 }
 class AlertQueryServiceImpl {
@@ -194,10 +199,9 @@ class AlertingContextFacadeImpl {
     -AlertRepository alertRepository
     +findAlertDetailsById(alertId) Optional~AlertDetails~
 }
-class AlertingTelemetryRecordedKafkaConsumer {
+class AlertingTelemetryRecordedEventListener {
     -AlertCommandService alertCommandService
-    -ObjectMapper objectMapper
-    +consume(record) void
+    +onTelemetryRecorded(TelemetryRecordedEvent) void
 }
 class ExternalAlertingDeviceService {
     <<interface>>
@@ -219,7 +223,10 @@ class EvaluateTelemetryForAlertsCommand {
     +Instant occurredAt
 }
 
-AlertingTelemetryRecordedKafkaConsumer --> AlertCommandServiceImpl : uses
+AlertingTelemetryRecordedEventListener --> AlertCommandServiceImpl : uses
+AlertingTelemetryRecordedEventListener --> TelemetryRecordedEvent : @EventListener
+AlertIncidentsChangedPublisher --> ApplicationEventPublisher : publishes AlertIncidentChangedEvent
+AlertIncidentsChangedPublisher --> EdgeEventPublisher : notifies edge via HTTP
 AlertCommandServiceImpl --> ExternalAlertingDeviceService : uses
 AlertCommandServiceImpl --> ExternalAlertingThresholdService : uses
 AlertingContextFacadeImpl ..|> AlertingContextFacade : implements
@@ -291,8 +298,9 @@ class JpaAlertRepository {
     <<interface>>
     +findFirstByDeviceIdAndMetricAndStatusIn(deviceId, metric, statuses)
 }
-class AlertIncidentsChangedKafkaPublisher {
-    -KafkaTemplate kafkaTemplate
+class AlertIncidentsChangedPublisher {
+    -ApplicationEventPublisher eventPublisher
+    -EdgeEventPublisher edgeEventPublisher
     +publish(AlertIncidentChangedIntegrationEvent)
 }
 ```

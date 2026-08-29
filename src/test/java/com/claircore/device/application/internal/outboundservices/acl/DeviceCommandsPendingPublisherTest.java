@@ -34,6 +34,6 @@ class DeviceCommandsPendingPublisherTest {
         publisher.publish(event);
 
         // Assert
-        verify(edgeEventPublisher).publishDeviceCommand(event);
+        verify(edgeEventPublisher).notifyChange("command", "cmd-1");
     }
 }

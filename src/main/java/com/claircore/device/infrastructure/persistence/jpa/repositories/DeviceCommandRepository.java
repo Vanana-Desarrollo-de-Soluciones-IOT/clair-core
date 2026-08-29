@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,4 +23,10 @@ public interface DeviceCommandRepository extends JpaRepository<DeviceCommand, UU
 
     @Query("SELECT c FROM DeviceCommand c WHERE c.status = :status ORDER BY c.auditFields.createdAt ASC")
     List<DeviceCommand> findByStatusForDispatch(@Param("status") DeviceCommandStatus status, Pageable pageable);
+
+    @Query("SELECT c FROM DeviceCommand c WHERE c.status IN :statuses AND (:since IS NULL OR c.auditFields.createdAt >= :since) ORDER BY c.auditFields.createdAt ASC")
+    List<DeviceCommand> findPendingForEdge(@Param("statuses") List<DeviceCommandStatus> statuses, @Param("since") Instant since, Pageable pageable);
+
+    @Query("SELECT c FROM DeviceCommand c WHERE c.status IN :statuses AND c.device.hardwareId.value = :hardwareId AND (:since IS NULL OR c.auditFields.createdAt >= :since) ORDER BY c.auditFields.createdAt ASC")
+    List<DeviceCommand> findPendingForEdgeByHardware(@Param("statuses") List<DeviceCommandStatus> statuses, @Param("hardwareId") String hardwareId, @Param("since") Instant since, Pageable pageable);
 }

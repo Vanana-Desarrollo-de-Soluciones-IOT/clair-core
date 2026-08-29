@@ -5,7 +5,6 @@ pkgs.mkShell {
     jdk25
     maven
     stripe-cli
-    curl
   ];
 
   shellHook = ''

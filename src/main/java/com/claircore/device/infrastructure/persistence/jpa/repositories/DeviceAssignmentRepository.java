@@ -21,9 +21,12 @@ public interface DeviceAssignmentRepository extends JpaRepository<DeviceAssignme
     long countBySpaceId(UUID spaceId);
     boolean existsBySpaceId(UUID spaceId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM DeviceAssignment a WHERE a.device.id = :deviceId")
     Optional<DeviceAssignment> findByDeviceId(@Param("deviceId") UUID deviceId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM DeviceAssignment a WHERE a.device.id = :deviceId")
+    Optional<DeviceAssignment> findByDeviceIdForUpdate(@Param("deviceId") UUID deviceId);
 
     @Query("SELECT a FROM DeviceAssignment a WHERE a.claimToken.value = :claimToken")
     Optional<DeviceAssignment> findByClaimToken(@Param("claimToken") String claimToken);

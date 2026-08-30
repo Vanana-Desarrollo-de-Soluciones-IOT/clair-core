@@ -70,7 +70,7 @@ class EdgeCommandAcknowledgementServiceTest {
         when(device.getHardwareId()).thenReturn(new HardwareId("CLAIR-0KBG"));
         when(command.getStatus()).thenReturn(DeviceCommandStatus.SENT);
         when(command.getType()).thenReturn(DeviceCommandType.WAKE);
-        when(assignments.findByDeviceId(deviceId)).thenReturn(Optional.of(assignment));
+        when(assignments.findByDeviceIdForUpdate(deviceId)).thenReturn(Optional.of(assignment));
 
         var result = new EdgeCommandAcknowledgementService(repository, assignments).acknowledge(
                 commandId,

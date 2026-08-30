@@ -88,7 +88,7 @@ class DeviceCommandServiceImplTest {
     void pairDeviceCreatesAssignmentForFactoryDeviceWithoutAssignment() {
         Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
         when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
-        when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.empty());
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.empty());
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
 
         DeviceAssignment result = service.handle(new PairDeviceCommand("HW-0001"));
@@ -104,7 +104,7 @@ class DeviceCommandServiceImplTest {
         DeviceAssignment assignment = new DeviceAssignment(existing, ClaimToken.generate());
         assignment.claimToSpace(UUID.randomUUID(), new UserId(UUID.randomUUID()));
         when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
-        when(deviceAssignmentRepository.findByDeviceId(existing.getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.of(assignment));
 
         assertThrows(IllegalStateException.class, () ->
             service.handle(new PairDeviceCommand("HW-0001"))
@@ -159,7 +159,7 @@ class DeviceCommandServiceImplTest {
         DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
         assignment.claimToSpace(spaceId, new UserId(userId));
 
-        when(deviceAssignmentRepository.findByDeviceId(deviceId)).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(deviceId)).thenReturn(Optional.of(assignment));
 
         service.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
 

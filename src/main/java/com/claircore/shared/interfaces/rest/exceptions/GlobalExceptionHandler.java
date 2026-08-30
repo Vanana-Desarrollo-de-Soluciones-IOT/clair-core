@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
 
 import java.time.Instant;
@@ -59,6 +60,12 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation failed");
         body.put("details", errors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+        // The client closed the SSE stream; nothing can be written to the response anymore.
+        logger.debug("Async request no longer usable: {}", ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

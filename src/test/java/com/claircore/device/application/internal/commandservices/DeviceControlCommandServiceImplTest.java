@@ -104,7 +104,7 @@ class DeviceControlCommandServiceImplTest {
         DeviceCommand command = new DeviceCommand(assignment.getDevice(), DeviceCommandType.WAKE, "{}");
         org.springframework.test.util.ReflectionTestUtils.setField(command, "id", UUID.fromString("550e8400-e29b-41d4-a716-446655440900"));
         when(deviceCommandRepository.findByDeviceIdAndCommandId(assignment.getDevice().getId(), command.getId())).thenReturn(Optional.of(command));
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
         when(deviceCommandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DeviceCommand result = new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceCommandsPendingPublisher)

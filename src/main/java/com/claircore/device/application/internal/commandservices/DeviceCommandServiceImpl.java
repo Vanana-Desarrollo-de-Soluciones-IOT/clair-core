@@ -119,7 +119,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             .findByHardwareId(command.hardwareId())
             .orElseThrow(() -> new IllegalArgumentException("Device not registered in factory inventory"));
 
-        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceId(device.getId());
+        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId());
         if (existingAssignment.isPresent()) {
             DeviceAssignment assignment = existingAssignment.get();
             if (assignment.getOwnerUserId() != null) {
@@ -164,7 +164,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Transactional
     public void handle(ResetDeviceAssignmentCommand command) {
         DeviceAssignment assignment = deviceAssignmentRepository
-            .findByDeviceId(command.deviceId())
+            .findByDeviceIdForUpdate(command.deviceId())
             .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
@@ -185,7 +185,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Transactional
     public void handle(UpdateDeviceNameCommand command) {
         DeviceAssignment assignment = deviceAssignmentRepository
-            .findByDeviceId(command.deviceId())
+            .findByDeviceIdForUpdate(command.deviceId())
             .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {

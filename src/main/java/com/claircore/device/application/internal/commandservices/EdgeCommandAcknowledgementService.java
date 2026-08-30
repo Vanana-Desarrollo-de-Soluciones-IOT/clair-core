@@ -92,7 +92,7 @@ public class EdgeCommandAcknowledgementService {
         } else {
             command.markExecuted();
             // Execution changes the assignment state as part of the same ACK.
-            deviceAssignmentRepository.findByDeviceId(command.getDevice().getId())
+            deviceAssignmentRepository.findByDeviceIdForUpdate(command.getDevice().getId())
                     .ifPresent(assignment -> {
                         switch (command.getType()) {
                             case STANDBY -> assignment.markStandby();

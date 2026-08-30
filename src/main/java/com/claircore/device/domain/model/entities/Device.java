@@ -25,8 +25,7 @@ public class Device {
     @Column(name = "factory_name", nullable = false)
     private String factoryName;
 
-    // Nullable keeps ddl-auto update compatible with existing PostgreSQL rows; new entities default false.
-    @Column(name = "deleted")
+    @Column(name = "deleted", nullable = false)
     private Boolean deleted = false;
 
     @Embedded

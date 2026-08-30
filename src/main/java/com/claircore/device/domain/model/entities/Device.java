@@ -8,7 +8,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.util.UUID;
 
 @Entity
-@Table(name = "devices")
+@Table(name = "devices", indexes = @Index(name = "idx_devices_updated_at", columnList = "updated_at"))
 @EntityListeners(AuditingEntityListener.class)
 public class Device {
 
@@ -24,6 +24,9 @@ public class Device {
 
     @Column(name = "factory_name", nullable = false)
     private String factoryName;
+
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "hardware_id", nullable = false, unique = true))
@@ -56,6 +59,7 @@ public class Device {
 
     public void rotateApiKey(ApiKey apiKey) {
         this.apiKey = apiKey;
+        auditFields.touchUpdatedAt();
     }
 
     public void updateName(String name) {
@@ -63,11 +67,24 @@ public class Device {
             throw new IllegalArgumentException("Device name must not be null or blank");
         }
         this.name = name;
+        auditFields.touchUpdatedAt();
     }
 
     public void resetNameToFactoryDefault() {
         this.name = this.factoryName;
+        auditFields.touchUpdatedAt();
     }
+
+    /** Marks the device as decommissioned while retaining its row as a roster tombstone. */
+    public void markDeleted() {
+        if (!Boolean.TRUE.equals(this.deleted)) {
+            this.deleted = true;
+            auditFields.touchUpdatedAt();
+        }
+    }
+
+    /** Treats legacy NULL tombstone values as active devices without requiring a migration. */
+    public boolean isDeleted() { return Boolean.TRUE.equals(deleted); }
 
     public UUID getId() { return id; }
     public String getSerialNumber() { return serialNumber; }

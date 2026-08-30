@@ -33,13 +33,11 @@ public class AnalyticsSseService {
 
         emitter.onTimeout(() -> {
             LOGGER.debug("SSE connection timed out for device {}", deviceId);
-            emitter.complete();
             deviceEmitters.remove(emitter);
         });
 
         emitter.onError((e) -> {
             LOGGER.debug("SSE connection error for device {}: {}", deviceId, e.getMessage());
-            emitter.complete();
             deviceEmitters.remove(emitter);
         });
 

@@ -34,7 +34,7 @@ class DeviceThresholdCommandServiceImplTest {
     @Test
     void shouldCreateThresholdWhenMetricDoesNotExist() {
         DeviceAssignment assignment = ownedAssignment();
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DeviceMetricThresholdConfiguration configuration = new DeviceThresholdCommandServiceImpl(deviceAssignmentRepository, objectMapper)
@@ -55,7 +55,7 @@ class DeviceThresholdCommandServiceImplTest {
     void shouldThrowExceptionWhenThresholdAlreadyExists() {
         DeviceAssignment assignment = ownedAssignment();
         assignment.putConfigurationValue("threshold.PM25", "{\"metric\":\"PM25\",\"value\":35.5,\"enabled\":true}");
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
 
         IllegalArgumentException exception = assertThrowsExactly(
                 IllegalArgumentException.class,
@@ -78,7 +78,7 @@ class DeviceThresholdCommandServiceImplTest {
     void shouldRemoveThresholdWhenMetricExists() {
         DeviceAssignment assignment = ownedAssignment();
         assignment.putConfigurationValue("threshold.PM25", "{\"metric\":\"PM25\",\"value\":35.5,\"enabled\":true}");
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
 
         new DeviceThresholdCommandServiceImpl(deviceAssignmentRepository, objectMapper)
                 .handle(new RemoveDeviceThresholdCommand(assignment.getDevice().getId(), assignment.getOwnerUserId(), MetricThreshold.PM25));
@@ -89,7 +89,7 @@ class DeviceThresholdCommandServiceImplTest {
     @Test
     void shouldThrowAccessDeniedWhenAssignmentBelongsToAnotherUser() {
         DeviceAssignment assignment = ownedAssignment();
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDevice().getId())).thenReturn(Optional.of(assignment));
 
         org.springframework.security.access.AccessDeniedException exception = assertThrowsExactly(
                 org.springframework.security.access.AccessDeniedException.class,

@@ -44,6 +44,33 @@ class DeviceTest {
     }
 
     @Test
+    void shouldMarkDeletedWithoutRemovingTheDevice() {
+        Device device = new Device("SN-0001", "Sensor 0001", new HardwareId("CLAIR-0KBG"), ApiKey.generate(), new DeviceType("air-quality-v1"));
+
+        device.markDeleted();
+
+        assertEquals(true, device.isDeleted());
+    }
+
+    @Test
+    void shouldNotBeDeletedByDefault() {
+        Device device = new Device("SN-0001", "Sensor 0001", new HardwareId("CLAIR-0KBG"), ApiKey.generate(), new DeviceType("air-quality-v1"));
+
+        assertEquals(false, device.isDeleted());
+    }
+
+    @Test
+    void shouldTouchUpdatedAtForDomainMutations() throws InterruptedException {
+        Device device = new Device("SN-0001", "Sensor 0001", new HardwareId("CLAIR-0KBG"), ApiKey.generate(), new DeviceType("air-quality-v1"));
+        device.updateName("Kitchen sensor");
+        var first = device.getAuditFields().getUpdatedAt();
+        Thread.sleep(2);
+        device.rotateApiKey(ApiKey.generate());
+
+        assertEquals(true, first != null && device.getAuditFields().getUpdatedAt().after(first));
+    }
+
+    @Test
     void shouldResetNameToFactoryDefaultWhenRequested() {
         Device device = new Device(
                 "SN-0001",

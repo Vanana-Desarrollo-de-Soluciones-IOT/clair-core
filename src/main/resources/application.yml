@@ -25,11 +25,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:redis}
+      password: ${REDIS_PASSWORD:admin}
   cache:
     type: redis
-
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   mail:
     host: ${SMTP_HOST}
@@ -90,13 +89,6 @@ resilience4j:
         slowCallDurationThreshold: 2s
         failureRateThreshold: 50
         waitDurationInOpenState: 20s
-      kafkaPublisher:
-        slidingWindowSize: 20
-        permittedNumberOfCallsInHalfOpenState: 5
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10s
-        slowCallRateThreshold: 50
-        slowCallDurationThreshold: 2s
       redisRepository:
         slidingWindowSize: 20
         permittedNumberOfCallsInHalfOpenState: 5
@@ -106,9 +98,6 @@ resilience4j:
         slowCallDurationThreshold: 200ms
   retry:
     instances:
-      kafkaPublisher:
-        maxAttempts: 3
-        waitDuration: 200ms
       redisRepository:
         maxAttempts: 3
         waitDuration: 100ms

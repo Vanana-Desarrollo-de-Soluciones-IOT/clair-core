@@ -36,7 +36,7 @@ public class DevicePresenceCommandServiceImpl implements DevicePresenceCommandSe
         }
 
         DeviceAssignment assignment = deviceAssignmentRepository
-                .findByDeviceId(device.getId())
+                .findByDeviceIdForUpdate(device.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         assignment.updatePresence(command.status(), command.occurredAt());

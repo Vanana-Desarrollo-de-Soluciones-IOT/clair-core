@@ -41,7 +41,7 @@ class DevicePresenceCommandServiceImplTest {
         Device device = device();
         DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
         when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
-        when(deviceAssignmentRepository.findByDeviceId(device.getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DeviceAssignment result = new DevicePresenceCommandServiceImpl(deviceRepository, deviceAssignmentRepository)
@@ -56,7 +56,7 @@ class DevicePresenceCommandServiceImplTest {
         Device device = device();
         DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
         when(deviceRepository.findByHardwareId(device.getHardwareId().value())).thenReturn(Optional.of(device));
-        when(deviceAssignmentRepository.findByDeviceId(device.getId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DeviceAssignment result = new DevicePresenceCommandServiceImpl(deviceRepository, deviceAssignmentRepository)
@@ -84,7 +84,7 @@ class DevicePresenceCommandServiceImplTest {
     void shouldThrowExceptionWhenAssignmentDoesNotExist() {
         Device device = device();
         when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
-        when(deviceAssignmentRepository.findByDeviceId(device.getId())).thenReturn(Optional.empty());
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.empty());
 
         IllegalArgumentException exception = assertThrowsExactly(
                 IllegalArgumentException.class,

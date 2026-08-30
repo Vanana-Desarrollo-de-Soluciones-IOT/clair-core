@@ -19,7 +19,7 @@ class ProvisioningDevicesChangedPublisherTest {
     private ProvisioningDevicesChangedPublisher publisher;
 
     @Test
-    void shouldPublishDeviceChangedEventToEdgeWhenEventIsValid() {
+    void shouldNotifyEdgeWithoutSendingDevicePayload() {
         // Arrange
         DeviceChangedIntegrationEvent event = new DeviceChangedIntegrationEvent(
                 "dev-1",
@@ -34,6 +34,6 @@ class ProvisioningDevicesChangedPublisherTest {
         publisher.publish(event);
 
         // Assert
-        verify(edgeEventPublisher).publishDeviceChanged(event);
+        verify(edgeEventPublisher).notifyChange("device", "dev-1");
     }
 }

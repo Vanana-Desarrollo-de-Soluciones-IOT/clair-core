@@ -1,8 +1,7 @@
 package com.claircore.analytics.application.internal.inboundservices.acl;
 
 /**
- * Inbound integration event consumed from Kafka topic
- * {@code clair.device.telemetry.recorded}.
+ * Inbound telemetry integration event.
  */
 public record TelemetryRecordedIntegrationEvent(
         String deviceId,

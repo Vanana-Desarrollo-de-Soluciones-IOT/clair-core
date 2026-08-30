@@ -1,0 +1,42 @@
+# Directorios de compilación y artefactos
+target/
+build/
+out/
+*.jar
+*.war
+
+# Control de versiones y CI
+.git/
+.gitignore
+.github/
+
+# Secretos y variables de entorno
+.env
+.env.*
+*.env
+
+# Entornos y Nix
+shell.nix
+.direnv/
+
+# Configuración de IDEs y editores
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Archivos de documentación y diagramas innecesarios en la imagen
+docs/
+files/
+README.md
+
+# Archivos del sistema y logs
+.DS_Store
+Thumbs.db
+*.log
+
+# Dockerfiles y compose
+Dockerfile*
+docker-compose*.yml

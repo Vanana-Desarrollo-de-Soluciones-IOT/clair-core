@@ -36,8 +36,12 @@ public interface AlertRepository extends JpaRepository<Alert, UUID> {
     // parameter's type (no typed context to unify with) and rejects the query with
     // "could not determine data type of parameter $1". Comparing against the column
     // itself when :since is null keeps the original "no filter" semantics.
-    @Query("SELECT a as alert, d.hardwareId.value as hardwareId FROM Alert a JOIN Device d ON d.id = a.deviceId WHERE a.status = com.claircore.alerting.domain.model.valueobjects.AlertStatus.ACTIVE AND a.occurredAt >= COALESCE(:since, a.occurredAt) ORDER BY a.occurredAt ASC")
-    List<EdgeAlertProjection> findPendingForEdge(@Param("since") Instant since, Pageable pageable);
+    @Query("SELECT a as alert, d.hardwareId.value as hardwareId FROM Alert a JOIN Device d ON d.id = a.deviceId WHERE a.status IN :statuses AND a.occurredAt >= COALESCE(:since, a.occurredAt) ORDER BY a.occurredAt ASC")
+    List<EdgeAlertProjection> findPendingForEdge(
+            @Param("statuses") Collection<AlertStatus> statuses,
+            @Param("since") Instant since,
+            Pageable pageable
+    );
 
     @Query("SELECT d.hardwareId.value FROM Alert a JOIN Device d ON d.id = a.deviceId WHERE a.id = :alertId")
     Optional<String> findHardwareIdByAlertId(@Param("alertId") UUID alertId);

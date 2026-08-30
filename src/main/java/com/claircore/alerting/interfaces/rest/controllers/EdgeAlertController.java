@@ -1,6 +1,7 @@
 package com.claircore.alerting.interfaces.rest.controllers;
 
 import com.claircore.alerting.domain.model.entities.Alert;
+import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.infrastructure.persistence.jpa.repositories.AlertRepository;
 import com.claircore.alerting.application.internal.commandservices.EdgeAlertAcknowledgementService;
 import com.claircore.alerting.interfaces.rest.resources.EdgeAlertAckRequest;
@@ -14,6 +15,9 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/v1/edge/alerts")
 public class EdgeAlertController {
+    private static final List<AlertStatus> EDGE_DELIVERY_STATUSES =
+            List.of(AlertStatus.ACTIVE, AlertStatus.RESOLVED);
+
     private final AlertRepository repository;
     private final EdgeAlertAcknowledgementService acknowledgementService;
     public EdgeAlertController(AlertRepository repository, EdgeAlertAcknowledgementService acknowledgementService) {
@@ -23,7 +27,7 @@ public class EdgeAlertController {
     @GetMapping("/pending")
     public List<Map<String,Object>> pending(@RequestParam(required=false) String since, @RequestParam(defaultValue="200") int limit) {
         if (limit < 1 || limit > 500) throw new IllegalArgumentException("limit must be between 1 and 500");
-        return repository.findPendingForEdge(parse(since), PageRequest.of(0, limit)).stream().map(p -> resource(p.getAlert(), p.getHardwareId())).toList();
+        return repository.findPendingForEdge(EDGE_DELIVERY_STATUSES, parse(since), PageRequest.of(0, limit)).stream().map(p -> resource(p.getAlert(), p.getHardwareId())).toList();
     }
     @PostMapping("/{alertId}/ack")
     public ResponseEntity<Void> acknowledge(@PathVariable UUID alertId, @Valid @RequestBody EdgeAlertAckRequest request) {

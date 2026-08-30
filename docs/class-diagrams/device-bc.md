@@ -56,7 +56,7 @@ namespace application {
         -DeviceRepository deviceRepository
         -DeviceAssignmentRepository deviceAssignmentRepository
         -SpaceRepository spaceRepository
-        -ProvisioningDevicesChangedKafkaPublisher publisher
+        -ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher
         +handle(PairDeviceCommand) DeviceAssignment
         +handle(ClaimDeviceCommand) DeviceAssignment
         +handle(ResetDeviceAssignmentCommand)
@@ -66,7 +66,7 @@ namespace application {
     class DeviceControlCommandServiceImpl {
         -DeviceCommandRepository deviceCommandRepository
         -DeviceAssignmentRepository deviceAssignmentRepository
-        -DeviceCommandsPendingKafkaPublisher publisher
+        -DeviceCommandsPendingPublisher deviceCommandsPendingPublisher
         +handle(CreateDeviceCommandCommand) DeviceCommand
         +handle(DispatchPendingDeviceCommandsCommand)
     }
@@ -130,8 +130,6 @@ namespace domain {
         -String payload
         -String status
         -Instant createdAt
-        -Instant acknowledgedAt
-        +acknowledge()
     }
     class Organization {
         -UUID id
@@ -198,13 +196,13 @@ namespace infrastructure {
     class JpaSpaceRepository {
         <<interface>>
     }
-    class ProvisioningDevicesChangedKafkaPublisher {
-        -KafkaTemplate kafkaTemplate
-        +publish(DeviceChangedIntegrationEvent)
+    class ProvisioningDevicesChangedPublisher {
+        -EdgeEventPublisher edgeEventPublisher
+        +publish(DeviceChangedIntegrationEvent) void
     }
-    class DeviceCommandsPendingKafkaPublisher {
-        -KafkaTemplate kafkaTemplate
-        +publish(DeviceCommandIssuedIntegrationEvent)
+    class DeviceCommandsPendingPublisher {
+        -EdgeEventPublisher edgeEventPublisher
+        +publish(DeviceCommandIssuedIntegrationEvent) void
     }
 }
 
@@ -220,6 +218,8 @@ DeviceCommandServiceImpl --> SpaceRepository : uses
 
 DeviceControlCommandServiceImpl --> DeviceCommandRepository : uses
 DeviceControlCommandServiceImpl --> DeviceAssignmentRepository : uses
+ProvisioningDevicesChangedPublisher --> EdgeEventPublisher : notifies edge via HTTP
+DeviceCommandsPendingPublisher --> EdgeEventPublisher : notifies edge via HTTP
 
 DeviceThresholdCommandServiceImpl --> DeviceAssignmentRepository : uses
 
@@ -294,7 +294,7 @@ class DeviceCommandServiceImpl {
     -DeviceRepository deviceRepository
     -DeviceAssignmentRepository deviceAssignmentRepository
     -SpaceRepository spaceRepository
-    -ProvisioningDevicesChangedKafkaPublisher publisher
+    -ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher
     +handle(PairDeviceCommand) DeviceAssignment
     +handle(ClaimDeviceCommand) DeviceAssignment
     +handle(ResetDeviceAssignmentCommand)
@@ -304,7 +304,7 @@ class DeviceCommandServiceImpl {
 class DeviceControlCommandServiceImpl {
     -DeviceCommandRepository deviceCommandRepository
     -DeviceAssignmentRepository deviceAssignmentRepository
-    -DeviceCommandsPendingKafkaPublisher publisher
+    -DeviceCommandsPendingPublisher deviceCommandsPendingPublisher
     +handle(CreateDeviceCommandCommand) DeviceCommand
     +handle(DispatchPendingDeviceCommandsCommand)
 }
@@ -371,8 +371,6 @@ class DeviceCommand {
     -String payload
     -String status
     -Instant createdAt
-    -Instant acknowledgedAt
-    +acknowledge()
 }
 class Organization {
     -UUID id
@@ -445,12 +443,12 @@ class JpaOrganizationRepository {
 class JpaSpaceRepository {
     <<interface>>
 }
-class ProvisioningDevicesChangedKafkaPublisher {
-    -KafkaTemplate kafkaTemplate
-    +publish(DeviceChangedIntegrationEvent)
+class ProvisioningDevicesChangedPublisher {
+    -EdgeEventPublisher edgeEventPublisher
+    +publish(DeviceChangedIntegrationEvent) void
 }
-class DeviceCommandsPendingKafkaPublisher {
-    -KafkaTemplate kafkaTemplate
-    +publish(DeviceCommandIssuedIntegrationEvent)
+class DeviceCommandsPendingPublisher {
+    -EdgeEventPublisher edgeEventPublisher
+    +publish(DeviceCommandIssuedIntegrationEvent) void
 }
 ```

@@ -86,7 +86,7 @@ public class DeviceThresholdCommandServiceImpl implements DeviceThresholdCommand
 
     private DeviceAssignment loadOwnedAssignment(UUID deviceId, UserId userId) {
         DeviceAssignment assignment = deviceAssignmentRepository
-                .findByDeviceId(deviceId)
+                .findByDeviceIdForUpdate(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(userId)) {

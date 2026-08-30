@@ -5,6 +5,8 @@ import com.claircore.device.domain.model.valueobjects.UserId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,6 +23,10 @@ public interface DeviceAssignmentRepository extends JpaRepository<DeviceAssignme
 
     @Query("SELECT a FROM DeviceAssignment a WHERE a.device.id = :deviceId")
     Optional<DeviceAssignment> findByDeviceId(@Param("deviceId") UUID deviceId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM DeviceAssignment a WHERE a.device.id = :deviceId")
+    Optional<DeviceAssignment> findByDeviceIdForUpdate(@Param("deviceId") UUID deviceId);
 
     @Query("SELECT a FROM DeviceAssignment a WHERE a.claimToken.value = :claimToken")
     Optional<DeviceAssignment> findByClaimToken(@Param("claimToken") String claimToken);

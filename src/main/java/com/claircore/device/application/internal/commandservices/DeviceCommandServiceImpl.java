@@ -86,7 +86,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
                 new DeviceType("air-quality-v1")
             );
             Device savedDevice = deviceRepository.save(device);
-            // Edge provisioning cache is fed only via Kafka integration events.
+            // Notify edge so it can reconcile its provisioning cache.
             publishDeviceChanged(savedDevice, DeviceStatus.OFFLINE.name(), "CREATED");
             seeded.add(savedDevice);
         }
@@ -119,7 +119,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             .findByHardwareId(command.hardwareId())
             .orElseThrow(() -> new IllegalArgumentException("Device not registered in factory inventory"));
 
-        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceId(device.getId());
+        Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId());
         if (existingAssignment.isPresent()) {
             DeviceAssignment assignment = existingAssignment.get();
             if (assignment.getOwnerUserId() != null) {
@@ -164,14 +164,14 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Transactional
     public void handle(ResetDeviceAssignmentCommand command) {
         DeviceAssignment assignment = deviceAssignmentRepository
-            .findByDeviceId(command.deviceId())
+            .findByDeviceIdForUpdate(command.deviceId())
             .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
             throw new AccessDeniedException("Device does not belong to user");
         }
 
-        // On reset/unlink, restore the device name back to the factory default.
+        // Reset/unlink is not a decommission. Keep the device active and cached.
         Device device = assignment.getDevice();
         device.resetNameToFactoryDefault();
         deviceRepository.save(device);
@@ -185,7 +185,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Transactional
     public void handle(UpdateDeviceNameCommand command) {
         DeviceAssignment assignment = deviceAssignmentRepository
-            .findByDeviceId(command.deviceId())
+            .findByDeviceIdForUpdate(command.deviceId())
             .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {

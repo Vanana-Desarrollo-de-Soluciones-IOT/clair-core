@@ -46,11 +46,12 @@ JWT_SECRET=your_super_secret_jwt_key_that_is_at_least_32_characters_long
 JWT_EXPIRATION=3600000
 JWT_REFRESH_EXPIRATION=604800000
 
-# Edge -> Core shared token (must match EDGE_TO_CORE_TOKEN in the edge service)
+# Core -> Edge webhook (hint only; edge reconciles over HTTP)
+EDGE_WEBHOOK_URL=http://127.0.0.1:5000
+# Core -> Edge token (must match EDGE_TOKEN in edge)
+EDGE_TOKEN=change-me-long-random-secret
+# Edge -> Core token (must match EDGE_TO_CORE_TOKEN in edge)
 EDGE_TO_CORE_TOKEN=change-me-long-random-secret
-
-# clair-core -> edge webhook (device change events)
-EDGE_WEBHOOK_DEVICES_URL=http://127.0.0.1:5000
 
 # CORS — tu web app Angular
 CORS_ALLOWED_ORIGINS=http://localhost:4200

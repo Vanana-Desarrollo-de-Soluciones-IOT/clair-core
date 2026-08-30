@@ -60,6 +60,62 @@ class TelemetryEvaluationControllerTest {
     private TokenQueryService tokenQueryService; // Required to satisfy context dependencies
 
     @Test
+    void shouldRejectBatchLargerThanOperationalLimit() throws Exception {
+        String record = "{\"client_ref\":\"r1\",\"device_id\":\"HW-0001\",\"device_time\":\"12:00:00\",\"uptime_seconds\":1,\"co2\":400,\"temperature\":22,\"humidity\":45,\"pm1_0\":1,\"pm2_5\":2,\"pm10\":3,\"wifi_status\":\"ONLINE\",\"health_status\":85,\"status\":\"STABLE\",\"recorded_at\":\"2026-05-16T22:30:00Z\",\"occurred_at\":\"2026-05-16T22:30:00Z\"}";
+        String body = "{\"records\":[" + String.join(",", java.util.Collections.nCopies(11, record)) + "]}";
+        mockMvc.perform(post("/api/v1/evaluations/telemetry/batch").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(telemetryEvaluationCommandService);
+    }
+
+    @Test
+    void shouldRejectBatchWithMissingOrInvalidOccurredAt() throws Exception {
+        String missing = "{\"records\":[{\"client_ref\":\"r1\",\"device_id\":\"HW-0001\",\"device_time\":\"12:00:00\",\"uptime_seconds\":1,\"co2\":400,\"temperature\":22,\"humidity\":45,\"pm1_0\":1,\"pm2_5\":2,\"pm10\":3,\"wifi_status\":\"ONLINE\",\"health_status\":85,\"status\":\"STABLE\",\"recorded_at\":\"2026-05-16T22:30:00Z\"}]}";
+        String invalid = missing.replace("\"recorded_at\":\"2026-05-16T22:30:00Z\"}", "\"recorded_at\":\"2026-05-16T22:30:00Z\",\"occurred_at\":\"not-a-timestamp\"}");
+        mockMvc.perform(post("/api/v1/evaluations/telemetry/batch").contentType(MediaType.APPLICATION_JSON).content(missing))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.results[0].reason").value("VALIDATION_ERROR"));
+        mockMvc.perform(post("/api/v1/evaluations/telemetry/batch").contentType(MediaType.APPLICATION_JSON).content(invalid))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.results[0].reason").value("VALIDATION_ERROR"));
+        verifyNoInteractions(telemetryEvaluationCommandService);
+    }
+
+    @Test
+    void shouldAcceptValidBatchAndCorrelateEachClientReference() throws Exception {
+        UUID firstDevice = UUID.randomUUID();
+        UUID secondDevice = UUID.randomUUID();
+        when(externalDeviceService.findHardwareIdByDeviceId(firstDevice)).thenReturn(Optional.of("HW-0001"));
+        when(externalDeviceService.findHardwareIdByDeviceId(secondDevice)).thenReturn(Optional.of("HW-0002"));
+        TelemetryEvaluation evaluation = new TelemetryEvaluation(
+                new DeviceId(firstDevice), LocalTime.NOON, 3600L,
+                new AirQuality(400.0, 22.0, 45.0),
+                new ParticulateMatter(1, 2, 3),
+                new Connectivity("ONLINE", "WiFi", -50),
+                new Location("Chile"), 85, "STABLE", Instant.parse("2026-05-16T22:30:00Z"));
+        when(telemetryEvaluationCommandService.handle(any(EvaluateTelemetryCommand.class))).thenReturn(evaluation);
+
+        String record = "{\"client_ref\":\"%s\",\"device_id\":\"%s\",\"device_time\":\"12:00:00\",\"uptime_seconds\":3600,\"co2\":400,\"temperature\":22,\"humidity\":45,\"pm1_0\":1,\"pm2_5\":2,\"pm10\":3,\"wifi_status\":\"ONLINE\",\"network_name\":\"WiFi\",\"signal_strength\":-50,\"country\":\"Chile\",\"health_status\":85,\"status\":\"STABLE\",\"recorded_at\":\"2026-05-16T22:30:00Z\",\"occurred_at\":\"2026-05-16T22:30:00Z\"}";
+        String body = "{\"records\":[" + record.formatted("outbox-1", firstDevice) + "," + record.formatted("outbox-2", secondDevice) + "]}";
+
+        mockMvc.perform(post("/api/v1/evaluations/telemetry/batch")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].client_ref").value("outbox-1"))
+                .andExpect(jsonPath("$.results[0].status").value("CREATED"))
+                .andExpect(jsonPath("$.results[1].client_ref").value("outbox-2"))
+                .andExpect(jsonPath("$.results[1].status").value("CREATED"));
+        verify(telemetryEvaluationCommandService, times(2)).handle(any(EvaluateTelemetryCommand.class));
+    }
+
+    @Test
+    void shouldReturnValidationErrorForNonNumericBatchValue() throws Exception {
+        String body = "{\"records\":[{\"client_ref\":\"r1\",\"device_id\":\"HW-0001\",\"device_time\":\"12:00:00\",\"uptime_seconds\":\"abc\",\"co2\":400,\"temperature\":22,\"humidity\":45,\"pm1_0\":1,\"pm2_5\":2,\"pm10\":3,\"wifi_status\":\"ONLINE\",\"health_status\":85,\"status\":\"STABLE\",\"recorded_at\":\"2026-05-16T22:30:00Z\"}]}";
+        mockMvc.perform(post("/api/v1/evaluations/telemetry/batch").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.results[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.results[0].reason").value("VALIDATION_ERROR"));
+        verifyNoInteractions(telemetryEvaluationCommandService);
+    }
+
+    @Test
     void shouldReturnCreatedWhenEvaluatingValidTelemetryWithUuidDevice() throws Exception {
         // Arrange
         UUID resolvedDeviceId = UUID.randomUUID();

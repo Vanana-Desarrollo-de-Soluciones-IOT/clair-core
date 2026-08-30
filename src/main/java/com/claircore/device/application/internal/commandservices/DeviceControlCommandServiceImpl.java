@@ -93,7 +93,7 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
 
     private void applyExecutedCommandToDevice(DeviceCommand deviceCommand) {
         DeviceAssignment assignment = deviceAssignmentRepository
-                .findByDeviceId(deviceCommand.getDevice().getId())
+                .findByDeviceIdForUpdate(deviceCommand.getDevice().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         switch (deviceCommand.getType()) {

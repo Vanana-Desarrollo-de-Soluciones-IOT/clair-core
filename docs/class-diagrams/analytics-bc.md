@@ -87,10 +87,9 @@ namespace application {
     class AnalyticsContextFacadeImpl {
         <<interface>>
     }
-    class TelemetryAnalyticKafkaConsumer {
+    class TelemetryAnalyticEventListener {
         -KpiLiveMetricsCommandService kpiLiveMetricsCommandService
-        -ObjectMapper objectMapper
-        +consume(record) void
+        +onTelemetryRecorded(TelemetryRecordedEvent) void
     }
     class KpiLiveMetricsCache {
         -ConcurrentHashMap~DeviceId, DeviceMetricsSnapshot~ cache
@@ -126,6 +125,7 @@ namespace application {
 }
 
 namespace domain {
+    class TelemetryRecordedEvent
     class DeviceAnalyticsSnapshot {
         -UUID id
         -DeviceId deviceId
@@ -317,7 +317,8 @@ DailyReportAggregationService --> AqiCalculationDomainService : uses
 MonthlyReportAggregationService --> DeviceDailySummaryRepository : uses
 MonthlyReportAggregationService --> DeviceMonthlySummaryRepository : uses
 
-TelemetryAnalyticKafkaConsumer --> KpiLiveMetricsCommandServiceImpl : uses
+TelemetryAnalyticEventListener --> KpiLiveMetricsCommandServiceImpl : uses
+TelemetryAnalyticEventListener --> TelemetryRecordedEvent : @EventListener
 
 SnapshotAggregationScheduler --> MetricsAggregationDomainService : uses
 SnapshotAggregationScheduler --> DeviceAnalyticsSnapshotRepository : uses
@@ -431,10 +432,9 @@ class MonthlyReportAggregationService {
 class AnalyticsContextFacadeImpl {
     <<interface>>
 }
-class TelemetryAnalyticKafkaConsumer {
+class TelemetryAnalyticEventListener {
     -KpiLiveMetricsCommandService kpiLiveMetricsCommandService
-    -ObjectMapper objectMapper
-    +consume(record) void
+    +onTelemetryRecorded(TelemetryRecordedEvent) void
 }
 class KpiLiveMetricsCache {
     -ConcurrentHashMap~DeviceId, DeviceMetricsSnapshot~ cache
@@ -472,7 +472,8 @@ KpiLiveMetricsCommandServiceImpl --> KpiLiveMetricsCache : uses
 KpiLiveMetricsCommandServiceImpl --> AnalyticsSseService : uses
 OverviewDashboardQueryServiceImpl --> ExternalDeviceService : uses
 OverviewDashboardQueryServiceImpl --> KpiLiveMetricsCache : uses
-TelemetryAnalyticKafkaConsumer --> KpiLiveMetricsCommandServiceImpl : uses
+TelemetryAnalyticEventListener --> KpiLiveMetricsCommandServiceImpl : uses
+TelemetryAnalyticEventListener --> TelemetryRecordedEvent : @EventListener
 KpiDashboardMetricsQueryServiceImpl --> KpiLiveMetricsCache : uses
 KpiDashboardMetricsQueryServiceImpl --> ExternalEvaluationService : uses
 KpiHistoricalTrendQueryServiceImpl --> ExternalEvaluationService : uses

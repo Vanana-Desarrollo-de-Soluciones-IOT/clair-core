@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.outboundservices.acl;
 
 /**
- * Outbound integration event published to Kafka topic
+ * Outbound command event used by integration adapters
  * {@code clair.device.commands.pending}.
  */
 public record DeviceCommandIssuedIntegrationEvent(

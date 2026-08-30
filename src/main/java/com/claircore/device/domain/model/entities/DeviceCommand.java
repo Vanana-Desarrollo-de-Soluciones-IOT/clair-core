@@ -67,6 +67,11 @@ public class DeviceCommand {
         }
     }
 
+    /** Renews an expired delivery lease without changing the ACK-required SENT state. */
+    public void redeliver() {
+        if (this.status == DeviceCommandStatus.SENT) this.sentAt = Instant.now();
+    }
+
     public void markExecuted() {
         this.status = DeviceCommandStatus.EXECUTED;
         this.executedAt = Instant.now();

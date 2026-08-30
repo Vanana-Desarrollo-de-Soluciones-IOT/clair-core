@@ -48,12 +48,12 @@ namespace application {
         -PushNotificationHistoryRepository pushNotificationHistoryRepository
         +handle(GetPushNotificationHistoryQuery) Page
     }
-    class AlertIncidentChangedKafkaConsumer {
-        -PushNotificationDeliveryService pushNotificationDeliveryService
-        -PushNotificationLogRepository pushNotificationLogRepository
-        -ExternalDeviceService externalDeviceService
+    class AlertIncidentChangedEventListener {
         -ExternalAlertingService externalAlertingService
-        +consume(record) void
+        -ExternalDeviceService externalDeviceService
+        -PushNotificationDeliveryService pushNotificationDeliveryService
+        -PushNotificationHistoryRepository pushNotificationHistoryRepository
+        +onAlertIncidentChanged(AlertIncidentChangedEvent) void
     }
     class ExternalDeviceService {
         <<interface>>
@@ -78,6 +78,7 @@ namespace application {
 }
 
 namespace domain {
+    class AlertIncidentChangedEvent
     class EmailLog {
         -UUID id
         -EmailRecipient recipient
@@ -150,10 +151,11 @@ namespace infrastructure {
     }
 }
 
-AlertIncidentChangedKafkaConsumer --> PushNotificationDeliveryService : uses
-AlertIncidentChangedKafkaConsumer --> PushNotificationHistoryRepository : uses
-AlertIncidentChangedKafkaConsumer --> ExternalDeviceService : uses
-AlertIncidentChangedKafkaConsumer --> ExternalAlertingService : uses
+AlertIncidentChangedEventListener --> PushNotificationDeliveryService : uses
+AlertIncidentChangedEventListener --> AlertIncidentChangedEvent : @EventListener
+AlertIncidentChangedEventListener --> PushNotificationHistoryRepository : uses
+AlertIncidentChangedEventListener --> ExternalDeviceService : uses
+AlertIncidentChangedEventListener --> ExternalAlertingService : uses
 NotificationController --> PushNotificationHistoryQueryServiceImpl : uses
 
 EmailCommandServiceImpl --> EmailDeliveryService : uses
@@ -222,12 +224,12 @@ class PushNotificationHistoryQueryServiceImpl {
     -PushNotificationHistoryRepository pushNotificationHistoryRepository
     +handle(GetPushNotificationHistoryQuery) Page
 }
-class AlertIncidentChangedKafkaConsumer {
+class AlertIncidentChangedEventListener {
+    -ExternalAlertingService externalAlertingService
+    -ExternalDeviceService externalDeviceService
     -PushNotificationDeliveryService pushNotificationDeliveryService
     -PushNotificationHistoryRepository pushNotificationHistoryRepository
-    -ExternalDeviceService externalDeviceService
-    -ExternalAlertingService externalAlertingService
-    +consume(record) void
+    +onAlertIncidentChanged(AlertIncidentChangedEvent) void
 }
 class ExternalDeviceService {
     <<interface>>
@@ -251,8 +253,8 @@ class GetPushNotificationHistoryQuery {
 }
 
 NotificationsContextFacadeImpl --> EmailCommandServiceImpl : uses
-AlertIncidentChangedKafkaConsumer --> ExternalDeviceService : uses
-AlertIncidentChangedKafkaConsumer --> ExternalAlertingService : uses
+AlertIncidentChangedEventListener --> ExternalDeviceService : uses
+AlertIncidentChangedEventListener --> ExternalAlertingService : uses
 PushNotificationHistoryQueryServiceImpl --> PushNotificationHistoryRepository : uses
 NotificationController --> PushNotificationHistoryQueryServiceImpl : uses
 ```

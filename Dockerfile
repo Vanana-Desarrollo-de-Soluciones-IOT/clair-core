@@ -35,9 +35,9 @@ USER spring:spring
 # Copiar el JAR generado desde la etapa de construcción
 COPY --from=builder /build/target/*.jar app.jar
 
-# Puerto configurado por defecto en application.yml (49220)
-ENV PORT=49220
-EXPOSE 49220
+# Puerto configurado por defecto en application.yml (49180)
+ENV PORT=49180
+EXPOSE 49180
 
 # Variables de entorno JVM y optimizaciones para contenedor
 ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"

@@ -1,0 +1,355 @@
+# DDD / Hexagonal Audit Guide — Spring Boot
+
+**Audience:** an automated agent auditing an existing Java + Spring Boot codebase.
+**Reference implementation:** `upc-pre-202610-1asi0729-11848/learning-center-platform`, branch `master`, package root `com.acme.center.platform`. Every convention below was read from that source, not recalled.
+**Output required:** a findings report (§8) and a branch plan (§9).
+**Prohibition:** this pass produces **no code**. Findings only. Refactor happens later, branch by branch.
+
+---
+
+## 0. Ground rules for the auditing agent
+
+1. **Report, do not fix.** Every finding is an observation plus a proposed target, never an edit.
+2. **Cite the file.** A finding without a concrete path is invalid.
+3. **Do not invent structure.** If an observed file fits no role in §2, classify it `UNCLASSIFIED` and list it. Do not guess.
+4. **Verify, do not assume.** Claims about framework behaviour (naming strategy, fetch type, auditing, transaction boundaries) must be confirmed by reading generated DDL, SQL logs, or the actual `pom.xml` and `application.yml` / `application.properties`. Never assert from memory.
+5. **Version-shaped facts must be looked u**, never recalled. Artifact ids and versions change between minor releases.
+6. **Severity is about invariants, not tidiness.** A domain class importing `jakarta.persistence` is `BLOCKER`. A misnamed folder is `MINOR`.
+7. **An experiment without a control is a demonstration, not a test.** If the report asserts a cause, state the control.
+
+---
+
+## 1. Target architecture
+
+Hexagonal (ports and adapters) with tactical DDD, organised by **bounded context first, layer second**.
+
+```
+<root>.<context>.{domain, application, infrastructure, interfaces}
+<root>.shared.{domain, application, infrastructure, interfaces}
+```
+
+Flow of a write:
+
+```
+interfaces/rest/XsController
+      -> transform/XCommandFromResourceAssembler   (resource -> command)
+      -> application/commandservices/XCommandService        (port, interface)
+      -> application/internal/commandservices/XCommandServiceImpl
+      -> domain/model/aggregates/X                 (invariants enforced here)
+      -> domain/repositories/XRepository           (port, interface)
+                                                        ^
+      infrastructure/persistence/jpa/adapters/XRepositoryImpl
+                        -> assemblers/XPersistenceAssembler
+                        -> repositories/XPersistenceRepository (Spring Data)
+                        -> entities/XPersistenceEntity         (all JPA lives here)
+```
+
+Flow of a read: identical, but entering through `application/queryservices/XQueryService` and returning through `interfaces/rest/transform/XResourceFromEntityAssembler`.
+
+**The defining property:** the aggregate carries **zero** framework annotations. Identity, auditing, and mapping live in the infrastructure persistence entity. The reference enforces this literally — `User.java` has no `@Entity`, no `@Id`, no `@Column`.
+
+---
+
+## 2. Canonical package layout (as observed)
+
+Per bounded context `<ctx>`:
+
+```
+<root>.<ctx>
+├── domain
+│   ├── model
+│   │   ├── aggregates      X.java          plain class, extends AbstractDomainAggregateRoot<X>
+│   │   ├── entities        Y.java          owned by an aggregate, no independent lifecycle
+│   │   ├── valueobjects    Z.java          record or enum, immutable, self-validating
+│   │   ├── commands        XxxCommand.java record, one per write intent
+│   │   ├── queries         GetXxxQuery.java record, one per read intent
+│   │   └── events          XxxEvent.java   domain event record
+│   ├── exceptions          XxxNotFoundException.java
+│   └── repositories        XRepository.java        PORT, interface, domain types only
+├── application
+│   ├── commandservices     XCommandService.java    PORT, interface (inbound)
+│   ├── queryservices       XQueryService.java      PORT, interface (inbound)
+│   ├── acl                 XContextFacadeImpl.java implementation of another context's facade
+│   └── internal
+│       ├── commandservices XCommandServiceImpl.java   @Service
+│       ├── queryservices   XQueryServiceImpl.java     @Service
+│       ├── eventhandlers   XxxEventHandler.java
+│       └── outboundservices
+│           ├── acl         ExternalXService.java   calls another context's facade
+│           ├── hashing     HashingService.java     OUTBOUND port
+│           └── tokens      TokenService.java       OUTBOUND port
+├── infrastructure
+│   ├── persistence.jpa
+│   │   ├── entities        XPersistenceEntity.java     extends AuditableAbstractPersistenceEntity
+│   │   ├── repositories    XPersistenceRepository.java extends JpaRepository, @Repository
+│   │   ├── assemblers      XPersistenceAssembler.java  final class, private ctor, static only
+│   │   ├── converters      ZPersistenceConverter.java  AttributeConverter for a value object
+│   │   ├── embeddables     ZPersistenceEmbeddable.java @Embeddable for a multi-field VO
+│   │   └── adapters        XRepositoryImpl.java        implements the domain port, @Repository
+│   ├── hashing.<impl>      implementation of the outbound hashing port
+│   ├── tokens.<impl>       implementation of the outbound token port
+│   └── authorization.<impl> filters, entry points, security configuration
+└── interfaces
+    ├── rest                XsController.java       @RestController
+    │   ├── resources       XResource.java          record DTO
+    │   └── transform       XResourceFromEntityAssembler.java
+    │                       XCommandFromResourceAssembler.java
+    ├── acl                 XContextFacade.java     interface other contexts call
+    └── events              XxxIntegrationEvent.java
+```
+
+`shared/` mirrors the same tree and holds only what **two or more** contexts use. Observed members:
+
+| Path | Role |
+|---|---|
+| `shared/domain/model/aggregates/AbstractDomainAggregateRoot` | base for all aggregates; supplies domain-event registration only. **No JPA.** |
+| `shared/infrastructure/persistence/jpa/entities/AuditableAbstractPersistenceEntity` | `@MappedSuperclass` holding `id`, `createdAt`, `updatedAt` and the auditing listener |
+| `shared/infrastructure/persistence/jpa/configuration/strategy/...PhysicalNamingStrategy` | snake_case + pluralised table names |
+| `shared/infrastructure/documentation/openapi/configuration/...` | OpenAPI config |
+| `shared/interfaces/rest/GlobalExceptionHandler` | `@RestControllerAdvice` |
+| `shared/interfaces/rest/resources/*` | `ErrorResource`, `MessageResource` |
+| `shared/application/result/{Result, ApplicationError}` | typed success/failure return |
+
+---
+
+## 3. Naming conventions — exact, checkable
+
+| Artefact | Pattern | Example |
+|---|---|---|
+| Aggregate | `<Noun>` | `User`, `Course`, `Enrollment` |
+| Value object | `<Noun>` (record/enum) | `EmailAddress`, `ProfileId`, `EnrollmentStatus` |
+| Command | `<Verb><Noun>Command` | `SignUpCommand`, `CreateCourseCommand` |
+| Query | `Get<Noun>By<Criterion>Query` / `GetAll<Nouns>Query` | `GetUserByIdQuery` |
+| Domain port | `<Aggregate>Repository` | `UserRepository` |
+| Inbound port | `<Aggregate>CommandService` / `QueryService` | `UserQueryService` |
+| Inbound impl | same name + `Impl`, under `internal` | `UserQueryServiceImpl` |
+| Persistence entity | `<Aggregate>PersistenceEntity` | `UserPersistenceEntity` |
+| Spring Data repo | `<Aggregate>PersistenceRepository` | `UserPersistenceRepository` |
+| Adapter | `<Aggregate>RepositoryImpl` | `UserRepositoryImpl` |
+| Persistence assembler | `<Aggregate>PersistenceAssembler` | `UserPersistenceAssembler` |
+| VO converter | `<VO>PersistenceConverter` | `EmailAddressPersistenceConverter` |
+| VO embeddable | `<VO>PersistenceEmbeddable` | `PersonNamePersistenceEmbeddable` |
+| Controller | `<Nouns>Controller` (plural) | `UsersController` |
+| REST DTO | `<Noun>Resource`, `Create<Noun>Resource` | `UserResource` |
+| REST transform | `<Noun>ResourceFromEntityAssembler` / `<Cmd>CommandFromResourceAssembler` | — |
+
+Deviation from these names is `MINOR` **unless** it hides a structural gap, e.g. a class named `UserService` that is simultaneously the port, the impl, and the repository. That is `MAJOR`.
+
+---
+
+## 4. Dependency rules
+
+| From | May import | May NOT import |
+|---|---|---|
+| `<ctx>.domain` | `java.*`, `org.jspecify`, own domain, `shared.domain` | `application`, `infrastructure`, `interfaces`, any other context |
+| `<ctx>.application` | own `domain`, `shared.domain`, `shared.application` | `infrastructure`, `interfaces` of any context except through an ACL facade interface |
+| `<ctx>.infrastructure` | own `domain`, own `application` ports, `shared.infrastructure` | `interfaces` |
+| `<ctx>.interfaces` | own `application` ports, own `domain` types | `infrastructure`, Spring Data repositories |
+| `shared.*` | `java.*`, framework | **any concrete bounded context** (cycle) |
+| context A | context B **only** via `B.interfaces.acl.BContextFacade` | any other B package |
+
+### 4.1 HARD INVARIANT
+
+No file under any `domain/` package imports:
+
+- `jakarta.persistence.*`
+- `org.springframework.web.*`
+- `org.springframework.data.jpa.*`
+- `org.springframework.stereotype.*`
+
+Every violation is a `BLOCKER`, reported individually with file and line.
+
+> **Documented exception in the reference:** `shared.domain.model.aggregates.AbstractDomainAggregateRoot` imports `org.springframework.data.domain.AbstractAggregateRoot`. That is Spring Data **Commons**, not JPA, and exists solely for domain-event registration. Do not report it. Report any *other* Spring import in domain.
+
+### 4.2 Additional banned edges
+
+| Package | Banned | Severity | Reason |
+|---|---|---|---|
+| `domain` | `lombok.Data` | MAJOR | generates setters and `equals` that break aggregate invariants |
+| `application` | `jakarta.persistence` | MAJOR | persistence leaked past the port |
+| `interfaces` | `*PersistenceEntity` | MAJOR | endpoint bypassing the domain |
+| `interfaces` | `*PersistenceRepository` / `JpaRepository` | BLOCKER | endpoint talking to the database |
+| `interfaces` | `infrastructure.*` | BLOCKER | inverted dependency |
+| any context | another context's `domain`/`application` | BLOCKER | broken context boundary |
+
+---
+
+## 5. Audit procedure
+
+Run in order. Each step produces one report section.
+
+### Step 1 — Inventory
+Walk `src/main/java`. Emit `path | context | layer | inferred role | confidence`. Anything matching no role in §2 is `UNCLASSIFIED`.
+
+### Step 2 — Invariant sweep (§4.1)
+Runs first because it can invalidate the whole structure. One row per violating import.
+
+### Step 3 — Layer direction sweep (§4)
+Resolve each file's layer from its package, check every import against the table. Report each violating edge as `FROM -> TO`.
+
+### Step 4 — Context boundary sweep
+For each cross-context import, check it targets `interfaces.acl`. Anything else is `BLOCKER`.
+
+### Step 5 — Write-side completeness matrix
+For each aggregate found, mark `present / missing / n-a`:
+
+| Column | Expected location | Missing severity |
+|---|---|---|
+| Aggregate | `domain/model/aggregates` | BLOCKER |
+| Value objects | `domain/model/valueobjects` | MAJOR |
+| Commands | `domain/model/commands` | MAJOR |
+| Queries | `domain/model/queries` | MINOR |
+| Domain port | `domain/repositories` | MAJOR |
+| Command service port | `application/commandservices` | MAJOR |
+| Command service impl | `application/internal/commandservices` | MAJOR |
+| Query service port | `application/queryservices` | MAJOR |
+| Query service impl | `application/internal/queryservices` | MAJOR |
+| Persistence entity | `infrastructure/persistence/jpa/entities` | MAJOR |
+| Spring Data repository | `.../repositories` | MAJOR |
+| **Persistence assembler** | `.../assemblers` | MAJOR |
+| Adapter | `.../adapters` | MAJOR |
+| REST controller | `interfaces/rest` | MINOR |
+| REST resource | `interfaces/rest/resources` | MINOR |
+| REST transform | `interfaces/rest/transform` | MINOR |
+
+### Step 6 — Persistence assembler audit
+**The highest-value check.** A missing field assignment compiles cleanly and fails only at runtime as a null column or an empty collection.
+
+For each `*PersistenceAssembler`:
+
+1. Is it `final`, with a `private` constructor and only `static` methods?
+2. Does it expose exactly `toDomainFromPersistence` and `toPersistenceFromDomain`?
+3. **Field coverage.** Enumerate the fields of the aggregate and of the persistence entity. For each direction, list every target field never assigned.
+4. **Collections mapped in both directions?** Omission in the domain-to-persistence direction is the classic defect: the response returns `"roles": []`.
+5. **Identity handling.** On the domain-to-persistence direction, is the id assigned only when non-null? Assigning a null id unconditionally is fine; assigning a generated id on insert is not.
+6. **Null guard.** Does each direction return `null` on `null` input rather than throwing?
+7. **Value objects.** If a `PersistenceConverter` or `PersistenceEmbeddable` exists for a type, the assembler must not also unwrap it. Double handling is `MAJOR`.
+8. **Nested aggregates/entities.** Does it delegate to the nested assembler rather than mapping fields inline?
+
+Report per assembler: `direction | target field | assigned? | evidence line`.
+
+### Step 7 — Read-side audit
+1. Does the query service depend on the **domain port** or directly on a Spring Data repository? The latter is `MAJOR`.
+2. Does it mutate anything? `BLOCKER`.
+3. Is JPQL/SQL built by concatenating request input? `BLOCKER` (injection).
+4. Are `Optional` and `List` returned rather than `null`?
+
+### Step 8 — `shared/` audit
+1. **Consumer count.** Exactly one consumer means it is not shared; verdict `pull down into that context`.
+2. `shared/domain` obeys §4.1 with only the documented `AbstractAggregateRoot` exception.
+3. Does `shared` import any concrete context? `BLOCKER` (cycle).
+4. Is the auditable base entity under `shared/infrastructure`, not `shared/domain`? Timestamps are infrastructure.
+5. Is `GlobalExceptionHandler` under `shared/interfaces/rest` and annotated `@RestControllerAdvice`?
+
+### Step 9 — Transaction and lifecycle audit
+1. Is `@Transactional` on the **command service impl**, not on the controller and not on the adapter?
+2. Does any method return a `Result.Failure` from inside a `@Transactional` method and expect a rollback? **It will not roll back** — a returned failure is a normal return, not an exception. Report as `MAJOR` with that causal chain stated.
+3. Is any `@Transactional` method called from within the same class? Self-invocation bypasses the proxy; the annotation does nothing.
+4. Are `@ManyToMany` / `@OneToMany` fetch types recorded? `EAGER` is a global mapping decision affecting every query; a join fetch is per-query. Report `EAGER` as `INFO` with the trade-off named, not as a defect.
+
+### Step 10 — Build and configuration
+**Request and read `pom.xml` and the config files before asserting anything.**
+
+- Is `maven-compiler-plugin` declared exactly once? Duplicate blocks merge by non-obvious rules.
+- If Lombok is used, does `<annotationProcessorPaths>` exist and list **every** processor? The list is exhaustive: any processor absent from it silently stops running, producing `cannot find symbol: method getX()` at call sites in files that never mention Lombok.
+- Is the physical naming strategy declared explicitly, and confirmed against generated DDL rather than assumed?
+- Any secret literal in a committed config file is `MAJOR`.
+
+### Step 11 — Test coverage of the invariant
+Note whether an ArchUnit rule asserts §4.1 and the §4 table. Absence is a planned deliverable, not a present defect.
+
+---
+
+## 6. Severity
+
+| Level | Meaning | Action |
+|---|---|---|
+| `BLOCKER` | Breaks the hard invariant, a layer direction, a context boundary, or is a security defect | Earliest refactor branch |
+| `MAJOR` | Structural gap that will produce runtime defects | Scheduled branch |
+| `MINOR` | Naming, placement, ceremony | One batched cleanup branch |
+| `INFO` | Observation or deliberate trade-off | No action |
+
+---
+
+## 7. Known reference deviations — judge, do not copy blindly
+
+The reference is the target, but three of its choices are debatable. Report them as `INFO` with the trade-off named; do not silently propagate them.
+
+1. **`User` exposes `@Setter` on every field.** The assembler needs them, but so does anyone else, so the aggregate cannot fully protect its invariants. Alternative: a reconstruction constructor or a static factory used only by the assembler.
+2. **`UserPersistenceEntity` uses `FetchType.EAGER` on `@ManyToMany`.** It avoids `LazyInitializationException` at the cost of loading roles on every user query, including queries that never read them.
+3. **`Result` / `ApplicationError` coexists with exception-based rollback.** Mixing the two means some failures roll back and some commit. Pick one per operation and record which.
+
+---
+
+## 8. Report format
+
+```markdown
+# Audit Report — <commit sha> — <date>
+
+## Summary
+BLOCKER: n | MAJOR: n | MINOR: n | UNCLASSIFIED: n
+One paragraph: the single structural problem that explains most findings.
+
+## A. Invariant violations (§4.1)
+| # | File | Line | Import | Severity |
+
+## B. Layer direction violations
+| # | From file | From layer | To layer | Import |
+
+## C. Context boundary violations
+| # | From context | To context | Import | Via ACL? |
+
+## D. Completeness matrix
+| Aggregate | VOs | Cmds | Queries | Port | CmdSvc | CmdImpl | QrySvc | QryImpl | PersEntity | SpringRepo | Assembler | Adapter | Controller | Resource | Transform |
+
+## E. Assembler field coverage
+| Assembler | Direction | Unassigned target field | Runtime impact |
+
+## F. Read-side findings
+
+## G. shared/ findings
+| Member | Consumer count | Verdict |
+
+## H. Transaction and lifecycle findings
+
+## I. Naming and placement (MINOR)
+
+## J. Build and configuration
+
+## K. UNCLASSIFIED files
+
+## L. Reference deviations observed (INFO)
+```
+
+---
+
+## 9. Refactor branch plan
+
+Constraints: **one concern per branch**; each branch compiles and boots at its tip; Conventional Commits; no branch mixes a move with a behaviour change. A rename and a logic change in one commit make the diff unreadable and the revert impossible.
+
+| # | Branch | Content | Done when |
+|---|---|---|---|
+| 0 | `chore/audit-baseline` | Commit the audit report only. No source changes. Fixes the reference point every later branch is measured against. | Report is on the default branch |
+| 1 | `refactor/domain-purity` | Remove every banned import from `domain/`. Move JPA annotations onto persistence entities. Introduce `AbstractDomainAggregateRoot` if absent. **No behaviour change.** | Grep for §4.1 imports under `domain/` returns nothing; app boots |
+| 2 | `refactor/persistence-entities` | Split each dual-purpose class into a plain aggregate and an `XPersistenceEntity` extending the auditable base. | Every aggregate has a matching persistence entity; DDL is unchanged, verified by diffing generated schema |
+| 3 | `refactor/repository-ports` | Introduce `domain/repositories` interfaces expressed in domain types. Existing Spring Data interfaces renamed to `XPersistenceRepository`. No method bodies rewritten. | No class outside `infrastructure` names a `JpaRepository` |
+| 4 | `refactor/persistence-adapters` | Add `XRepositoryImpl` implementing each port and delegating. | No class outside `adapters` names both a domain type and a persistence entity |
+| 5 | `refactor/assemblers` | Create missing assemblers; close every field-coverage gap from §E. **Highest defect risk — this branch does nothing else.** | Every field of both targets assigned in both directions, verified field by field, collections included |
+| 6 | `refactor/split-command-query` | Break the `services` catch-all into `application/commandservices` + `application/queryservices` ports and `application/internal/...` impls. Pure moves and renames. | Every service sits in exactly one of the four folders |
+| 7 | `refactor/commands-and-queries` | Move command and query records from `internal` into `domain/model/commands` and `domain/model/queries`. | `internal` contains only `@Service` implementations, event handlers, and outbound services |
+| 8 | `refactor/rest-transform` | Add missing `resources` records and `transform` assemblers; stop controllers touching entities. | No controller names a persistence entity |
+| 9 | `refactor/shared-extraction` | Pull single-consumer members out of `shared`; move any misplaced infrastructure base class out of `shared/domain`. | Every remaining `shared` member has at least two consumers |
+| 10 | `refactor/context-acl` | Replace direct cross-context imports with `interfaces/acl` facades plus `outboundservices/acl` callers. | Every cross-context import targets an `acl` package |
+| 11 | `fix/transactions` | Correct `@Transactional` placement, self-invocation, and any failure path that returns instead of throwing. | Each write path's rollback behaviour is stated and tested manually |
+| 12 | `chore/naming-conformance` | All `MINOR` renames and placements, batched. Zero logic change. | Layout matches §2 and §3 |
+| 13 | `build/annotation-processing` | Only if §J found defects: single compiler plugin block, exhaustive processor paths. | Clean build log shows the processor ran |
+| 14 | `test/architecture-rules` | ArchUnit rules for §4.1 and the §4 table. Written last, so it locks a state that already holds. | Rules pass on the default branch |
+
+**Merge discipline**
+
+- Branches 1 → 5 are strictly sequential; each depends on its predecessor.
+- Branches 6 → 10 may run in parallel with one another once 5 lands.
+- Branch 14 must be last, or it fails on arrival and gets weakened until it passes, which is worse than not having it.
+- Rebase within a branch rather than merge-committing, so each step stays one readable diff.
+
+**Rollback rule:** if a branch cannot be reverted cleanly, it did more than one thing. Split it.

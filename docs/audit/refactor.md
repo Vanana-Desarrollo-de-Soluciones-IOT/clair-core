@@ -446,6 +446,78 @@ Largest; last, when the pattern is proven six times.
 | `DeviceSecretColumnDropMigration` (`ALTER TABLE` in `@PostConstruct`) | delete once run everywhere; Phase 8 |
 | `*Request`/`*Response`, singular controller names | `*Resource`, plural names |
 
+**Done when** `grep -rE 'jakarta.persistence|org.springframework' device/domain` is empty; no entity
+association remains; the unauthenticated presence chain is gone; the assignment configuration map
+round-trips with several entries; the roster cursor behaviour is asserted; DDL diff is only the
+declared removals; tests green.
+
+**Done, 2026-09-06.** All gates met: the grep is empty, no `@ManyToOne` survives anywhere in device,
+`/api/v1/devices/presence/events` and its filter chain are deleted, and 587 tests pass.
+
+**The DDL diff is not empty, and the removal is deliberate.** Dropping the two `@ManyToOne`
+associations drops the foreign keys they generated — `device_assignments.device_id → devices` and
+`device_commands.device_id → devices`. Every column, index and unique constraint is unchanged; only
+the two constraints go. Accepted for three reasons, in order of weight:
+
+1. No code path deletes a device row. Decommissioning is `markDeleted()`, a soft tombstone the edge
+   roster reads; there is no `delete` on the device port at all. The constraint therefore guards
+   against an operation the application cannot perform.
+2. `ddl-auto: update` never drops constraints, so no existing database loses anything on deploy.
+3. The alternative — keeping a read-only `@ManyToOne` on the persistence entity purely to emit the
+   FK — restores exactly the association this phase removes, and someone would eventually read it.
+
+A fresh database created after this phase has no FK where an older one does. That is a real if
+narrow loss, and the right place to put it back is a schema migration, not a mapping annotation.
+
+**The security fix landed first, as its own commit.** `/api/v1/devices/presence/events` sat behind an
+`@Order(0)` filter chain that `permitAll()`'d it, so anyone could set any device's presence with a
+hardware id and a status. `EdgePresenceController` already does the same job under
+`/api/v1/edge/**`, which `ServiceTokenAuthenticationFilter` covers. The controller, the chain and the
+integration event it consumed are deleted. Two more `permitAll()` entries went with them —
+`/api/v1/devices/provisioning` and `/api/v1/devices/commands/pending` — which had no controllers at
+all.
+
+`DeviceRosterController` no longer authenticates itself. It compared the edge token inline, with its
+own fallback header and its own reading of a blank secret, on a path the filter already protects.
+Those assertions moved into `ServiceTokenAuthenticationFilterTest`, where the check actually lives,
+and grew to cover the legacy header and the blank-secret case.
+
+**`touchUpdatedAt` is deleted, and the roster cursor is asserted against storage.** The plan left
+this open. Every call site that invoked it also mutated a persisted field, so Hibernate marks the row
+dirty and `@LastModifiedDate` moves `updated_at` forward on the same update — the aggregate was
+forcing a timestamp the framework was about to write anyway. `DeviceRepositoryImplTest` pins the
+consequence directly: a rename must push the device past a cursor that had already seen it, and the
+watermark must follow the assignment when the assignment is the newer of the two. A cursor that
+stopped advancing would strand every device behind it, and no gate can catch that.
+
+Deviations from the table above, all deliberate:
+
+- **The device is referenced by `UUID`, not a new `DeviceId` value object.** The plan says
+  "referencing the device by `DeviceId` value"; device has no such VO and adding one would mean a
+  sixth converter and a column type to re-verify, for no invariant that `UUID` does not already
+  carry. Five converters and one embeddable became five converters and none.
+- **`DeviceMetricThresholdConfiguration` gets no embeddable.** It carried `@Embeddable` but is
+  embedded in no entity — thresholds are stored as JSON inside the assignment configuration map. Same
+  finding as `MetricTrend` in Phase 5.
+- **`EdgeCommandAcknowledgementService` became `EdgeCommandService`, a proper inbound port.** Beyond
+  the `AcknowledgeEdgeCommandCommand` the plan asks for, claiming is now
+  `ClaimPendingEdgeCommandsQuery` and the result is a `PendingEdgeCommand` pairing each command with
+  its hardware id — resolved in one batch call rather than by walking a lazy association per row.
+  Its test-only `claimForEdge(List)` overload is gone.
+- **`DeviceQueryService` gained an `AssignedDevice` read model.** The REST layer rendered device
+  fields off `assignment.getDevice()`, which is precisely the open-in-view dependency the phase
+  removes. Pairing the two explicitly is what lets both render outside a transaction, and
+  `findBySpaceId` resolves the devices for a whole page in one lookup.
+- **`ProvisionedDevice` replaces the Spring Data projection interface** in the port, and the roster
+  cursor is an `Instant` rather than a `java.util.Date` throughout.
+- **`DeviceCommandRepositoryImplTest` pins the dialect to H2.** The app pins PostgreSQLDialect, whose
+  pessimistic lock renders as `FOR NO KEY UPDATE`, which H2 cannot parse. The tests exercise ordering
+  and filtering against H2's dialect and assert the lock is requested reflectively, since no
+  in-memory database can prove it.
+
+`AuditableModel` now has no subclasses — device was its last user. It, and
+`DeviceSecretColumnDropMigration`, are Phase 8's to delete.
+
 ---
 
 ## Phase 8 — shared cleanup, after every context is split

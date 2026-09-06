@@ -1,96 +1,74 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.application.internal.commandservices;
 
-import com.claircore.analytics.domain.model.entities.DeviceDailySummary;
+import com.claircore.analytics.application.commandservices.DailySummaryCommandService;
+import com.claircore.analytics.application.internal.outboundservices.acl.ExternalEvaluationService;
+import com.claircore.analytics.domain.model.aggregates.DeviceDailySummary;
+import com.claircore.analytics.domain.model.commands.GenerateDailySummaryCommand;
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategoryBreakdown;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.MetricStats;
+import com.claircore.analytics.domain.repositories.DeviceDailySummaryRepository;
 import com.claircore.analytics.domain.services.AqiCalculationDomainService;
-import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceDailySummaryRepository;
+import com.claircore.evaluation.interfaces.acl.TelemetryReading;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Builds {@link DeviceDailySummary} rows from raw telemetry, one per device per
- * calendar day in the configured zone. Runs nightly for "yesterday"; the same
- * {@link #generateForDate} entry point can be reused to backfill historical days
- * (raw telemetry is never purged).
+ * Builds {@link DeviceDailySummary} rows from raw telemetry, one per device per calendar day in the
+ * configured zone. The readings come from the evaluation context's facade rather than a query
+ * against its table, so analytics no longer depends on that table's column names.
+ *
+ * <p>Historical days can be backfilled by issuing the command for them; raw telemetry is never
+ * purged.
  */
 @Service
-public class DailyReportAggregationService {
+public class DailySummaryCommandServiceImpl implements DailySummaryCommandService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DailyReportAggregationService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DailySummaryCommandServiceImpl.class);
 
-    private final JdbcTemplate jdbcTemplate;
+    private final ExternalEvaluationService externalEvaluationService;
     private final DeviceDailySummaryRepository dailySummaryRepository;
     private final AqiCalculationDomainService aqiCalculationDomainService;
     private final ZoneId reportZone;
 
-    public DailyReportAggregationService(
-            JdbcTemplate jdbcTemplate,
+    public DailySummaryCommandServiceImpl(
+            ExternalEvaluationService externalEvaluationService,
             DeviceDailySummaryRepository dailySummaryRepository,
             AqiCalculationDomainService aqiCalculationDomainService,
             @Value("${claircore.reports.zone:America/Lima}") String reportZone
     ) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.externalEvaluationService = externalEvaluationService;
         this.dailySummaryRepository = dailySummaryRepository;
         this.aqiCalculationDomainService = aqiCalculationDomainService;
         this.reportZone = ZoneId.of(reportZone);
     }
 
-    /** Fires at 00:15 local time and summarises the day that just closed. */
-    @Scheduled(cron = "0 15 0 * * *", zone = "${claircore.reports.zone:America/Lima}")
-    public void aggregatePreviousDay() {
-        LocalDate yesterday = LocalDate.now(reportZone).minusDays(1);
-        generateForDate(yesterday);
-    }
-
-    /**
-     * Computes and persists a daily summary per device for the given local date.
-     * Idempotent: devices that already have a row for the date are skipped.
-     */
+    /** Idempotent: devices that already have a row for the date are skipped. */
+    @Override
     @Transactional
-    public void generateForDate(LocalDate date) {
+    public int handle(GenerateDailySummaryCommand command) {
+        LocalDate date = command.date();
         Instant windowStart = date.atStartOfDay(reportZone).toInstant();
         Instant windowEnd = date.plusDays(1).atStartOfDay(reportZone).toInstant();
 
-        String sql = """
-                SELECT device_id, aq_co2, pm_pm2_5, aq_temperature, aq_humidity, recorded_at
-                FROM telemetry_evaluations
-                WHERE recorded_at >= ? AND recorded_at < ?
-                ORDER BY device_id, recorded_at
-                """;
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                sql, Timestamp.from(windowStart), Timestamp.from(windowEnd));
-
         Map<UUID, DailyAccumulator> byDevice = new HashMap<>();
-        for (Map<String, Object> row : rows) {
-            UUID deviceId = toUuid(row.get("device_id"));
-            byDevice.computeIfAbsent(deviceId, id -> new DailyAccumulator())
-                    .add(
-                            ((Number) row.get("aq_co2")).doubleValue(),
-                            ((Number) row.get("pm_pm2_5")).doubleValue(),
-                            ((Number) row.get("aq_temperature")).doubleValue(),
-                            ((Number) row.get("aq_humidity")).doubleValue(),
-                            ((Timestamp) row.get("recorded_at")).toInstant()
-                    );
+        for (TelemetryReading reading : externalEvaluationService.fetchReadings(windowStart, windowEnd)) {
+            byDevice.computeIfAbsent(reading.deviceId(), id -> new DailyAccumulator())
+                    .add(reading.co2(), reading.pm2_5(), reading.temperature(), reading.humidity(),
+                            reading.recordedAt());
         }
 
         int written = 0;
@@ -105,16 +83,13 @@ public class DailyReportAggregationService {
             written++;
         }
         logger.info("Daily report aggregation for {} produced {} summaries", date, written);
+        return written;
     }
 
     private Integer previousDayAqi(UUID deviceId, LocalDate date) {
         return dailySummaryRepository.findByDeviceIdAndDate(deviceId, date.minusDays(1))
                 .map(DeviceDailySummary::getAverageAqi)
                 .orElse(null);
-    }
-
-    private UUID toUuid(Object value) {
-        return value instanceof UUID uuid ? uuid : UUID.fromString(value.toString());
     }
 
     /** Single-pass accumulator over one device's readings for a day. */

@@ -1,68 +1,54 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.application.internal.commandservices;
 
-import com.claircore.analytics.domain.model.entities.DeviceDailySummary;
-import com.claircore.analytics.domain.model.entities.DeviceMonthlySummary;
+import com.claircore.analytics.application.commandservices.MonthlySummaryCommandService;
+import com.claircore.analytics.domain.model.aggregates.DeviceDailySummary;
+import com.claircore.analytics.domain.model.aggregates.DeviceMonthlySummary;
+import com.claircore.analytics.domain.model.commands.GenerateMonthlySummaryCommand;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategoryBreakdown;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.MetricStats;
-import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceDailySummaryRepository;
-import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceMonthlySummaryRepository;
+import com.claircore.analytics.domain.repositories.DeviceDailySummaryRepository;
+import com.claircore.analytics.domain.repositories.DeviceMonthlySummaryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Builds {@link DeviceMonthlySummary} rows by cascading a month's
- * {@link DeviceDailySummary} rows. Averages are reading-count weighted, extremes
- * are extremes-of-extremes, and category breakdowns are summed — so the monthly
- * figures are exact, never an average-of-averages. Runs on the 1st for the month
- * that just closed; {@link #generateForMonth} is reusable for backfill.
+ * Builds {@link DeviceMonthlySummary} rows by cascading a month's {@link DeviceDailySummary} rows.
+ * Averages are reading-count weighted, extremes are extremes-of-extremes, and category breakdowns
+ * are summed — so the monthly figures are exact, never an average-of-averages. Issuing the command
+ * for an earlier month backfills it.
  */
 @Service
-public class MonthlyReportAggregationService {
+public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MonthlyReportAggregationService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MonthlySummaryCommandServiceImpl.class);
 
     private final DeviceDailySummaryRepository dailySummaryRepository;
     private final DeviceMonthlySummaryRepository monthlySummaryRepository;
-    private final ZoneId reportZone;
 
-    public MonthlyReportAggregationService(
+    public MonthlySummaryCommandServiceImpl(
             DeviceDailySummaryRepository dailySummaryRepository,
-            DeviceMonthlySummaryRepository monthlySummaryRepository,
-            @Value("${claircore.reports.zone:America/Lima}") String reportZone
+            DeviceMonthlySummaryRepository monthlySummaryRepository
     ) {
         this.dailySummaryRepository = dailySummaryRepository;
         this.monthlySummaryRepository = monthlySummaryRepository;
-        this.reportZone = ZoneId.of(reportZone);
     }
 
-    /** Fires at 01:00 local time on the 1st and cascades the month that just closed. */
-    @Scheduled(cron = "0 0 1 1 * *", zone = "${claircore.reports.zone:America/Lima}")
-    public void aggregatePreviousMonth() {
-        LocalDate previousMonth = LocalDate.now(reportZone).minusMonths(1).withDayOfMonth(1);
-        generateForMonth(previousMonth);
-    }
-
-    /**
-     * Cascades daily summaries into one monthly summary per device for the given
-     * month. Idempotent: existing rows for the month are skipped.
-     */
+    /** Idempotent: existing rows for the month are skipped. */
+    @Override
     @Transactional
-    public void generateForMonth(LocalDate month) {
-        LocalDate firstDay = month.withDayOfMonth(1);
-        LocalDate lastDay = firstDay.plusMonths(1).minusDays(1);
+    public int handle(GenerateMonthlySummaryCommand command) {
+        LocalDate firstDay = command.month().atDay(1);
+        LocalDate lastDay = command.month().atEndOfMonth();
 
         List<DeviceDailySummary> dailies = dailySummaryRepository.findAllByDateBetween(firstDay, lastDay);
 
@@ -83,6 +69,7 @@ public class MonthlyReportAggregationService {
             written++;
         }
         logger.info("Monthly report aggregation for {} produced {} summaries", firstDay, written);
+        return written;
     }
 
     private Integer previousMonthAqi(UUID deviceId, LocalDate month) {

@@ -2,6 +2,7 @@ package com.claircore.analytics.application.internal.outboundservices.acl;
 
 import com.claircore.evaluation.interfaces.acl.EvaluationContextFacade;
 import com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage;
+import com.claircore.evaluation.interfaces.acl.TelemetryReading;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,5 +19,9 @@ public class ExternalEvaluationService {
 
     public List<HourlyTelemetryAverage> fetchHourlyTelemetryAggregation(Instant start, Instant end) {
         return evaluationContextFacade.getHourlyTelemetryAggregation(start, end);
+    }
+
+    public List<TelemetryReading> fetchReadings(Instant start, Instant end) {
+        return evaluationContextFacade.getReadingsBetween(start, end);
     }
 }

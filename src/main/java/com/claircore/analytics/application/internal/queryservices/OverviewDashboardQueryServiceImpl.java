@@ -3,20 +3,20 @@ package com.claircore.analytics.application.internal.queryservices;
 import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.alerting.interfaces.acl.AlertingContextFacade;
 import com.claircore.analytics.application.internal.outboundservices.acl.ExternalDeviceService;
-import com.claircore.analytics.application.internal.services.KpiLiveMetricsCache;
+import com.claircore.analytics.application.internal.outboundservices.cache.KpiLiveMetricsBuffer;
+import com.claircore.analytics.application.internal.outboundservices.cache.LiveMetricsStore;
+import com.claircore.analytics.application.queryservices.OverviewDashboardQueryService;
 import com.claircore.analytics.domain.model.queries.GetOverviewDashboardQuery;
 import com.claircore.analytics.domain.model.valueobjects.AggregatedMetrics;
 import com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot;
 import com.claircore.analytics.domain.model.valueobjects.Freshness;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot;
 import com.claircore.analytics.domain.services.MetricsAggregationDomainService;
-import com.claircore.analytics.domain.services.OverviewDashboardQueryService;
 import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
 import com.claircore.analytics.domain.services.AqiCalculationDomainService;
-import com.claircore.analytics.infrastructure.persistence.jpa.repositories.DeviceAnalyticsSnapshotRepository;
+import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
 import com.claircore.device.interfaces.acl.OrganizationSummary;
 import com.claircore.device.interfaces.acl.SpaceSummary;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +31,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
 
     private final ExternalDeviceService externalDeviceService;
     private final AlertingContextFacade alertingContextFacade;
-    private final KpiLiveMetricsCache liveMetricsCache;
+    private final LiveMetricsStore liveMetricsStore;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
     private final MetricsAggregationDomainService metricsAggregationDomainService;
     private final TrendAnalysisDomainService trendAnalysisDomainService;
@@ -40,7 +40,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
     public OverviewDashboardQueryServiceImpl(
             ExternalDeviceService externalDeviceService,
             AlertingContextFacade alertingContextFacade,
-            KpiLiveMetricsCache liveMetricsCache,
+            LiveMetricsStore liveMetricsStore,
             DeviceAnalyticsSnapshotRepository snapshotRepository,
             MetricsAggregationDomainService metricsAggregationDomainService,
             TrendAnalysisDomainService trendAnalysisDomainService,
@@ -48,7 +48,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
     ) {
         this.externalDeviceService = externalDeviceService;
         this.alertingContextFacade = alertingContextFacade;
-        this.liveMetricsCache = liveMetricsCache;
+        this.liveMetricsStore = liveMetricsStore;
         this.snapshotRepository = snapshotRepository;
         this.metricsAggregationDomainService = metricsAggregationDomainService;
         this.trendAnalysisDomainService = trendAnalysisDomainService;
@@ -153,7 +153,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         Map<UUID, DeviceMetricsSnapshot> cachedSnapshots = new HashMap<>();
 
         for (UUID deviceId : deviceIds) {
-            var live = liveMetricsCache.getIfPresent(deviceId);
+            var live = liveMetricsStore.getIfPresent(deviceId);
             if (live != null && !live.isEmpty()) {
                 liveDeviceIds.add(deviceId);
                 cachedSnapshots.put(deviceId, resolveLiveMetrics(deviceId, live));
@@ -186,7 +186,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         return metricsAggregationDomainService.aggregate(allSnapshots);
     }
 
-    private DeviceMetricsSnapshot resolveLiveMetrics(UUID deviceId, com.claircore.analytics.application.internal.services.KpiLiveMetricsBuffer live) {
+    private DeviceMetricsSnapshot resolveLiveMetrics(UUID deviceId, KpiLiveMetricsBuffer live) {
         var avg = live.computeAverages();
         var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
 

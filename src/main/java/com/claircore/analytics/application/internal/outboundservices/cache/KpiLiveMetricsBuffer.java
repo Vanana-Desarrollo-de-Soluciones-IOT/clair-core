@@ -1,4 +1,4 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.application.internal.outboundservices.cache;
 
 import java.time.Instant;
 import java.time.Duration;

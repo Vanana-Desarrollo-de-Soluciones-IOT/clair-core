@@ -10,7 +10,7 @@ import com.claircore.evaluation.application.commandservices.TelemetryEvaluationC
 import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
 import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryResource;
 import com.claircore.iam.domain.services.TokenQueryService;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import com.claircore.shared.domain.model.PageResult;
 import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -348,7 +348,7 @@ class TelemetryEvaluationsControllerTest {
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId)
-                        .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId))
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
                 .andExpect(status().isForbidden());
     }
 
@@ -372,7 +372,7 @@ class TelemetryEvaluationsControllerTest {
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId)
-                        .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId))
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].deviceId").value(deviceId.toString()));
     }
@@ -397,7 +397,7 @@ class TelemetryEvaluationsControllerTest {
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}/latest", deviceId)
-                        .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId))
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.deviceId").value(deviceId.toString()));
     }
@@ -413,7 +413,7 @@ class TelemetryEvaluationsControllerTest {
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}/latest", deviceId)
-                        .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId))
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
                 .andExpect(status().isNotFound());
     }
 }

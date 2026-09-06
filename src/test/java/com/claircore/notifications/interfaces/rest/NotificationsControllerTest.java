@@ -1,7 +1,7 @@
 package com.claircore.notifications.interfaces.rest;
 
 import com.claircore.iam.domain.services.TokenQueryService;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import com.claircore.notifications.application.queryservices.PushNotificationHistoryQueryService;
 import com.claircore.notifications.domain.model.aggregates.PushNotificationLog;
 import com.claircore.shared.domain.model.PageResult;
@@ -48,7 +48,7 @@ class NotificationsControllerTest {
         when(pushNotificationHistoryQueryService.handle(any())).thenReturn(new PageResult<>(List.of(log), 0, 20, 1L));
 
         mockMvc.perform(get("/api/v1/notifications/push")
-                        .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId)
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId)
                         .param("page", "0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].userId").value(userId.toString()))

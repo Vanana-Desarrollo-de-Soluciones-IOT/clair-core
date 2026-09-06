@@ -1,6 +1,6 @@
 package com.claircore.notifications.interfaces.rest;
 
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.shared.interfaces.rest.security.CurrentUserId;
 import com.claircore.notifications.application.queryservices.PushNotificationHistoryQueryService;
 import com.claircore.notifications.domain.model.queries.GetPushNotificationHistoryQuery;
 import com.claircore.notifications.interfaces.rest.resources.PushNotificationResource;
@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -42,10 +41,8 @@ public class NotificationsController {
             @ApiResponse(responseCode = "401", description = "Authentication required")
     })
     public ResponseEntity<Page<PushNotificationResource>> getUserNotifications(
-            HttpServletRequest httpRequest,
+            @CurrentUserId UUID userId,
             @Parameter(description = "Page number (default: 0)") @RequestParam(defaultValue = "0") Integer page) {
-
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
 
         var result = pushNotificationHistoryQueryService.handle(new GetPushNotificationHistoryQuery(userId, page, PAGE_SIZE));
         var resources = result.items().stream()

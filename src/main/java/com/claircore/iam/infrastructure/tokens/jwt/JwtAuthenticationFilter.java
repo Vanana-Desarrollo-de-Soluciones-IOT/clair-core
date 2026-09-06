@@ -20,9 +20,6 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    /** Kept as an alias while the contexts that read the attribute by hand move to @CurrentUserId. */
-    public static final String USER_ID_ATTRIBUTE = CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE;
-
     private final TokenQueryService tokenQueryService;
 
     public JwtAuthenticationFilter(TokenQueryService tokenQueryService) {
@@ -63,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                request.setAttribute(USER_ID_ATTRIBUTE, userId);
+                request.setAttribute(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId);
             }
         }
 

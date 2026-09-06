@@ -11,13 +11,12 @@ import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQue
 import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryResource;
 import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResource;
 import com.claircore.evaluation.interfaces.rest.transform.TelemetryEvaluationResourceFromEntityAssembler;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.shared.interfaces.rest.security.CurrentUserId;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -154,12 +153,11 @@ public class TelemetryEvaluationsController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     public ResponseEntity<Page<TelemetryEvaluationResource>> getEvaluationsByDevice(
-            HttpServletRequest httpRequest,
+            @CurrentUserId UUID userId,
             @PathVariable UUID deviceId,
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "20") Integer size
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -187,10 +185,9 @@ public class TelemetryEvaluationsController {
             @ApiResponse(responseCode = "404", description = "No records found for device")
     })
     public ResponseEntity<TelemetryEvaluationResource> getLatestEvaluationByDevice(
-            HttpServletRequest httpRequest,
+            @CurrentUserId UUID userId,
             @PathVariable UUID deviceId
     ) {
-        UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

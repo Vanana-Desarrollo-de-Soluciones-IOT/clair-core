@@ -1,11 +1,11 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.domain.model.commands.UpdateDevicePresenceStatusCommand;
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.services.DevicePresenceCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.application.commandservices.DevicePresenceCommandService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

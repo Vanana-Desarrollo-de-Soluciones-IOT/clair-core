@@ -8,8 +8,8 @@ import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.application.queryservices.DeviceQueryService;
 import com.claircore.device.interfaces.acl.DeviceContextFacade;
 import com.claircore.device.interfaces.acl.OrganizationSummary;
 import com.claircore.device.interfaces.acl.SpaceSummary;
@@ -126,10 +126,8 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     @Override
     public List<UUID> findDeviceIdsBySpaceId(UUID spaceId, int limit) {
         int size = limit > 0 ? limit : 200;
-        var page = deviceQueryService.handle(new GetDevicesBySpaceQuery(spaceId, 0, size));
-        return page.getContent().stream()
-                .map(DeviceAssignment::getDevice)
-                .map(d -> d.getId())
+        return deviceQueryService.handle(new GetDevicesBySpaceQuery(spaceId, 0, size)).items().stream()
+                .map(assigned -> assigned.device().getId())
                 .toList();
     }
 }

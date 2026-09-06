@@ -4,13 +4,13 @@ import com.claircore.device.application.internal.outboundservices.acl.ExternalBi
 import com.claircore.device.domain.model.commands.CreateSpaceCommand;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
 import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
-import com.claircore.device.domain.model.entities.Organization;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Organization;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.domain.services.SpaceCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.application.commandservices.SpaceCommandService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,7 +74,7 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
             throw new IllegalStateException("Cannot delete space with devices. Remove all devices first.");
         }
 
-        spaceRepository.delete(space);
+        spaceRepository.deleteById(space.getId());
     }
 
     @Override

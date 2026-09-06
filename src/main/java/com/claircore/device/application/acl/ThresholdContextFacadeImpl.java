@@ -3,8 +3,8 @@ package com.claircore.device.application.acl;
 import com.claircore.device.domain.model.queries.GetDeviceThresholdByMetricQuery;
 import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
-import com.claircore.device.domain.services.DeviceThresholdQueryService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
+import com.claircore.device.application.queryservices.DeviceThresholdQueryService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
 import com.claircore.device.interfaces.acl.ThresholdContextFacade;
 import com.claircore.device.interfaces.acl.ThresholdSummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,7 +62,7 @@ public class ThresholdContextFacadeImpl implements ThresholdContextFacade {
 
     @Override
     public boolean assignmentExists(UUID assignmentId) {
-        return deviceAssignmentRepository.existsById(assignmentId);
+        return deviceAssignmentRepository.findById(assignmentId).isPresent();
     }
 
     private Optional<DeviceMetricThresholdConfiguration> deserializeOptional(String rawJson) {

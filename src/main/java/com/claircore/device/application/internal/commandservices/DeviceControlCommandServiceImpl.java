@@ -5,13 +5,13 @@ import com.claircore.device.application.internal.outboundservices.acl.DeviceComm
 import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.CreateDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.DispatchPendingDeviceCommandsCommand;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.model.entities.DeviceCommand;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.DeviceCommand;
 import com.claircore.device.domain.model.valueobjects.DeviceCommandStatus;
-import com.claircore.device.domain.services.DeviceControlCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceCommandRepository;
-import org.springframework.data.domain.PageRequest;
+import com.claircore.device.application.commandservices.DeviceControlCommandService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.DeviceCommandRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +24,18 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
 
     private final DeviceAssignmentRepository deviceAssignmentRepository;
     private final DeviceCommandRepository deviceCommandRepository;
+    private final DeviceRepository deviceRepository;
     private final DeviceCommandsPendingPublisher deviceCommandsPendingPublisher;
 
     public DeviceControlCommandServiceImpl(
             DeviceAssignmentRepository deviceAssignmentRepository,
             DeviceCommandRepository deviceCommandRepository,
+            DeviceRepository deviceRepository,
             DeviceCommandsPendingPublisher deviceCommandsPendingPublisher
     ) {
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.deviceCommandRepository = deviceCommandRepository;
+        this.deviceRepository = deviceRepository;
         this.deviceCommandsPendingPublisher = deviceCommandsPendingPublisher;
     }
 
@@ -47,13 +50,16 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
             throw new AccessDeniedException("Device does not belong to user");
         }
 
-        DeviceCommand deviceCommand = new DeviceCommand(assignment.getDevice(), command.type(), command.payload());
+        var device = deviceRepository.findById(assignment.getDeviceId())
+                .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+
+        DeviceCommand deviceCommand = new DeviceCommand(assignment.getDeviceId(), command.type(), command.payload());
         DeviceCommand saved = deviceCommandRepository.save(deviceCommand);
 
         deviceCommandsPendingPublisher.publish(new DeviceCommandIssuedIntegrationEvent(
                 saved.getId().toString(),
-                assignment.getDevice().getId().toString(),
-                assignment.getDevice().getHardwareId().value(),
+                device.getId().toString(),
+                device.getHardwareId().value(),
                 saved.getType().name(),
                 saved.getPayload(),
                 Instant.now().toString()
@@ -67,11 +73,9 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
     public List<DeviceCommand> handle(DispatchPendingDeviceCommandsCommand command) {
         int limit = command.limit() == null ? 100 : Math.min(command.limit(), 500);
         List<DeviceCommand> commands = deviceCommandRepository.findByStatusForDispatch(
-                DeviceCommandStatus.PENDING,
-                PageRequest.of(0, limit)
-        );
+                DeviceCommandStatus.PENDING, limit);
         commands.forEach(DeviceCommand::markSent);
-        return deviceCommandRepository.saveAll(commands);
+        return commands.stream().map(deviceCommandRepository::save).toList();
     }
 
     @Override
@@ -93,7 +97,7 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
 
     private void applyExecutedCommandToDevice(DeviceCommand deviceCommand) {
         DeviceAssignment assignment = deviceAssignmentRepository
-                .findByDeviceIdForUpdate(deviceCommand.getDevice().getId())
+                .findByDeviceIdForUpdate(deviceCommand.getDeviceId())
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         switch (deviceCommand.getType()) {

@@ -1,18 +1,17 @@
 package com.claircore.device.application.internal.queryservices;
 
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.model.entities.Organization;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.Organization;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.queries.*;
-import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.application.queryservices.DeviceQueryService;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
+import com.claircore.shared.domain.model.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,17 +89,41 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DeviceAssignment> handle(GetDevicesBySpaceQuery query) {
+    public PageResult<AssignedDevice> handle(GetDevicesBySpaceQuery query) {
         int page = query.page() != null ? query.page() : 0;
         int size = query.size() != null ? query.size() : 20;
-        return deviceAssignmentRepository.findBySpaceId(query.spaceId(), PageRequest.of(page, size));
+        var assignments = deviceAssignmentRepository.findBySpaceId(query.spaceId(), page, size);
+
+        // One lookup for the page, not one per row.
+        var devices = deviceRepository
+                .findAllById(assignments.items().stream().map(DeviceAssignment::getDeviceId).distinct().toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Device::getId, device -> device));
+
+        return new PageResult<>(
+                assignments.items().stream()
+                        .filter(assignment -> devices.containsKey(assignment.getDeviceId()))
+                        .map(assignment -> new AssignedDevice(assignment, devices.get(assignment.getDeviceId())))
+                        .toList(),
+                assignments.page(), assignments.size(), assignments.total());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AssignedDevice> findAssignedDeviceByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .flatMap(assignment -> deviceRepository.findById(assignment.getDeviceId())
+                        .map(device -> new AssignedDevice(assignment, device)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Device> handle(GetProvisionedDevicesQuery query) {
         int cappedLimit = Math.max(1, Math.min(query.limit(), 5000));
-        return deviceRepository.findAll(PageRequest.of(0, cappedLimit)).getContent();
+        return deviceRepository.findProvisionedDevices(null, null, cappedLimit).items().stream()
+                .map(row -> deviceRepository.findById(row.deviceId()))
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     @Override
@@ -170,8 +193,9 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Transactional(readOnly = true)
     public Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds) {
         if (spaceIds == null || spaceIds.isEmpty()) return Map.of();
-        return spaceRepository.findAllById(spaceIds)
-                .stream()
+        return spaceIds.stream()
+                .map(spaceRepository::findById)
+                .flatMap(Optional::stream)
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(
                         Space::getId,
                         Space::getName,

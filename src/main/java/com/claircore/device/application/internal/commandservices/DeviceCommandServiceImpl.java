@@ -4,16 +4,16 @@ import com.claircore.device.application.internal.outboundservices.acl.DeviceChan
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedPublisher;
 import com.claircore.device.domain.model.commands.*;
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.model.entities.Organization;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.Organization;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.*;
-import com.claircore.device.domain.services.DeviceCommandService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.application.commandservices.DeviceCommandService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.PageRequest;
 
 @Service
 public class DeviceCommandServiceImpl implements DeviceCommandService {
@@ -130,7 +129,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             return assignment;
         }
 
-        DeviceAssignment assignment = deviceAssignmentRepository.save(new DeviceAssignment(device, ClaimToken.generate()));
+        DeviceAssignment assignment = deviceAssignmentRepository.save(new DeviceAssignment(device.getId(), ClaimToken.generate()));
         publishDeviceChanged(assignment, DeviceStatus.OFFLINE.name());
         return assignment;
     }
@@ -172,11 +171,11 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         }
 
         // Reset/unlink is not a decommission. Keep the device active and cached.
-        Device device = assignment.getDevice();
+        Device device = requireDevice(assignment.getDeviceId());
         device.resetNameToFactoryDefault();
         deviceRepository.save(device);
 
-        deviceAssignmentRepository.delete(assignment);
+        deviceAssignmentRepository.deleteById(assignment.getId());
         // Reset/unlink is not a decommission. Keep the device cached on the edge.
         publishDeviceChanged(device, DeviceStatus.OFFLINE.name(), "UPDATED");
     }
@@ -192,7 +191,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             throw new AccessDeniedException("Device does not belong to user");
         }
 
-        Device device = assignment.getDevice();
+        Device device = requireDevice(assignment.getDeviceId());
         device.updateName(command.name());
         deviceRepository.save(device);
 
@@ -223,9 +222,10 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     public List<Device> findBySpaceId(UUID spaceId) {
         // Never run an unbounded query; callers needing more should use the paged query API.
-        return deviceAssignmentRepository.findBySpaceId(spaceId, PageRequest.of(0, 1000))
-            .map(DeviceAssignment::getDevice)
+        var deviceIds = deviceAssignmentRepository.findBySpaceId(spaceId, 0, 1000).items().stream()
+            .map(DeviceAssignment::getDeviceId)
             .toList();
+        return deviceRepository.findAllById(deviceIds);
     }
 
     @Override
@@ -233,8 +233,13 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         return deviceAssignmentRepository.countBySpaceId(spaceId);
     }
 
+    private Device requireDevice(UUID deviceId) {
+        return deviceRepository.findById(deviceId)
+            .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+    }
+
     private void publishDeviceChanged(DeviceAssignment assignment, String status) {
-        Device device = assignment.getDevice();
+        Device device = requireDevice(assignment.getDeviceId());
         provisioningDevicesChangedPublisher.publish(new DeviceChangedIntegrationEvent(
                 device.getId().toString(),
                 device.getHardwareId().value(),

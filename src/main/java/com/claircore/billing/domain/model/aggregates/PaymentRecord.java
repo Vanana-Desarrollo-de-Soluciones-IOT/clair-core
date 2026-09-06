@@ -6,14 +6,14 @@ import com.claircore.billing.domain.model.valueobjects.PaymentStatus;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.claircore.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class PaymentRecord extends AbstractAggregateRoot<PaymentRecord> {
+public class PaymentRecord extends AbstractDomainAggregateRoot<PaymentRecord> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

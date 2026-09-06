@@ -4,7 +4,7 @@ import com.claircore.billing.domain.model.valueobjects.PlanType;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
-import org.springframework.data.domain.AbstractAggregateRoot;
+import com.claircore.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class UserPlan extends AbstractAggregateRoot<UserPlan> {
+public class UserPlan extends AbstractDomainAggregateRoot<UserPlan> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

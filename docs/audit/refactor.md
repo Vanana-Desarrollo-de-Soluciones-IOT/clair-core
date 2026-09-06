@@ -252,6 +252,52 @@ to `schema-phase-2.sql`, 493 tests pass. Deviations:
 | `domain/model/valueobjects/DailyAlertCount` | it is a read projection → `application/internal/queryservices/` or a resource |
 | `AlertController` importing `iam.infrastructure.tokens.jwt.JwtAuthenticationFilter` for a constant | `shared/interfaces/rest/security/CurrentUserId` argument resolver (create here; other controllers adopt it in their phases) |
 
+**Done when** `grep -rE 'jakarta.persistence|org.springframework' alerting/domain` is empty; no
+alerting query names another context's table; DDL diff empty; tests green.
+
+**Done, 2026-09-06.** All gates met: the grep is empty, no query in alerting names `Device`,
+`schema-phase-4.sql` is byte-identical to `schema-phase-3.sql`, 519 tests pass. Deviations:
+
+- **The cross-context join is gone, in both directions.** `findPendingForEdge` returns alerts alone;
+  `AlertQueryServiceImpl` resolves the hardware ids with one batch call to
+  `DeviceContextFacade.findHardwareIdsByDeviceIds`, added here. **Behaviour change, deliberate:** the
+  join dropped an alert whose device row was missing, and the batch lookup does the same — an alert
+  the facade cannot resolve is filtered out rather than sent with a null hardware id.
+  `findHardwareIdByAlertId` is gone too; the acknowledgement path resolves the owning hardware id
+  from `alert.getDeviceId()` through the facade method that already existed.
+- `EdgeAlertAcknowledgementService` is folded into `AlertCommandServiceImpl` behind
+  `AcknowledgeEdgeAlertCommand`, with its three-way result as
+  `AlertCommandService.AcknowledgementOutcome`. It was a command service that took a REST DTO; the
+  outcome enum stays because a 404/409/200 mapping is not an exception.
+- `ThresholdContextFacade.findEnabledThresholdsByDeviceId` now returns `List<ThresholdSummary>`
+  (`String metric`, `BigDecimal value`, `boolean enabled`). The three assignment-scoped methods still
+  return `DeviceMetricThresholdConfiguration`; their only callers are inside device, so they are
+  Phase 7's problem, not a cross-context leak.
+- `AlertingContextFacade.getRecentAlertsByOwnerId` takes `List<String>`; an unrecognised status name
+  is dropped rather than throwing, because the caller is another context. Analytics passes
+  `List.of("ACTIVE", "ACKNOWLEDGED")` and no longer imports `alerting.domain`.
+- **`DailyAlertCount` stays in `domain/model/valueobjects`**, against the table above. The repository
+  port returns it, so moving it under `application` would make a domain port depend on the
+  application layer — the exact inversion this refactor exists to remove. It is a framework-free
+  record and a legitimate domain read model.
+- `shared/interfaces/rest/security/CurrentUserId` + `CurrentUserIdArgumentResolver`, registered by
+  `shared/infrastructure/config/WebMvcConfiguration`. The attribute name now lives on the resolver
+  and `JwtAuthenticationFilter.USER_ID_ATTRIBUTE` is an alias pointing at it, so the four
+  controllers still reading the attribute by hand keep working until their phases. `AlertController`
+  is the first adopter.
+- `AlertIncidentChangedIntegrationEvent` moved to `interfaces/events/`; notifications' handler
+  already consumed it and needed no change. The alerting side now consumes evaluation's
+  `TelemetryRecordedIntegrationEvent` — `AlertingTelemetryRecordedEventListener` becomes
+  `application/internal/eventhandlers/TelemetryRecordedEventHandler`. The internal
+  `TelemetryRecordedEvent` is still published for analytics, which switches in Phase 5. The
+  integration event carries `recordedAt` and no separate `occurredAt`; the publisher passes
+  `command.recordedAt()` for both, so this is the same value.
+- The `EdgeAlertProjection` interface and the alerting-local `TelemetryRecordedIntegrationEvent`
+  stub (never published, never consumed) are deleted. `findFirstByDeviceIdAndMetricAndStatus` had no
+  callers and is gone.
+- `EdgeAlertResource` replaces a hand-built `LinkedHashMap`; `@JsonProperty` keeps every snake_case
+  key and the two string timestamps exactly as the edge firmware reads them.
+
 ---
 
 ## Phase 5 — analytics

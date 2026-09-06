@@ -71,7 +71,6 @@ public class SecurityConfiguration {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/checkout-demo",
                                 "/api/v1/subscriptions/checkout-session",
                                 "/api/v1/subscriptions/payment-intent",
                                 "/api/v1/webhooks/stripe",

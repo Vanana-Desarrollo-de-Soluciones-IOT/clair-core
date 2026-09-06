@@ -583,6 +583,14 @@ Written last so it locks a state that already holds. Rules, in prose:
 
 Version of `archunit-junit5`: look up on Maven Central when writing the test; do not copy from memory.
 
+Carried in from the Phase 5 follow-up, to settle before rule 1 is written:
+`shared/domain/exceptions/ResourceNotFoundException` is a `domain` class whose contract is an HTTP
+status ("Mapped to HTTP 404 by the global exception handler"). Rule 1 as stated does not catch it —
+it names no forbidden package — but it is the same defect the rule exists to prevent. Either widen
+rule 1 to say a `domain` exception may not be defined by a transport concern and give
+`GlobalExceptionHandler` an explicit mapping per exception, or record the exemption in writing. All
+seven contexts throw it, so this is a decision to make before the rules freeze, not after.
+
 ## Order and dependencies
 
 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9, strictly. Phase 4 touches device only to add one facade method and change one facade return type; those two edits are the sole exception to "one context per phase". The security fix in Phase 7 may be pulled forward to before Phase 0 as its own phase.

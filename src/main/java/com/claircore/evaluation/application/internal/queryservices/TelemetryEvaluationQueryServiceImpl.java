@@ -3,8 +3,10 @@ package com.claircore.evaluation.application.internal.queryservices;
 import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.queries.GetEvaluationsByDeviceQuery;
+import com.claircore.evaluation.domain.model.queries.GetDeviceReadingsQuery;
 import com.claircore.evaluation.domain.model.queries.GetHourlyTelemetryAveragesQuery;
 import com.claircore.evaluation.domain.model.queries.GetLatestEvaluationByDeviceQuery;
+import com.claircore.evaluation.domain.model.valueobjects.DeviceReading;
 import com.claircore.evaluation.domain.model.valueobjects.HourlyDeviceAverage;
 import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import com.claircore.shared.domain.model.PageResult;
@@ -44,5 +46,11 @@ public class TelemetryEvaluationQueryServiceImpl implements TelemetryEvaluationQ
     @Transactional(readOnly = true)
     public List<HourlyDeviceAverage> handle(GetHourlyTelemetryAveragesQuery query) {
         return telemetryEvaluationRepository.findHourlyAveragesBetween(query.start(), query.end());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeviceReading> handle(GetDeviceReadingsQuery query) {
+        return telemetryEvaluationRepository.findReadingsBetween(query.start(), query.end());
     }
 }

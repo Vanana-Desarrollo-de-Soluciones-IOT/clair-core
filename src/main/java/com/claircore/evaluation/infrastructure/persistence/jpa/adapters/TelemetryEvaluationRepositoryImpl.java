@@ -2,6 +2,7 @@ package com.claircore.evaluation.infrastructure.persistence.jpa.adapters;
 
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.valueobjects.DeviceId;
+import com.claircore.evaluation.domain.model.valueobjects.DeviceReading;
 import com.claircore.evaluation.domain.model.valueobjects.HourlyDeviceAverage;
 import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import com.claircore.evaluation.infrastructure.persistence.jpa.assemblers.TelemetryEvaluationPersistenceAssembler;
@@ -33,6 +34,18 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
             FROM telemetry_evaluations
             WHERE recorded_at >= ? AND recorded_at < ?
             GROUP BY device_id
+            """;
+
+    /**
+     * Moved here verbatim from the analytics aggregation service, which used to run it against this
+     * context's table itself. Reading the columns straight through rather than loading aggregates
+     * keeps a full day of telemetry off the heap.
+     */
+    private static final String READINGS_SQL = """
+            SELECT device_id, aq_co2, pm_pm2_5, aq_temperature, aq_humidity, recorded_at
+            FROM telemetry_evaluations
+            WHERE recorded_at >= ? AND recorded_at < ?
+            ORDER BY device_id, recorded_at
             """;
 
     private final TelemetryEvaluationPersistenceRepository telemetryEvaluationPersistenceRepository;
@@ -79,6 +92,21 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
                         rs.getDouble("avg_pm2_5"),
                         rs.getDouble("avg_temperature"),
                         rs.getDouble("avg_humidity")),
+                Timestamp.from(start),
+                Timestamp.from(end));
+    }
+
+    @Override
+    public List<DeviceReading> findReadingsBetween(Instant start, Instant end) {
+        return jdbcTemplate.query(
+                READINGS_SQL,
+                (rs, rowNum) -> new DeviceReading(
+                        toUuid(rs.getObject("device_id")),
+                        rs.getDouble("aq_co2"),
+                        rs.getDouble("pm_pm2_5"),
+                        rs.getDouble("aq_temperature"),
+                        rs.getDouble("aq_humidity"),
+                        rs.getTimestamp("recorded_at").toInstant()),
                 Timestamp.from(start),
                 Timestamp.from(end));
     }

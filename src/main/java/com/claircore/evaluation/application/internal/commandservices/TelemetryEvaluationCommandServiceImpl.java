@@ -3,7 +3,6 @@ package com.claircore.evaluation.application.internal.commandservices;
 import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
-import com.claircore.evaluation.domain.model.events.TelemetryRecordedEvent;
 import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -42,30 +41,8 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
 
         TelemetryEvaluation saved = telemetryEvaluationRepository.save(evaluation);
 
-        // The internal domain event alerting and analytics consume today.
-        eventPublisher.publishEvent(new TelemetryRecordedEvent(
-                command.deviceId().value(),
-                null, // hardwareId not required as deviceId is already resolved
-                command.airQuality().co2(),
-                command.particulateMatter().pm2_5(),
-                command.airQuality().temperature(),
-                command.airQuality().humidity(),
-                command.recordedAt(),
-                command.recordedAt(),
-                command.particulateMatter().pm10(),
-                command.particulateMatter().pm1_0(),
-                command.connectivity().status(),
-                command.connectivity().network(),
-                command.connectivity().signalStrength(),
-                command.location().country(),
-                command.healthStatus().toString(),
-                command.status(),
-                command.uptime(),
-                command.deviceTime().toString()
-        ));
-
-        // The published contract. No consumers yet; alerting and analytics move onto it when they
-        // are split, and the internal event above stops being published then.
+        // The published contract, and now the only telemetry event: alerting and analytics both
+        // listen to it, so the internal event this used to be published alongside is gone.
         eventPublisher.publishEvent(TelemetryRecordedIntegrationEvent.from(saved));
 
         return saved;

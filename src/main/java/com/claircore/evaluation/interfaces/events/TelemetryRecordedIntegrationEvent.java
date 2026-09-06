@@ -9,9 +9,7 @@ import java.util.UUID;
  * The published contract for a recorded telemetry reading: the only evaluation event another
  * context may listen to.
  *
- * <p>The internal {@code TelemetryRecordedEvent} still exists and is still what alerting and
- * analytics consume; they move onto this record when they are split, and the internal event stops
- * being published then.
+ * <p>Alerting and analytics both listen to it; there is no internal telemetry event any more.
  */
 public record TelemetryRecordedIntegrationEvent(
         UUID deviceId,

@@ -1,6 +1,7 @@
 package com.claircore.evaluation.domain.repositories;
 
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.valueobjects.DeviceReading;
 import com.claircore.evaluation.domain.model.valueobjects.HourlyDeviceAverage;
 import com.claircore.shared.domain.model.PageResult;
 
@@ -21,4 +22,7 @@ public interface TelemetryEvaluationRepository {
 
     /** Per-device averages over [start, end), the aggregation analytics reads hourly. */
     List<HourlyDeviceAverage> findHourlyAveragesBetween(Instant start, Instant end);
+
+    /** Every reading in [start, end), device then time ascending, as analytics summarises them. */
+    List<DeviceReading> findReadingsBetween(Instant start, Instant end);
 }

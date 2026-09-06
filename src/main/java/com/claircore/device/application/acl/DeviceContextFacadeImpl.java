@@ -101,6 +101,11 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     }
 
     @Override
+    public Map<UUID, String> findHardwareIdsByDeviceIds(List<UUID> deviceIds) {
+        return deviceQueryService.findHardwareIdsByDeviceIds(deviceIds);
+    }
+
+    @Override
     public List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId) {
         var query = new GetOrganizationsByOwnerQuery(new UserId(ownerUserId));
         return deviceQueryService.handle(query)

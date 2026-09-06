@@ -155,6 +155,19 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public Map<UUID, String> findHardwareIdsByDeviceIds(List<UUID> deviceIds) {
+        if (deviceIds == null || deviceIds.isEmpty()) return Map.of();
+        return deviceRepository.findAllById(deviceIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Device::getId,
+                        device -> device.getHardwareId().value(),
+                        (a, b) -> a
+                ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds) {
         if (spaceIds == null || spaceIds.isEmpty()) return Map.of();
         return spaceRepository.findAllById(spaceIds)

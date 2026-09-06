@@ -38,6 +38,12 @@ public interface DeviceContextFacade {
     Map<UUID, String> findSpaceNamesBySpaceIds(List<UUID> spaceIds);
 
     /**
+     * Batch lookup, added so alerting can attach hardware ids to a page of alerts without joining
+     * the {@code devices} table from its own query.
+     */
+    Map<UUID, String> findHardwareIdsByDeviceIds(List<UUID> deviceIds);
+
+    /**
      * Ownership-scoped organization summaries for read models.
      */
     List<OrganizationSummary> findOrganizationsByOwnerId(UUID ownerUserId);

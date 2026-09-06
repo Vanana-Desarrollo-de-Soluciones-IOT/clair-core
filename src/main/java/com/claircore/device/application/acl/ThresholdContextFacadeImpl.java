@@ -6,6 +6,7 @@ import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
 import com.claircore.device.interfaces.acl.ThresholdContextFacade;
+import com.claircore.device.interfaces.acl.ThresholdSummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -47,13 +48,14 @@ public class ThresholdContextFacadeImpl implements ThresholdContextFacade {
     }
 
     @Override
-    public List<DeviceMetricThresholdConfiguration> findEnabledThresholdsByDeviceId(UUID deviceId) {
+    public List<ThresholdSummary> findEnabledThresholdsByDeviceId(UUID deviceId) {
         return deviceAssignmentRepository.findByDeviceId(deviceId)
                 .map(a -> Stream.of(MetricThreshold.values())
                         .map(metric -> a.findConfigurationValue(thresholdConfigKey(metric))
                                 .flatMap(this::deserializeOptional)
                                 .orElse(null))
                         .filter(t -> t != null && t.enabled())
+                        .map(t -> new ThresholdSummary(t.metric().name(), t.value(), t.enabled()))
                         .toList())
                 .orElseGet(List::of);
     }

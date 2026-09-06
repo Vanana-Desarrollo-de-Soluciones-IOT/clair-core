@@ -17,9 +17,10 @@ public interface ThresholdContextFacade {
 
     /**
      * Consumer-friendly threshold access. Alerting and other contexts typically
-     * operate with {@code deviceId} instead of internal assignment identifiers.
+     * operate with {@code deviceId} instead of internal assignment identifiers, and see a
+     * {@link ThresholdSummary} rather than device's own mapped value object.
      */
-    List<DeviceMetricThresholdConfiguration> findEnabledThresholdsByDeviceId(UUID deviceId);
+    List<ThresholdSummary> findEnabledThresholdsByDeviceId(UUID deviceId);
 
     boolean assignmentExists(UUID assignmentId);
 }

@@ -36,6 +36,8 @@ public interface DeviceQueryService {
      */
     Map<UUID, String> findDeviceNamesByDeviceIds(List<UUID> deviceIds);
 
+    Map<UUID, String> findHardwareIdsByDeviceIds(List<UUID> deviceIds);
+
     /**
      * Batch lookup to avoid N+1 queries in read models.
      */

@@ -1,4 +1,4 @@
-package com.claircore.analytics.application.internal.services;
+package com.claircore.analytics.application.internal.outboundservices.cache;
 
 import org.junit.jupiter.api.Test;
 import java.time.Instant;

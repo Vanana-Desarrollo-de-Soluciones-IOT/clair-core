@@ -3,7 +3,7 @@ package com.claircore.analytics.interfaces.rest.controllers;
 import com.claircore.analytics.domain.model.queries.GetOverviewDashboardQuery;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot.OverviewCoreMetrics;
-import com.claircore.analytics.domain.services.OverviewDashboardQueryService;
+import com.claircore.analytics.application.queryservices.OverviewDashboardQueryService;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

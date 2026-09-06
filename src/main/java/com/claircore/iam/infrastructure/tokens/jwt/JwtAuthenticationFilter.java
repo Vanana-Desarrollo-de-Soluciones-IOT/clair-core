@@ -1,6 +1,7 @@
 package com.claircore.iam.infrastructure.tokens.jwt;
 
 import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,8 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    public static final String USER_ID_ATTRIBUTE = "X-User-Id";
+    /** Kept as an alias while the contexts that read the attribute by hand move to @CurrentUserId. */
+    public static final String USER_ID_ATTRIBUTE = CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE;
 
     private final TokenQueryService tokenQueryService;
 

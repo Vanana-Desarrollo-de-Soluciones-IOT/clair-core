@@ -4,7 +4,7 @@ import com.claircore.billing.domain.model.aggregates.UserPlan;
 import com.claircore.billing.domain.model.valueobjects.PlanType;
 import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.interfaces.acl.BillingContextFacade;
-import com.claircore.billing.infrastructure.persistence.jpa.repositories.UserPlanRepository;
+import com.claircore.billing.domain.repositories.UserPlanRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;

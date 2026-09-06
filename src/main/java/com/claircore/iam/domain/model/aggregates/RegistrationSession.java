@@ -1,13 +1,11 @@
-package com.claircore.iam.domain.model.entities;
+package com.claircore.iam.domain.model.aggregates;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.RegistrationSessionId;
 import com.claircore.iam.domain.model.valueobjects.VerificationCode;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.Instant;
 
-@JsonIgnoreProperties({"expired"})
 public record RegistrationSession(
     RegistrationSessionId sessionId,
     EmailAddress email,

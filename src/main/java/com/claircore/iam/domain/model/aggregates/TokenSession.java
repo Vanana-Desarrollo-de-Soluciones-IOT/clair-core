@@ -1,14 +1,12 @@
-package com.claircore.iam.domain.model.entities;
+package com.claircore.iam.domain.model.aggregates;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.TokenJti;
 import com.claircore.iam.domain.model.valueobjects.TokenType;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 public record TokenSession(
     TokenJti jti,
     EmailAddress email,

@@ -379,6 +379,51 @@ Two persistence technologies. The reference has no Redis; the pattern below is a
 | `AuthenticationController` importing `GoogleOAuthStateManager` | port in `outboundservices/oauth`; controller depends on the port |
 | `domain/services/GoogleTokenVerifier` | outbound port → `application/internal/outboundservices/oauth/` |
 
+**Done when** `grep -rE 'jakarta.persistence|org.springframework|com.fasterxml' iam/domain` is empty;
+no context imports anything of iam's but the integration event; DDL diff empty; the Redis wire
+format is pinned by a test; tests green.
+
+**Done, 2026-09-06.** All gates met: the grep is empty, the only cross-context iam import left in the
+codebase is `UserRegisteredIntegrationEvent` in billing, `schema-phase-6.sql` is byte-identical to
+`schema-phase-5.sql`, and 558 tests pass.
+
+**The DDL gate only half covers this phase.** It controls the `users` table and nothing else; the two
+Redis-backed aggregates have no schema to diff, and sessions written before a deploy are still live
+when it lands. `RedisSessionWireFormatTest` is the equivalent control: it pins the JSON field names
+and nesting, reads back documents in the exact shape stored before the split, and proves an unknown
+field from a newer deploy does not break a read. Getting this wrong signs out every user holding a
+token, which is why the single-field value objects keep their nested `{"jti":{"jti":"…"}}` encoding
+rather than being flattened to strings.
+
+Deviations from the table above, all deliberate:
+
+- **The internal `UserRegisteredEvent` is deleted, not kept.** The plan says to make it a plain
+  record and add the integration event alongside. Once billing moved onto the integration event the
+  internal one had no listeners, so publishing it was a no-op on every registration — the same
+  situation Phase 5 removed in evaluation. Only the integration event is published now.
+- **Both session records moved to `domain/model/aggregates/`.** The plan leaves them where they are,
+  but `domain/model/entities/` empties out when `User` moves, and each session has its own identity
+  and its own repository — they are aggregates, not entities inside one.
+- **`GoogleOAuthStateManager` gets a port named for what it does, not for who provides it.** The
+  plan says "port in `outboundservices/oauth`"; it is `OAuthStateService`, because the state
+  parameter is CSRF protection for the callback rather than anything Google-specific.
+- **Four outbound ports, not two.** The plan names `TokenService` and `GoogleTokenExchange`;
+  `GoogleTokenVerifier` (moved out of `domain/services`, where it never belonged) and
+  `OAuthStateService` are the other two. All four implementations stayed where they were.
+- **`JwtTokenEncoder.generateToken` is renamed `generateAccessToken`.** Its sibling was already
+  `generateRefreshToken`, so the unqualified name read as "the general one" when it is not.
+- **The two column names on `UserPersistenceEntity` are stated explicitly.** `address` came from an
+  `@AttributeOverride` and `password_hash` from an embedded component's field name; neither survives
+  the move to converters, and without them the columns would derive from the entity's field names.
+  The DDL gate is what catches this.
+
+`JwtAuthenticationFilter.USER_ID_ATTRIBUTE` is gone: evaluation and notifications were the last two
+controllers reading the request attribute by hand, and both now take `@CurrentUserId`. The alias
+Phase 4 left behind has no callers and was removed with it.
+
+One loose end for the shared cleanup: `UserAuthenticatedWithGoogleEvent` is published and has no
+listeners either. It is not in this phase's table and nothing duplicates it, so it stays for now.
+
 ---
 
 ## Phase 7 — device

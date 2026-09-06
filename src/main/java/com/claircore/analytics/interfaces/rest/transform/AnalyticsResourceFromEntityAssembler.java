@@ -1,7 +1,7 @@
 package com.claircore.analytics.interfaces.rest.transform;
 
-import com.claircore.analytics.domain.model.entities.DeviceDailySummary;
-import com.claircore.analytics.domain.model.entities.DeviceMonthlySummary;
+import com.claircore.analytics.domain.model.aggregates.DeviceDailySummary;
+import com.claircore.analytics.domain.model.aggregates.DeviceMonthlySummary;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategoryBreakdown;
 import com.claircore.analytics.domain.model.valueobjects.KpiDashboardMetrics;
@@ -15,9 +15,9 @@ import com.claircore.analytics.interfaces.rest.resources.TrendChartResponse;
 import java.util.Arrays;
 import java.util.List;
 
-public class AnalyticsTransform {
+public class AnalyticsResourceFromEntityAssembler {
 
-    private AnalyticsTransform() {}
+    private AnalyticsResourceFromEntityAssembler() {}
 
     public static DailyReportResponse toDailyReportResponse(DeviceDailySummary s) {
         return new DailyReportResponse(

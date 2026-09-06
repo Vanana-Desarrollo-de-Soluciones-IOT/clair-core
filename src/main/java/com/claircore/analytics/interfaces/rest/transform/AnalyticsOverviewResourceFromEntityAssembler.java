@@ -3,9 +3,9 @@ package com.claircore.analytics.interfaces.rest.transform;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot;
 import com.claircore.analytics.interfaces.rest.resources.AnalyticsOverviewResponse;
 
-public class AnalyticsOverviewTransform {
+public class AnalyticsOverviewResourceFromEntityAssembler {
 
-    private AnalyticsOverviewTransform() {}
+    private AnalyticsOverviewResourceFromEntityAssembler() {}
 
     public static AnalyticsOverviewResponse toResponse(OverviewDashboardSnapshot snapshot) {
         var core = snapshot.core();

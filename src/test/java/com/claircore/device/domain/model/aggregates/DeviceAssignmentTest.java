@@ -1,4 +1,4 @@
-package com.claircore.device.domain.model.entities;
+package com.claircore.device.domain.model.aggregates;
 
 import com.claircore.device.domain.model.valueobjects.ClaimToken;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
@@ -19,14 +19,14 @@ class DeviceAssignmentTest {
 
     @Test
     void shouldStartOfflineWhenAssignmentIsCreated() {
-        DeviceAssignment assignment = new DeviceAssignment(device(), ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device().getId(), ClaimToken.generate());
 
         assertEquals(DeviceStatus.OFFLINE, assignment.getStatus());
     }
 
     @Test
     void shouldClaimToSpaceWhenAssignmentIsUnclaimed() {
-        DeviceAssignment assignment = new DeviceAssignment(device(), ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device().getId(), ClaimToken.generate());
         UUID spaceId = UUID.fromString("550e8400-e29b-41d4-a716-446655440500");
         UserId userId = new UserId(UUID.fromString("550e8400-e29b-41d4-a716-446655440501"));
 
@@ -40,7 +40,7 @@ class DeviceAssignmentTest {
 
     @Test
     void shouldRejectClaimWhenAssignmentWasAlreadyClaimed() {
-        DeviceAssignment assignment = new DeviceAssignment(device(), ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device().getId(), ClaimToken.generate());
         assignment.claimToSpace(UUID.randomUUID(), new UserId(UUID.randomUUID()));
 
         IllegalStateException exception = assertThrowsExactly(
@@ -53,7 +53,7 @@ class DeviceAssignmentTest {
 
     @Test
     void shouldUpdatePresenceWhenStatusIsOnline() {
-        DeviceAssignment assignment = new DeviceAssignment(device(), ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device().getId(), ClaimToken.generate());
 
         assignment.updatePresence(DeviceStatus.ONLINE, Instant.parse("2026-06-05T12:45:00Z"));
 

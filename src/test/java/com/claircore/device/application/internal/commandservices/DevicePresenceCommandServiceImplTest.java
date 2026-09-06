@@ -1,16 +1,16 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.domain.model.commands.UpdateDevicePresenceStatusCommand;
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.valueobjects.ApiKey;
 import com.claircore.device.domain.model.valueobjects.ClaimToken;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.DeviceType;
 import com.claircore.device.domain.model.valueobjects.HardwareId;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -39,7 +39,7 @@ class DevicePresenceCommandServiceImplTest {
     @Test
     void shouldUpdatePresenceWhenDeviceIsFoundByDeviceId() {
         Device device = device();
-        DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
         when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -54,7 +54,7 @@ class DevicePresenceCommandServiceImplTest {
     @Test
     void shouldUpdatePresenceWhenDeviceIsFoundByHardwareId() {
         Device device = device();
-        DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
         when(deviceRepository.findByHardwareId(device.getHardwareId().value())).thenReturn(Optional.of(device));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));

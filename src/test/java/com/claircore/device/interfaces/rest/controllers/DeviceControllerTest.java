@@ -1,14 +1,15 @@
 package com.claircore.device.interfaces.rest.controllers;
 
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
 import com.claircore.device.domain.model.valueobjects.*;
-import com.claircore.device.domain.services.DeviceCommandService;
-import com.claircore.device.domain.services.DeviceQueryService;
-import com.claircore.device.domain.services.DeviceStatusQueryService;
+import com.claircore.device.application.commandservices.DeviceCommandService;
+import com.claircore.device.application.queryservices.DeviceQueryService;
+import com.claircore.shared.domain.model.PageResult;
+import com.claircore.device.application.queryservices.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
 import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
@@ -74,7 +75,7 @@ class DeviceControllerTest {
         UUID deviceId = UUID.fromString("550e8400-e29b-41d4-a716-446655442001");
         Device device = device();
         org.springframework.test.util.ReflectionTestUtils.setField(device, "id", deviceId);
-        DeviceAssignment assignment = new DeviceAssignment(device, new ClaimToken("AB45-F3B1"));
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), new ClaimToken("AB45-F3B1"));
         when(deviceCommandService.handle(org.mockito.ArgumentMatchers.any(PairDeviceCommand.class))).thenReturn(assignment);
 
         mockMvc.perform(post("/api/v1/devices/pair")
@@ -99,13 +100,13 @@ class DeviceControllerTest {
     void shouldReturnOkWhenClaimingDeviceSucceeds() throws Exception {
         authenticate("550e8400-e29b-41d4-a716-446655442000");
         Device device = device();
-        DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
         assignment.claimToSpace(UUID.fromString("550e8400-e29b-41d4-a716-446655442010"), new UserId(UUID.fromString("550e8400-e29b-41d4-a716-446655442000")));
         ClaimToken claimToken = new ClaimToken("AB45-F3B1");
         org.springframework.test.util.ReflectionTestUtils.setField(assignment, "claimToken", claimToken);
-        org.springframework.test.util.ReflectionTestUtils.setField(assignment.getAuditFields(), "createdAt", new Date());
-        org.springframework.test.util.ReflectionTestUtils.setField(assignment.getAuditFields(), "updatedAt", new Date());
         when(deviceCommandService.handle(org.mockito.ArgumentMatchers.any(ClaimDeviceCommand.class))).thenReturn(assignment);
+        when(deviceQueryService.findAssignedDeviceByDeviceId(device.getId()))
+                .thenReturn(Optional.of(new DeviceQueryService.AssignedDevice(assignment, device)));
 
         mockMvc.perform(post("/api/v1/devices/claim")
                         .contentType("application/json")
@@ -124,9 +125,11 @@ class DeviceControllerTest {
     @Test
     void shouldReturnDeviceListWhenSpaceHasAssignments() throws Exception {
         authenticate("550e8400-e29b-41d4-a716-446655442000");
-        DeviceAssignment assignment = new DeviceAssignment(device(), ClaimToken.generate());
-        Page<DeviceAssignment> page = new PageImpl<>(List.of(assignment));
-        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetDevicesBySpaceQuery.class))).thenReturn(page);
+        Device device = device();
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetDevicesBySpaceQuery.class)))
+                .thenReturn(new PageResult<>(
+                        List.of(new DeviceQueryService.AssignedDevice(assignment, device)), 0, 20, 1));
 
         mockMvc.perform(get("/api/v1/devices").param("spaceId", UUID.randomUUID().toString()))
                 .andExpect(status().isOk())

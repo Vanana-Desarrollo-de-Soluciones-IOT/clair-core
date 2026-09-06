@@ -1,4 +1,4 @@
-package com.claircore.device.domain.model.entities;
+package com.claircore.device.domain.model.aggregates;
 
 import com.claircore.device.domain.model.valueobjects.ApiKey;
 import com.claircore.device.domain.model.valueobjects.DeviceCommandStatus;
@@ -14,14 +14,14 @@ class DeviceCommandTest {
 
     @Test
     void shouldStartPendingWhenCommandIsCreated() {
-        DeviceCommand command = new DeviceCommand(device(), DeviceCommandType.WAKE, "{}");
+        DeviceCommand command = new DeviceCommand(device().getId(), DeviceCommandType.WAKE, "{}");
 
         assertEquals(DeviceCommandStatus.PENDING, command.getStatus());
     }
 
     @Test
     void shouldMarkExecutedWhenCommandIsExecuted() {
-        DeviceCommand command = new DeviceCommand(device(), DeviceCommandType.RESTART, "{}");
+        DeviceCommand command = new DeviceCommand(device().getId(), DeviceCommandType.RESTART, "{}");
 
         command.markExecuted();
 
@@ -32,7 +32,7 @@ class DeviceCommandTest {
 
     @Test
     void shouldMarkFailedWhenCommandFails() {
-        DeviceCommand command = new DeviceCommand(device(), DeviceCommandType.STANDBY, "{}");
+        DeviceCommand command = new DeviceCommand(device().getId(), DeviceCommandType.STANDBY, "{}");
 
         command.markFailed("timeout");
 

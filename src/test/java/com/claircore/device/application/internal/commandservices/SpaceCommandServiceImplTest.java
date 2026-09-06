@@ -3,11 +3,11 @@ package com.claircore.device.application.internal.commandservices;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
 import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,7 +49,7 @@ class SpaceCommandServiceImplTest {
 
         assertThrows(IllegalStateException.class, () -> service.handle(new DeleteSpaceCommand(spaceId)));
 
-        verify(spaceRepository, never()).delete(space);
+        verify(spaceRepository, never()).deleteById(space.getId());
     }
 
     @Test
@@ -61,7 +61,7 @@ class SpaceCommandServiceImplTest {
 
         service.handle(new DeleteSpaceCommand(spaceId));
 
-        verify(spaceRepository).delete(space);
+        verify(spaceRepository).deleteById(space.getId());
     }
 
     @Test

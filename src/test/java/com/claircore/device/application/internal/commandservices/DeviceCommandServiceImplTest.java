@@ -6,15 +6,15 @@ import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.commands.SeedDevicesCommand;
-import com.claircore.device.domain.model.entities.Device;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.ClaimToken;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -90,10 +90,11 @@ class DeviceCommandServiceImplTest {
         when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.empty());
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
+        when(deviceRepository.findById(existing.getId())).thenReturn(Optional.of(existing));
 
         DeviceAssignment result = service.handle(new PairDeviceCommand("HW-0001"));
 
-        assertEquals(existing, result.getDevice());
+        assertEquals(existing.getId(), result.getDeviceId());
         verify(deviceRepository, never()).save(any(Device.class));
         verify(deviceAssignmentRepository).save(any(DeviceAssignment.class));
     }
@@ -101,7 +102,7 @@ class DeviceCommandServiceImplTest {
     @Test
     void pairDeviceFailsWhenAlreadyPaired() {
         Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
-        DeviceAssignment assignment = new DeviceAssignment(existing, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(existing.getId(), ClaimToken.generate());
         assignment.claimToSpace(UUID.randomUUID(), new UserId(UUID.randomUUID()));
         when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.of(assignment));
@@ -116,12 +117,13 @@ class DeviceCommandServiceImplTest {
         UUID userId = UUID.randomUUID();
         UUID spaceId = UUID.randomUUID();
         Device device = deviceWithId(UUID.randomUUID(), "SN-002", "HW-0002");
-        DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
         Space space = spaceWithId(spaceId, userId);
 
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
         when(deviceAssignmentRepository.findByClaimToken(assignment.getClaimToken().value())).thenReturn(Optional.of(assignment));
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
+        when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
 
         DeviceAssignment result = service.handle(new ClaimDeviceCommand(
             assignment.getClaimToken().value(),
@@ -156,15 +158,16 @@ class DeviceCommandServiceImplTest {
         UUID spaceId = UUID.randomUUID();
         UUID deviceId = UUID.randomUUID();
         Device device = deviceWithId(deviceId, "SN-003", "HW-0003");
-        DeviceAssignment assignment = new DeviceAssignment(device, ClaimToken.generate());
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
         assignment.claimToSpace(spaceId, new UserId(userId));
 
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(deviceId)).thenReturn(Optional.of(assignment));
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(device));
 
         service.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
 
-        verify(deviceAssignmentRepository).delete(assignment);
-        verify(deviceRepository, never()).delete(any(Device.class));
+        verify(deviceAssignmentRepository).deleteById(assignment.getId());
+        // The device row is never removed; a reset unlinks it, a decommission tombstones it.
         org.junit.jupiter.api.Assertions.assertFalse(device.isDeleted());
         verify(provisioningDevicesChangedPublisher).publish(any());
     }

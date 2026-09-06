@@ -1,19 +1,20 @@
 package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.domain.model.valueobjects.ProvisionedDevice;
+import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.shared.domain.model.PageResult;
 import com.claircore.iam.infrastructure.config.JwtAuthenticationEntryPoint;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,15 +42,11 @@ class DeviceRosterControllerTest {
 
     @Test
     void returnsTheRosterAndPaginationFlag() throws Exception {
-        var projection = org.mockito.Mockito.mock(DeviceRepository.ProvisionedDeviceProjection.class);
         UUID id = UUID.randomUUID();
-        when(projection.getDeviceId()).thenReturn(id);
-        when(projection.getHardwareId()).thenReturn("HW-1");
-        when(projection.getApiKey()).thenReturn("secret");
-        when(projection.getStatus()).thenReturn(DeviceStatus.OFFLINE);
-        when(projection.isDeleted()).thenReturn(true);
-        when(projection.getUpdatedAt()).thenReturn(new Date(1000));
-        when(deviceRepository.findProvisionedDevices(isNull(), isNull(), any())).thenReturn(new PageImpl<>(List.of(projection)));
+        var row = new ProvisionedDevice(id, "HW-1", "secret", DeviceStatus.OFFLINE, true,
+                Instant.ofEpochMilli(1000));
+        when(deviceRepository.findProvisionedDevices(isNull(), isNull(), anyInt()))
+                .thenReturn(new PageResult<>(List.of(row), 0, 200, 1));
 
         mockMvc.perform(get("/api/v1/edge/devices"))
                 .andExpect(status().isOk())

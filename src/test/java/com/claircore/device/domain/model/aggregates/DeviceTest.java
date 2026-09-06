@@ -1,4 +1,4 @@
-package com.claircore.device.domain.model.entities;
+package com.claircore.device.domain.model.aggregates;
 
 import com.claircore.device.domain.model.valueobjects.ApiKey;
 import com.claircore.device.domain.model.valueobjects.DeviceType;
@@ -60,14 +60,15 @@ class DeviceTest {
     }
 
     @Test
-    void shouldTouchUpdatedAtForDomainMutations() throws InterruptedException {
-        Device device = new Device("SN-0001", "Sensor 0001", new HardwareId("CLAIR-0KBG"), ApiKey.generate(), new DeviceType("air-quality-v1"));
-        device.updateName("Kitchen sensor");
-        var first = device.getAuditFields().getUpdatedAt();
-        Thread.sleep(2);
-        device.rotateApiKey(ApiKey.generate());
+    void carriesNoTimestampsUntilItHasBeenStored() {
+        Device device = new Device("SN-0001", "Sensor 0001", new HardwareId("CLAIR-0KBG"),
+                ApiKey.generate(), new DeviceType("air-quality-v1"));
 
-        assertEquals(true, first != null && device.getAuditFields().getUpdatedAt().after(first));
+        // The aggregate used to force updatedAt forward itself. Auditing does that now, on the
+        // update the mutation causes; the roster cursor behaviour is asserted against storage in
+        // DeviceRepositoryImplTest.
+        assertEquals(null, device.getCreatedAt());
+        assertEquals(null, device.getUpdatedAt());
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.claircore.device.domain.model.entities;
+package com.claircore.device.domain.model.aggregates;
 
 import com.claircore.device.domain.model.valueobjects.UserId;
 import org.junit.jupiter.api.Test;

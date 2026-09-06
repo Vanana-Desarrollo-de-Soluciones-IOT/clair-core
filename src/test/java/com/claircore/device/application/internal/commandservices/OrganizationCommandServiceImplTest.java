@@ -3,11 +3,11 @@ package com.claircore.device.application.internal.commandservices;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
 import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
-import com.claircore.device.domain.model.entities.Organization;
+import com.claircore.device.domain.model.aggregates.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.OrganizationRepository;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.SpaceRepository;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.OrganizationRepository;
+import com.claircore.device.domain.repositories.SpaceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -50,7 +50,7 @@ class OrganizationCommandServiceImplTest {
         assertThrows(IllegalStateException.class, () -> service.handle(new DeleteOrganizationCommand(organizationId)));
 
         verify(spaceRepository, never()).deleteByOrganizationId(organizationId);
-        verify(organizationRepository, never()).delete(organization);
+        verify(organizationRepository, never()).deleteById(organization.getId());
     }
 
     @Test
@@ -63,7 +63,7 @@ class OrganizationCommandServiceImplTest {
         service.handle(new DeleteOrganizationCommand(organizationId));
 
         verify(spaceRepository).deleteByOrganizationId(organizationId);
-        verify(organizationRepository).delete(organization);
+        verify(organizationRepository).deleteById(organization.getId());
     }
 
     @Test

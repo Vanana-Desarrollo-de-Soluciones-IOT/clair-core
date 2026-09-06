@@ -3,8 +3,8 @@ package com.claircore.device.application.acl;
 import com.claircore.device.domain.model.queries.GetDeviceThresholdByMetricQuery;
 import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
-import com.claircore.device.domain.services.DeviceThresholdQueryService;
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceAssignmentRepository;
+import com.claircore.device.application.queryservices.DeviceThresholdQueryService;
+import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,7 +46,9 @@ class ThresholdContextFacadeImplTest {
     void shouldReturnAssignmentExistsFromRepository() {
         ThresholdContextFacadeImpl facade = new ThresholdContextFacadeImpl(deviceThresholdQueryService, deviceAssignmentRepository, objectMapper);
         UUID assignmentId = UUID.fromString("550e8400-e29b-41d4-a716-446655441300");
-        when(deviceAssignmentRepository.existsById(assignmentId)).thenReturn(true);
+        when(deviceAssignmentRepository.findById(assignmentId))
+                .thenReturn(java.util.Optional.of(org.mockito.Mockito.mock(
+                        com.claircore.device.domain.model.aggregates.DeviceAssignment.class)));
 
         assertEquals(true, facade.assignmentExists(assignmentId));
     }

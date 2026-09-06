@@ -18,13 +18,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class MetricsAggregationDomainServiceImplTest {
+class MetricsAggregatorTest {
 
     @Mock
-    private AqiCalculationDomainService aqiCalculationDomainService;
+    private AqiCalculator aqiCalculator;
 
     @InjectMocks
-    private MetricsAggregationDomainServiceImpl metricsAggregationService;
+    private MetricsAggregator metricsAggregationService;
 
     @Test
     void shouldReturnEmptyMetricsWhenSnapshotListIsEmpty() {
@@ -59,7 +59,7 @@ class MetricsAggregationDomainServiceImplTest {
                 now
         );
 
-        when(aqiCalculationDomainService.calculateAqi(13.0, 450.0))
+        when(aqiCalculator.calculateAqi(13.0, 450.0))
                 .thenReturn(new AirQualityIndex(85, AqiCategory.MODERATE));
 
         var result = metricsAggregationService.aggregate(List.of(snapshot1, snapshot2));
@@ -80,6 +80,6 @@ class MetricsAggregationDomainServiceImplTest {
         assertEquals(now, result.recordedAt());
         assertEquals(Freshness.LIVE, result.freshness());
 
-        verify(aqiCalculationDomainService).calculateAqi(13.0, 450.0);
+        verify(aqiCalculator).calculateAqi(13.0, 450.0);
     }
 }

@@ -4,7 +4,7 @@ import com.claircore.analytics.application.internal.outboundservices.acl.Externa
 import com.claircore.analytics.domain.model.aggregates.DeviceAnalyticsSnapshot;
 import com.claircore.analytics.domain.model.commands.AggregateHourlySnapshotCommand;
 import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainServiceImpl;
+import com.claircore.analytics.domain.services.AqiCalculator;
 import com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class SnapshotAggregationCommandServiceImplTest {
     @BeforeEach
     void setUp() {
         commandService = new SnapshotAggregationCommandServiceImpl(
-                externalEvaluationService, snapshotRepository, new AqiCalculationDomainServiceImpl());
+                externalEvaluationService, snapshotRepository, new AqiCalculator());
     }
 
     @Test

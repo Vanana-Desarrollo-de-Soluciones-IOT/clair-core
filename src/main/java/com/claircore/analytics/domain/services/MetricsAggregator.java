@@ -9,15 +9,21 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MetricsAggregationDomainServiceImpl implements MetricsAggregationDomainService {
+/**
+ * Domain service: folds many device snapshots into one set of averages, an index and a freshness.
+ *
+ * <p>Concrete for the same reason as {@link AqiCalculator}. It takes {@link AqiCalculator} as a
+ * constructor argument rather than an interface: the collaboration is a real dependency between two
+ * rules, not a seam where infrastructure could be substituted.
+ */
+public class MetricsAggregator {
 
-    private final AqiCalculationDomainService aqiCalculationDomainService;
+    private final AqiCalculator aqiCalculator;
 
-    public MetricsAggregationDomainServiceImpl(AqiCalculationDomainService aqiCalculationDomainService) {
-        this.aqiCalculationDomainService = aqiCalculationDomainService;
+    public MetricsAggregator(AqiCalculator aqiCalculator) {
+        this.aqiCalculator = aqiCalculator;
     }
 
-    @Override
     public AggregatedMetrics aggregate(List<DeviceMetricsSnapshot> snapshots) {
         if (snapshots == null || snapshots.isEmpty()) {
             return emptyMetrics();
@@ -67,7 +73,7 @@ public class MetricsAggregationDomainServiceImpl implements MetricsAggregationDo
         Integer avgAqi = averageInt(aqi);
         String aqiCategory = null;
         if (avgAqi != null && avgPm25 != null && avgCo2 != null) {
-            AirQualityIndex derived = aqiCalculationDomainService.calculateAqi(avgPm25, avgCo2);
+            AirQualityIndex derived = aqiCalculator.calculateAqi(avgPm25, avgCo2);
             avgAqi = derived.value();
             aqiCategory = derived.category().name();
         }

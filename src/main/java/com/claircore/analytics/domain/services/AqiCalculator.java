@@ -3,9 +3,16 @@ package com.claircore.analytics.domain.services;
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
 
-public class AqiCalculationDomainServiceImpl implements AqiCalculationDomainService {
+/**
+ * Domain service: turns raw PM2.5 and CO2 concentrations into an air quality index.
+ *
+ * <p>Concrete, with no interface, on purpose. An interface exists to hide an implementation the
+ * caller must not depend on — a database, a clock, a remote API. This class hides nothing: it is a
+ * pure function of two numbers with a single implementation and no I/O, so an interface would add a
+ * file and a level of indirection without inverting any dependency.
+ */
+public class AqiCalculator {
 
-    @Override
     public AirQualityIndex calculateAqi(Double pm2_5, Double co2) {
         int pm25Aqi = subIndexPm25(pm2_5);
         int co2Aqi = subIndexCo2(co2);

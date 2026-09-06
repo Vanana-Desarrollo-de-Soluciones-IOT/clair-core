@@ -11,9 +11,9 @@ import com.claircore.analytics.domain.model.valueobjects.AggregatedMetrics;
 import com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot;
 import com.claircore.analytics.domain.model.valueobjects.Freshness;
 import com.claircore.analytics.domain.model.valueobjects.OverviewDashboardSnapshot;
-import com.claircore.analytics.domain.services.MetricsAggregationDomainService;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
+import com.claircore.analytics.domain.services.MetricsAggregator;
+import com.claircore.analytics.domain.services.TrendAnalyzer;
+import com.claircore.analytics.domain.services.AqiCalculator;
 import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
 import com.claircore.device.interfaces.acl.OrganizationSummary;
 import com.claircore.device.interfaces.acl.SpaceSummary;
@@ -33,26 +33,26 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
     private final AlertingContextFacade alertingContextFacade;
     private final LiveMetricsStore liveMetricsStore;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
-    private final MetricsAggregationDomainService metricsAggregationDomainService;
-    private final TrendAnalysisDomainService trendAnalysisDomainService;
-    private final AqiCalculationDomainService aqiCalculationDomainService;
+    private final MetricsAggregator metricsAggregator;
+    private final TrendAnalyzer trendAnalyzer;
+    private final AqiCalculator aqiCalculator;
 
     public OverviewDashboardQueryServiceImpl(
             ExternalDeviceService externalDeviceService,
             AlertingContextFacade alertingContextFacade,
             LiveMetricsStore liveMetricsStore,
             DeviceAnalyticsSnapshotRepository snapshotRepository,
-            MetricsAggregationDomainService metricsAggregationDomainService,
-            TrendAnalysisDomainService trendAnalysisDomainService,
-            AqiCalculationDomainService aqiCalculationDomainService
+            MetricsAggregator metricsAggregator,
+            TrendAnalyzer trendAnalyzer,
+            AqiCalculator aqiCalculator
     ) {
         this.externalDeviceService = externalDeviceService;
         this.alertingContextFacade = alertingContextFacade;
         this.liveMetricsStore = liveMetricsStore;
         this.snapshotRepository = snapshotRepository;
-        this.metricsAggregationDomainService = metricsAggregationDomainService;
-        this.trendAnalysisDomainService = trendAnalysisDomainService;
-        this.aqiCalculationDomainService = aqiCalculationDomainService;
+        this.metricsAggregator = metricsAggregator;
+        this.trendAnalyzer = trendAnalyzer;
+        this.aqiCalculator = aqiCalculator;
     }
 
     @Override
@@ -183,12 +183,12 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
             }
         }
 
-        return metricsAggregationDomainService.aggregate(allSnapshots);
+        return metricsAggregator.aggregate(allSnapshots);
     }
 
     private DeviceMetricsSnapshot resolveLiveMetrics(UUID deviceId, KpiLiveMetricsBuffer live) {
         var avg = live.computeAverages();
-        var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
+        var aqi = aqiCalculator.calculateAqi(avg.pm2_5(), avg.co2());
 
         return new DeviceMetricsSnapshot(
                 DeviceMetricsSnapshot.Source.LIVE,

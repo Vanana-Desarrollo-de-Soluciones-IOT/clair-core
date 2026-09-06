@@ -11,8 +11,8 @@ import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.MetricAverages;
 import com.claircore.analytics.domain.model.valueobjects.TrendPeriod;
 import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainServiceImpl;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainServiceImpl;
+import com.claircore.analytics.domain.services.AqiCalculator;
+import com.claircore.analytics.domain.services.TrendAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,8 +52,8 @@ class KpiDashboardMetricsQueryServiceImplTest {
     void setUp() {
         queryService = new KpiDashboardMetricsQueryServiceImpl(
                 liveMetricsStore,
-                new AqiCalculationDomainServiceImpl(),
-                new TrendAnalysisDomainServiceImpl(),
+                new AqiCalculator(),
+                new TrendAnalyzer(),
                 snapshotRepository);
     }
 

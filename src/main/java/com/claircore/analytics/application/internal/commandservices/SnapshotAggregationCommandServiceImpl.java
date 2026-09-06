@@ -6,7 +6,7 @@ import com.claircore.analytics.domain.model.aggregates.DeviceAnalyticsSnapshot;
 import com.claircore.analytics.domain.model.commands.AggregateHourlySnapshotCommand;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
+import com.claircore.analytics.domain.services.AqiCalculator;
 import com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,16 +19,16 @@ public class SnapshotAggregationCommandServiceImpl implements SnapshotAggregatio
 
     private final ExternalEvaluationService externalEvaluationService;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
-    private final AqiCalculationDomainService aqiCalculationDomainService;
+    private final AqiCalculator aqiCalculator;
 
     public SnapshotAggregationCommandServiceImpl(
             ExternalEvaluationService externalEvaluationService,
             DeviceAnalyticsSnapshotRepository snapshotRepository,
-            AqiCalculationDomainService aqiCalculationDomainService
+            AqiCalculator aqiCalculator
     ) {
         this.externalEvaluationService = externalEvaluationService;
         this.snapshotRepository = snapshotRepository;
-        this.aqiCalculationDomainService = aqiCalculationDomainService;
+        this.aqiCalculator = aqiCalculator;
     }
 
     @Override
@@ -38,7 +38,7 @@ public class SnapshotAggregationCommandServiceImpl implements SnapshotAggregatio
                 .fetchHourlyTelemetryAggregation(command.windowStart(), command.windowEnd());
 
         for (HourlyTelemetryAverage row : rows) {
-            var aqi = aqiCalculationDomainService.calculateAqi(row.averagePm25(), row.averageCo2());
+            var aqi = aqiCalculator.calculateAqi(row.averagePm25(), row.averageCo2());
             snapshotRepository.save(new DeviceAnalyticsSnapshot(
                     new DeviceId(row.deviceId()),
                     command.windowStart(),

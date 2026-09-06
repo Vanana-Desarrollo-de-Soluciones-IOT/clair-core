@@ -10,7 +10,7 @@ import com.claircore.analytics.domain.model.valueobjects.AqiCategoryBreakdown;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.MetricStats;
 import com.claircore.analytics.domain.repositories.DeviceDailySummaryRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
+import com.claircore.analytics.domain.services.AqiCalculator;
 import com.claircore.evaluation.interfaces.acl.TelemetryReading;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,18 +41,18 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
 
     private final ExternalEvaluationService externalEvaluationService;
     private final DeviceDailySummaryRepository dailySummaryRepository;
-    private final AqiCalculationDomainService aqiCalculationDomainService;
+    private final AqiCalculator aqiCalculator;
     private final ZoneId reportZone;
 
     public DailySummaryCommandServiceImpl(
             ExternalEvaluationService externalEvaluationService,
             DeviceDailySummaryRepository dailySummaryRepository,
-            AqiCalculationDomainService aqiCalculationDomainService,
+            AqiCalculator aqiCalculator,
             @Value("${claircore.reports.zone:America/Lima}") String reportZone
     ) {
         this.externalEvaluationService = externalEvaluationService;
         this.dailySummaryRepository = dailySummaryRepository;
-        this.aqiCalculationDomainService = aqiCalculationDomainService;
+        this.aqiCalculator = aqiCalculator;
         this.reportZone = ZoneId.of(reportZone);
     }
 
@@ -112,7 +112,7 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
             humMin = Math.min(humMin, hum); humMax = Math.max(humMax, hum);
             pm25Min = Math.min(pm25Min, pm25); pm25Max = Math.max(pm25Max, pm25);
             if (pm25 > peakPm25) { peakPm25 = pm25; peakPm25At = at; }
-            AirQualityIndex aqi = aqiCalculationDomainService.calculateAqi(pm25, co2);
+            AirQualityIndex aqi = aqiCalculator.calculateAqi(pm25, co2);
             aqiSum += aqi.value();
             categoryCounts.merge(aqi.category(), 1L, Long::sum);
             count++;

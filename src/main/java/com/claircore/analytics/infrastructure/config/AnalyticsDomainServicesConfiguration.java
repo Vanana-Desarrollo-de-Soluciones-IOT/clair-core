@@ -1,11 +1,8 @@
 package com.claircore.analytics.infrastructure.config;
 
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
-import com.claircore.analytics.domain.services.AqiCalculationDomainServiceImpl;
-import com.claircore.analytics.domain.services.MetricsAggregationDomainService;
-import com.claircore.analytics.domain.services.MetricsAggregationDomainServiceImpl;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainServiceImpl;
+import com.claircore.analytics.domain.services.AqiCalculator;
+import com.claircore.analytics.domain.services.MetricsAggregator;
+import com.claircore.analytics.domain.services.TrendAnalyzer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,18 +15,17 @@ import org.springframework.context.annotation.Configuration;
 public class AnalyticsDomainServicesConfiguration {
 
     @Bean
-    public AqiCalculationDomainService aqiCalculationDomainService() {
-        return new AqiCalculationDomainServiceImpl();
+    public AqiCalculator aqiCalculator() {
+        return new AqiCalculator();
     }
 
     @Bean
-    public TrendAnalysisDomainService trendAnalysisDomainService() {
-        return new TrendAnalysisDomainServiceImpl();
+    public TrendAnalyzer trendAnalyzer() {
+        return new TrendAnalyzer();
     }
 
     @Bean
-    public MetricsAggregationDomainService metricsAggregationDomainService(
-            AqiCalculationDomainService aqiCalculationDomainService) {
-        return new MetricsAggregationDomainServiceImpl(aqiCalculationDomainService);
+    public MetricsAggregator metricsAggregator(AqiCalculator aqiCalculator) {
+        return new MetricsAggregator(aqiCalculator);
     }
 }

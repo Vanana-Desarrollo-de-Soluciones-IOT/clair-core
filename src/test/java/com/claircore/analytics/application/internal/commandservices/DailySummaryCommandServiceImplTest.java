@@ -5,7 +5,7 @@ import com.claircore.analytics.domain.model.aggregates.DeviceDailySummary;
 import com.claircore.analytics.domain.model.commands.GenerateDailySummaryCommand;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
 import com.claircore.analytics.domain.repositories.DeviceDailySummaryRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainServiceImpl;
+import com.claircore.analytics.domain.services.AqiCalculator;
 import com.claircore.evaluation.interfaces.acl.TelemetryReading;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +48,7 @@ class DailySummaryCommandServiceImplTest {
         commandService = new DailySummaryCommandServiceImpl(
                 externalEvaluationService,
                 dailySummaryRepository,
-                new AqiCalculationDomainServiceImpl(),
+                new AqiCalculator(),
                 "America/Lima");
     }
 

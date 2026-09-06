@@ -8,8 +8,8 @@ import com.claircore.analytics.domain.model.valueobjects.KpiDashboardMetrics;
 import com.claircore.analytics.domain.model.valueobjects.MetricAverages;
 import com.claircore.analytics.domain.model.valueobjects.TrendPeriod;
 import com.claircore.analytics.domain.repositories.DeviceAnalyticsSnapshotRepository;
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
+import com.claircore.analytics.domain.services.AqiCalculator;
+import com.claircore.analytics.domain.services.TrendAnalyzer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,19 +24,19 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     private static final Duration DEFAULT_WINDOW = Duration.ofDays(1);
 
     private final LiveMetricsStore liveMetricsStore;
-    private final AqiCalculationDomainService aqiCalculationDomainService;
-    private final TrendAnalysisDomainService trendAnalysisDomainService;
+    private final AqiCalculator aqiCalculator;
+    private final TrendAnalyzer trendAnalyzer;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
 
     public KpiDashboardMetricsQueryServiceImpl(
             LiveMetricsStore liveMetricsStore,
-            AqiCalculationDomainService aqiCalculationDomainService,
-            TrendAnalysisDomainService trendAnalysisDomainService,
+            AqiCalculator aqiCalculator,
+            TrendAnalyzer trendAnalyzer,
             DeviceAnalyticsSnapshotRepository snapshotRepository
     ) {
         this.liveMetricsStore = liveMetricsStore;
-        this.aqiCalculationDomainService = aqiCalculationDomainService;
-        this.trendAnalysisDomainService = trendAnalysisDomainService;
+        this.aqiCalculator = aqiCalculator;
+        this.trendAnalyzer = trendAnalyzer;
         this.snapshotRepository = snapshotRepository;
     }
 
@@ -57,7 +57,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
         }
 
         var avg = buffer.computeAverages();
-        var aqi = aqiCalculationDomainService.calculateAqi(avg.pm2_5(), avg.co2());
+        var aqi = aqiCalculator.calculateAqi(avg.pm2_5(), avg.co2());
 
         // The last stored snapshot is the "previous" the live window is compared against; with none,
         // the trend compares the window to itself and reads as flat rather than as a spike.
@@ -69,13 +69,13 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                 avg.pm2_5(),
                 avg.temperature(),
                 avg.humidity(),
-                trendAnalysisDomainService.calculateTrend(avg.co2(),
+                trendAnalyzer.calculateTrend(avg.co2(),
                         latest.map(s -> s.getAverageCo2()).orElse(avg.co2())),
-                trendAnalysisDomainService.calculateTrend(avg.pm2_5(),
+                trendAnalyzer.calculateTrend(avg.pm2_5(),
                         latest.map(s -> s.getAveragePm2_5()).orElse(avg.pm2_5())),
-                trendAnalysisDomainService.calculateTrend(avg.temperature(),
+                trendAnalyzer.calculateTrend(avg.temperature(),
                         latest.map(s -> s.getAverageTemperature()).orElse(avg.temperature())),
-                trendAnalysisDomainService.calculateTrend(avg.humidity(),
+                trendAnalyzer.calculateTrend(avg.humidity(),
                         latest.map(s -> s.getAverageHumidity()).orElse(avg.humidity())),
                 Instant.now()
         ));
@@ -88,7 +88,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
 
         var averages = snapshotRepository.findAveragesByDeviceIdAndWindow(deviceId, start, end)
                 .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, false));
-        var aqi = aqiCalculationDomainService.calculateAqi(averages.pm2_5(), averages.co2());
+        var aqi = aqiCalculator.calculateAqi(averages.pm2_5(), averages.co2());
 
         // Trends compare the window against the window of equal length that precedes it.
         Duration duration = Duration.between(start, end);
@@ -100,10 +100,10 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                 averages.pm2_5(),
                 averages.temperature(),
                 averages.humidity(),
-                trendAnalysisDomainService.calculateTrend(averages.co2(), previous.map(MetricAverages::co2).orElse(null)),
-                trendAnalysisDomainService.calculateTrend(averages.pm2_5(), previous.map(MetricAverages::pm2_5).orElse(null)),
-                trendAnalysisDomainService.calculateTrend(averages.temperature(), previous.map(MetricAverages::temperature).orElse(null)),
-                trendAnalysisDomainService.calculateTrend(averages.humidity(), previous.map(MetricAverages::humidity).orElse(null)),
+                trendAnalyzer.calculateTrend(averages.co2(), previous.map(MetricAverages::co2).orElse(null)),
+                trendAnalyzer.calculateTrend(averages.pm2_5(), previous.map(MetricAverages::pm2_5).orElse(null)),
+                trendAnalyzer.calculateTrend(averages.temperature(), previous.map(MetricAverages::temperature).orElse(null)),
+                trendAnalyzer.calculateTrend(averages.humidity(), previous.map(MetricAverages::humidity).orElse(null)),
                 Instant.now()
         );
     }

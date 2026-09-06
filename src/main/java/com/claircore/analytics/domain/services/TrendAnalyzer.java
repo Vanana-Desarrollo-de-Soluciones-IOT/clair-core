@@ -2,9 +2,14 @@ package com.claircore.analytics.domain.services;
 
 import com.claircore.analytics.domain.model.valueobjects.MetricTrend;
 
-public class TrendAnalysisDomainServiceImpl implements TrendAnalysisDomainService {
+/**
+ * Domain service: expresses the change between two measurements as a percentage.
+ *
+ * <p>Concrete for the same reason as {@link AqiCalculator} — a pure function has nothing to hide
+ * behind an interface.
+ */
+public class TrendAnalyzer {
 
-    @Override
     public MetricTrend calculateTrend(Double currentValue, Double previousValue) {
         if (currentValue == null || previousValue == null) {
             return new MetricTrend(currentValue, previousValue, null);

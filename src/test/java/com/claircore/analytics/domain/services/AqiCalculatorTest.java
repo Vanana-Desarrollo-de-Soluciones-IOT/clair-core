@@ -4,9 +4,9 @@ import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-class AqiCalculationDomainServiceImplTest {
+class AqiCalculatorTest {
 
-    private final AqiCalculationDomainServiceImpl calculator = new AqiCalculationDomainServiceImpl();
+    private final AqiCalculator calculator = new AqiCalculator();
 
     @Test
     void shouldCalculateCorrectAqiAndCategoryForPm25Ranges() {

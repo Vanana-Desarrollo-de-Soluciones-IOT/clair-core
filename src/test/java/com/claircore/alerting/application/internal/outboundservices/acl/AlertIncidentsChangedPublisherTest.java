@@ -1,6 +1,7 @@
 package com.claircore.alerting.application.internal.outboundservices.acl;
 
 import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
+import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;

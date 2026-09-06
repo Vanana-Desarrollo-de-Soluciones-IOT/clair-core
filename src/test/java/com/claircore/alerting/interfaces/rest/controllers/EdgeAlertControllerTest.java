@@ -1,63 +1,81 @@
 package com.claircore.alerting.interfaces.rest.controllers;
 
-import com.claircore.alerting.domain.model.entities.Alert;
-import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
+import com.claircore.alerting.application.commandservices.AlertCommandService;
+import com.claircore.alerting.application.queryservices.AlertQueryService;
+import com.claircore.alerting.domain.model.aggregates.Alert;
+import com.claircore.alerting.domain.model.commands.AcknowledgeEdgeAlertCommand;
+import com.claircore.alerting.domain.model.queries.GetPendingEdgeAlertsQuery;
+import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
-import com.claircore.alerting.application.internal.commandservices.EdgeAlertAcknowledgementService;
-import com.claircore.alerting.infrastructure.persistence.jpa.repositories.AlertRepository;
 import com.claircore.alerting.interfaces.rest.resources.EdgeAlertAckRequest;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
+
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class EdgeAlertControllerTest {
-    @Test void pendingIncludesResolvedAlertsForEdgeDelivery() {
-        var repository = mock(AlertRepository.class);
-        var projection = mock(AlertRepository.EdgeAlertProjection.class);
-        var alert = mock(Alert.class);
-        var alertId = UUID.randomUUID();
-        var deviceId = UUID.randomUUID();
+
+    private final AlertQueryService queryService = mock(AlertQueryService.class);
+    private final AlertCommandService commandService = mock(AlertCommandService.class);
+    private final EdgeAlertController controller = new EdgeAlertController(queryService, commandService);
+
+    @Test
+    void pendingIncludesResolvedAlertsForEdgeDelivery() {
         var occurredAt = Instant.parse("2024-01-01T00:00:00Z");
         var resolvedAt = Instant.parse("2024-01-01T00:05:00Z");
-        var statuses = List.of(AlertStatus.ACTIVE, AlertStatus.RESOLVED);
-        var pageable = PageRequest.of(0, 200);
+        var alert = alert(occurredAt);
+        alert.resolve(resolvedAt);
+        when(queryService.fetchPendingForEdge(new GetPendingEdgeAlertsQuery(null, 200)))
+                .thenReturn(List.of(new AlertQueryService.PendingEdgeAlert(alert, "HW-0001")));
 
-        when(projection.getAlert()).thenReturn(alert);
-        when(projection.getHardwareId()).thenReturn("HW-0001");
-        when(alert.getId()).thenReturn(alertId);
-        when(alert.getDeviceId()).thenReturn(deviceId);
-        when(alert.getMetric()).thenReturn(MetricType.CO2);
-        when(alert.getStatus()).thenReturn(AlertStatus.RESOLVED);
-        when(alert.getOccurredAt()).thenReturn(occurredAt);
-        when(alert.getResolvedAt()).thenReturn(resolvedAt);
-        when(repository.findPendingForEdge(statuses, null, pageable)).thenReturn(List.of(projection));
+        var result = controller.pending(null, 200);
 
-        var result = new EdgeAlertController(
-                repository, new EdgeAlertAcknowledgementService(repository)
-        ).pending(null, 200);
-
-        assertEquals(1, result.size());
-        assertEquals("RESOLVED", result.getFirst().get("status"));
-        assertEquals(resolvedAt.toString(), result.getFirst().get("resolved_at"));
-        verify(repository).findPendingForEdge(statuses, null, pageable);
+        assertThat(result).singleElement().satisfies(resource -> {
+            assertThat(resource.status()).isEqualTo("RESOLVED");
+            assertThat(resource.resolvedAt()).isEqualTo(resolvedAt.toString());
+            assertThat(resource.hardwareId()).isEqualTo("HW-0001");
+            assertThat(resource.alertId()).isEqualTo(alert.getId().toString());
+        });
     }
 
-    @Test void rejectsAckForWrongHardware() {
-        var repository = mock(AlertRepository.class); var alert = mock(Alert.class); UUID id = UUID.randomUUID();
-        when(repository.findByIdForAcknowledgement(id)).thenReturn(Optional.of(alert)); when(alert.getStatus()).thenReturn(AlertStatus.ACTIVE);
-        when(repository.findHardwareIdByAlertId(id)).thenReturn(Optional.of("HW-0001"));
-        var response = new EdgeAlertController(repository, new EdgeAlertAcknowledgementService(repository)).acknowledge(id, new EdgeAlertAckRequest("HW-0002", Instant.now()));
-        assertEquals(404, response.getStatusCode().value()); verify(alert, never()).acknowledge();
+    @Test
+    void rejectsALimitOutsideTheAllowedRange() {
+        assertThrows(IllegalArgumentException.class, () -> controller.pending(null, 501));
     }
-    @Test void returnsConflictForIdempotentAck() {
-        var repository = mock(AlertRepository.class); var alert = mock(Alert.class); UUID id = UUID.randomUUID();
-        when(repository.findByIdForAcknowledgement(id)).thenReturn(Optional.of(alert)); when(alert.getStatus()).thenReturn(AlertStatus.ACKNOWLEDGED);
-        when(alert.getId()).thenReturn(id); when(repository.findHardwareIdByAlertId(id)).thenReturn(Optional.of("HW-0001"));
-        assertEquals(409, new EdgeAlertController(repository, new EdgeAlertAcknowledgementService(repository)).acknowledge(id, new EdgeAlertAckRequest("HW-0001", Instant.now())).getStatusCode().value());
+
+    @Test
+    void mapsTheAcknowledgementOutcomeOntoAStatusCode() {
+        UUID alertId = UUID.randomUUID();
+        var request = new EdgeAlertAckRequest("HW-0001", Instant.parse("2024-01-01T00:00:00Z"));
+
+        when(commandService.handle(any(AcknowledgeEdgeAlertCommand.class)))
+                .thenReturn(AlertCommandService.AcknowledgementOutcome.OK);
+        assertThat(controller.acknowledge(alertId, request).getStatusCode().value()).isEqualTo(200);
+
+        when(commandService.handle(any(AcknowledgeEdgeAlertCommand.class)))
+                .thenReturn(AlertCommandService.AcknowledgementOutcome.CONFLICT);
+        assertThat(controller.acknowledge(alertId, request).getStatusCode().value()).isEqualTo(409);
+
+        when(commandService.handle(any(AcknowledgeEdgeAlertCommand.class)))
+                .thenReturn(AlertCommandService.AcknowledgementOutcome.NOT_FOUND);
+        assertThat(controller.acknowledge(alertId, request).getStatusCode().value()).isEqualTo(404);
+
+        verify(commandService, org.mockito.Mockito.times(3))
+                .handle(new AcknowledgeEdgeAlertCommand(alertId, "HW-0001", Instant.parse("2024-01-01T00:00:00Z")));
+    }
+
+    private static Alert alert(Instant occurredAt) {
+        return new Alert(UUID.randomUUID(), UUID.randomUUID(), "Floor 2", "Living Room",
+                MetricType.CO2, new BigDecimal("800.00"), new BigDecimal("900.00"),
+                "CO2 threshold exceeded", AlertSeverity.CRITICAL, occurredAt);
     }
 }

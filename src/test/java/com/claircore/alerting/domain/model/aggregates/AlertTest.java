@@ -1,4 +1,4 @@
-package com.claircore.alerting.domain.model.entities;
+package com.claircore.alerting.domain.model.aggregates;
 
 import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;

@@ -1,4 +1,4 @@
-package com.claircore.alerting.application.internal.outboundservices.acl;
+package com.claircore.alerting.interfaces.events;
 
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;

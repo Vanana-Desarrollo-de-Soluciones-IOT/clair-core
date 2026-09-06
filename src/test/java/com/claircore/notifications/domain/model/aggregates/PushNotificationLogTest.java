@@ -1,4 +1,4 @@
-package com.claircore.notifications.domain.model.entities;
+package com.claircore.notifications.domain.model.aggregates;
 
 import org.junit.jupiter.api.Test;
 

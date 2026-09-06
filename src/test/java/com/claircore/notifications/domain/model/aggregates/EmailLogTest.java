@@ -1,4 +1,4 @@
-package com.claircore.notifications.domain.model.entities;
+package com.claircore.notifications.domain.model.aggregates;
 
 import com.claircore.notifications.domain.model.valueobjects.EmailContent;
 import com.claircore.notifications.domain.model.valueobjects.EmailRecipient;
@@ -16,7 +16,7 @@ class EmailLogTest {
         var log = EmailLog.sent(new EmailRecipient("user@example.com"), new EmailSubject("Welcome"), new EmailContent("<p>Hello</p>"));
 
         assertTrue(log.isSent());
-        assertEquals("user@example.com", log.getRecipientEmail());
+        assertEquals("user@example.com", log.getRecipientEmail().address());
     }
 
     @Test

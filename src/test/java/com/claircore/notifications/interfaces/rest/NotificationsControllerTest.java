@@ -1,22 +1,20 @@
-package com.claircore.notifications.interfaces.rest.controllers;
+package com.claircore.notifications.interfaces.rest;
 
-import com.claircore.notifications.domain.model.entities.PushNotificationLog;
-import com.claircore.notifications.domain.services.PushNotificationHistoryQueryService;
-import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import com.claircore.iam.domain.services.TokenQueryService;
-import com.claircore.shared.interfaces.rest.exceptions.GlobalExceptionHandler;
+import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.notifications.application.queryservices.PushNotificationHistoryQueryService;
+import com.claircore.notifications.domain.model.aggregates.PushNotificationLog;
+import com.claircore.shared.domain.model.PageResult;
+import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,10 +25,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(NotificationController.class)
+@WebMvcTest(NotificationsController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
-class NotificationControllerTest {
+class NotificationsControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -44,11 +42,10 @@ class NotificationControllerTest {
     @Test
     void shouldReturnNotificationHistoryForAuthenticatedUser() throws Exception {
         UUID userId = UUID.fromString("550e8400-e29b-41d4-a716-446655442000");
-        PushNotificationLog log = PushNotificationLog.sent(userId, UUID.randomUUID(), "Alert title", "Alert message");
-        ReflectionTestUtils.setField(log, "createdAt", new Date());
-        ReflectionTestUtils.setField(log, "updatedAt", new Date());
-        Page<PushNotificationLog> page = new PageImpl<>(List.of(log));
-        when(pushNotificationHistoryQueryService.handle(any())).thenReturn(page);
+        var log = PushNotificationLog.reconstitute(
+                UUID.randomUUID(), userId, UUID.randomUUID(), "Alert title", "Alert message", true, null,
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
+        when(pushNotificationHistoryQueryService.handle(any())).thenReturn(new PageResult<>(List.of(log), 0, 20, 1L));
 
         mockMvc.perform(get("/api/v1/notifications/push")
                         .requestAttr(JwtAuthenticationFilter.USER_ID_ATTRIBUTE, userId)
@@ -56,7 +53,8 @@ class NotificationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].userId").value(userId.toString()))
                 .andExpect(jsonPath("$.content[0].title").value("Alert title"))
-                .andExpect(jsonPath("$.content[0].status").value("SENT"));
+                .andExpect(jsonPath("$.content[0].status").value("SENT"))
+                .andExpect(jsonPath("$.totalElements").value(1));
 
         verify(pushNotificationHistoryQueryService).handle(any());
     }

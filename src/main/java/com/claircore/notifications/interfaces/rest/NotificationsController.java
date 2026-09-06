@@ -1,9 +1,10 @@
-package com.claircore.notifications.interfaces.rest.controllers;
+package com.claircore.notifications.interfaces.rest;
 
-import com.claircore.notifications.domain.model.queries.GetPushNotificationHistoryQuery;
-import com.claircore.notifications.domain.services.PushNotificationHistoryQueryService;
-import com.claircore.notifications.interfaces.rest.resources.PushNotificationResponse;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
+import com.claircore.notifications.application.queryservices.PushNotificationHistoryQueryService;
+import com.claircore.notifications.domain.model.queries.GetPushNotificationHistoryQuery;
+import com.claircore.notifications.interfaces.rest.resources.PushNotificationResource;
+import com.claircore.notifications.interfaces.rest.transform.PushNotificationResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,9 +12,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,11 +25,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "Notifications", description = "Push notifications management endpoints")
-public class NotificationController {
+public class NotificationsController {
+
+    private static final int PAGE_SIZE = 20;
 
     private final PushNotificationHistoryQueryService pushNotificationHistoryQueryService;
 
-    public NotificationController(PushNotificationHistoryQueryService pushNotificationHistoryQueryService) {
+    public NotificationsController(PushNotificationHistoryQueryService pushNotificationHistoryQueryService) {
         this.pushNotificationHistoryQueryService = pushNotificationHistoryQueryService;
     }
 
@@ -39,17 +41,19 @@ public class NotificationController {
             @ApiResponse(responseCode = "200", description = "Notifications returned successfully"),
             @ApiResponse(responseCode = "401", description = "Authentication required")
     })
-    public ResponseEntity<Page<PushNotificationResponse>> getUserNotifications(
+    public ResponseEntity<Page<PushNotificationResource>> getUserNotifications(
             HttpServletRequest httpRequest,
             @Parameter(description = "Page number (default: 0)") @RequestParam(defaultValue = "0") Integer page) {
 
         UUID userId = (UUID) httpRequest.getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE);
 
-        Pageable pageable = PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
-        var query = new GetPushNotificationHistoryQuery(userId, pageable);
-        Page<PushNotificationResponse> logs = pushNotificationHistoryQueryService.handle(query)
-                .map(PushNotificationResponse::from);
+        var result = pushNotificationHistoryQueryService.handle(new GetPushNotificationHistoryQuery(userId, page, PAGE_SIZE));
+        var resources = result.items().stream()
+                .map(PushNotificationResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
 
-        return ResponseEntity.ok(logs);
+        // The port speaks PageResult; the response body stays a Spring Data page so the JSON
+        // envelope clients already consume (content, totalElements, ...) is unchanged.
+        return ResponseEntity.ok(new PageImpl<>(resources, PageRequest.of(result.page(), result.size()), result.total()));
     }
 }

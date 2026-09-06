@@ -84,6 +84,11 @@ Before touching a context, boot with `spring.jpa.properties.jakarta.persistence.
 
 Second gate: the existing test suite green after the mechanical rename of mocked repository types to the new ports.
 
+**What the gate cannot see.** Identical DDL does not mean identical runtime behaviour. Two changes
+this refactor makes are invisible to it and must be checked by hand in the phase that makes them:
+who assigns the primary key (`@GeneratedValue` vs. assigned, which flips `save()` between `persist`
+and `merge`), and who populates `created_at` / `updated_at` (see the auditing note in Phase 1).
+
 ---
 
 ## Phase 0 — Shared kernel
@@ -100,6 +105,21 @@ Second gate: the existing test suite green after the mechanical rename of mocked
 - `GlobalExceptionHandler` → `shared/interfaces/rest/GlobalExceptionHandler`, returns `ErrorResource` record.
 
 **Done when** the app boots, all tests pass, DDL diff shows only `outbox_message` removed.
+
+**Carried forward from Phase 0** — two decisions are made by the shared kernel but only bite when
+the first context adopts it, in Phase 1:
+
+- `AuditableAbstractPersistenceEntity` declares `@Id` with **no generator**. Every persistence
+  entity built from here on gets its id from the aggregate, and `SimpleJpaRepository.save()` will
+  therefore see a non-null id and call `merge` instead of `persist`. See the identity note in
+  Phase 1 for the `Persistable<UUID>` flag that keeps it a plain insert.
+- It also declares `@CreatedDate` / `@LastModifiedDate` **on the entity itself**, which is not how
+  the timestamps are filled today. See the auditing note in Phase 1.
+- The timestamps are `Instant`, not the `Date` this phase originally wrote, and
+  `@JdbcTypeCode(SqlTypes.TIMESTAMP)` pins them to a plain `timestamp(6)` column. Without it
+  Hibernate maps `Instant` to `timestamp with time zone` and every table a phase touches changes
+  type — measured, not assumed. Phase 8 deletes the two annotations and migrates every table at
+  once.
 
 ---
 
@@ -119,9 +139,19 @@ Smallest. Two aggregates, no other context reads its tables, already has a parti
 | `application/internal/inboundservices/acl/AlertIncidentChangedEventListener` importing `alerting.domain.model.events.*` | `application/internal/eventhandlers/…` consuming `alerting.interfaces.events.AlertIncidentChangedIntegrationEvent` (created in Phase 4; until then keep the old import and record it) |
 | `NotificationController` | `NotificationsController`; `PushNotificationResponse` → `PushNotificationResource` + `PushNotificationResourceFromEntityAssembler` |
 
-Identity: `@UuidGenerator` today means the database assigns. After the split the aggregate assigns `UUID.randomUUID()` in its constructor and the persistence entity has no generator. DDL unaffected.
+Identity: `@UuidGenerator` today means the database assigns. After the split the aggregate assigns `UUID.randomUUID()` in its constructor and the persistence entity has no generator. DDL unaffected — but `SimpleJpaRepository.isNew()` is `id == null`, so with an assigned id every `save()` becomes a `merge`: one extra `SELECT` per insert, and the returned instance is a different object from the one passed in. `AuditableAbstractPersistenceEntity` therefore implements `Persistable<UUID>`, done here, in the first context that adopts the base class, rather than once per phase. `isNew()` reads `createdAt == null` instead of a `@Transient` flag: a persistence assembler builds a fresh entity on every save, so a flag defaulting to `true` would claim that a previously stored aggregate is new, while `createdAt` is filled by `@CreatedDate` on the first insert and travels back through the assembler on every later one.
+
+Auditing: ~~`AuditingEntityListener` does not descend into embeddables, so the contexts whose audit fields live in an `@Embeddable` inner class are not audited today and will start being audited when they move onto `AuditableAbstractPersistenceEntity`.~~ **Wrong, corrected in Phase 2.** Persisting a `TelemetryEvaluation`, whose audit fields sit in the embedded `EvaluationAudit`, fills `created_at` and `updated_at` exactly as the flat subclasses are filled: Spring Data's auditing walks into embedded properties. The `ReflectionTestUtils` in `DeviceRepositoryTest` pins a specific timestamp for a cursor assertion, and `Device.touchUpdatedAt()` forces the watermark to move on changes Hibernate would not consider dirty — neither compensates for missing auditing. Moving a context onto the base class therefore changes nothing here, in either direction. `touchUpdatedAt` still has to be decided in Phase 7, on its own merits.
 
 **Done when** `grep -rE 'jakarta.persistence|org.springframework' notifications/domain` is empty; DDL diff empty; tests green.
+
+**Done, 2026-09-06.** All three gates met: the grep is empty, `schema-phase-1.sql` is byte-identical to `schema-phase-0.sql`, 478 tests pass. Deviations from the table above, all deliberate:
+
+- The event handler may not touch a repository, so the push path grew the inbound port the reference asks for: `application/commandservices/PushNotificationCommandService` + `SendPushNotificationCommand`, with the delivery-and-log `try`/`catch` moved out of the handler into `PushNotificationCommandServiceImpl`. The handler now only resolves owner and device name and issues the command.
+- `Page<EmailLog> findByRecipientEmail(EmailRecipient, Pageable)` had no callers at all and is gone. `findByRecipientEmail(EmailRecipient)` survives as the port method `findByRecipient`, used by the adapter test.
+- The port speaks `PageResult`, but `NotificationsController` still answers with a Spring Data `Page` envelope, rebuilt from the `PageResult`. The response body is a published contract; changing `content`/`totalElements` to `items`/`total` is an API change, not a refactor. The sort the controller used to pass down (`createdAt` descending) now lives in the adapter, which is the only layer that should know a column name.
+- Aggregates are plain classes and do **not** extend `AbstractDomainAggregateRoot`: neither publishes events, and see the note in Phase 3 for why the base class does nothing on a domain aggregate once the split is done.
+- Still crossing a boundary, both pre-existing and both scheduled: the event handler imports `alerting.domain.model.events` (Phase 4), and `NotificationsController` imports `iam.infrastructure.tokens.jwt.JwtAuthenticationFilter` for its `USER_ID_ATTRIBUTE` constant (Phase 6).
 
 ---
 
@@ -142,9 +172,25 @@ One aggregate, but its **column names are read by raw SQL in analytics** (`Daily
 
 **Done when** DDL diff empty **and** analytics' two raw-SQL readers still return the same rows on a seeded database.
 
+**Done, 2026-09-06.** Gates met: `grep -rE 'jakarta.persistence|org.springframework' evaluation/domain` is empty, `schema-phase-2.sql` is byte-identical to `schema-phase-1.sql`, 487 tests pass. `TelemetryEvaluationRepositoryImplTest` seeds through the port and then runs both raw-SQL readers against the result, including the exact column list `DailyReportAggregationService` selects. Deviations:
+
+- The facade no longer holds a `JdbcTemplate`. The hourly aggregation moved to `TelemetryEvaluationRepositoryImpl` as `findHourlyAveragesBetween`, SQL unchanged, and the facade now returns `List<HourlyTelemetryAverage>` records instead of `List<Map<String,Object>>`. That is a published-contract change, so analytics' `ExternalEvaluationService` and `SnapshotAggregationScheduler` moved with it; the cast-juggling those had over the raw maps is gone.
+- `interfaces/events/TelemetryRecordedIntegrationEvent` exists and **is published**, alongside the internal `TelemetryRecordedEvent` that alerting and analytics still consume. Publishing both now means the switch in the later phases is one line on each side. Stop publishing the internal event when the last consumer moves.
+- Dropped `findLatestByDeviceId(UUID, Pageable)` returning a list: no callers.
+- The two JPQL `@Query` bodies are gone. With `DeviceId` behind a converter, `te.deviceId.value` is no longer a path; derived queries (`findByDeviceIdOrderByRecordedAtDesc`) express the same thing and keep the ordering.
+- Watch out in the later contexts: the aggregation binds a `java.sql.Timestamp`, so the window bounds are read in the database session's time zone. Pre-existing and unchanged, but it makes any window measured in minutes environment-dependent, which is why the adapter test uses a day of slack.
+
 ---
 
 ## Phase 3 — billing
+
+**Before anything else, settle domain events.** `UserPlan` and `PaymentRecord` extend
+`AbstractDomainAggregateRoot` and register events today, and Spring Data publishes those only for
+the instance handed to a repository's `save()`. After the split that instance is the *persistence
+entity*, so events registered on the aggregate are silently dropped. Either the adapter drains
+`domainEvents()` and publishes them itself after a successful save, or the persistence entity
+carries the events. Phase 1 did not hit this — notifications publishes none — and no test would
+have caught it.
 
 | Today | Target |
 |---|---|
@@ -227,6 +273,7 @@ Largest; last, when the pattern is proven six times.
 | `EdgeCommandAcknowledgementService` taking `EdgeCommandAckRequest` | `AcknowledgeEdgeCommandCommand` |
 | `EdgeCommandController` hand-building `Map<String,Object>` | `EdgeCommandResource` + assembler |
 | `ThresholdContextFacade` exposing domain VOs | already switched to `ThresholdSummary` in Phase 4 |
+| `Device.DeviceAudit` (`@Embeddable`) with hand-rolled `touchUpdatedAt()` in four places; `DeviceRepository.findProvisionedDevices` pages on `updated_at` as a cursor watermark | `DevicePersistenceEntity extends AuditableAbstractPersistenceEntity`. Auditing already fills both timestamps through the embeddable (see the corrected note in Phase 1), so the move itself changes nothing. What still needs deciding is `touchUpdatedAt`: it forces `updated_at` forward on changes Hibernate does not see as dirty, and dropping it would change what the edge roster cursor returns. Assert the pagination behaviour explicitly either way, the gate cannot |
 | `DeviceSecretColumnDropMigration` (`ALTER TABLE` in `@PostConstruct`) | delete once run everywhere; Phase 8 |
 | `*Request`/`*Response`, singular controller names | `*Resource`, plural names |
 
@@ -235,7 +282,7 @@ Largest; last, when the pattern is proven six times.
 ## Phase 8 — shared cleanup, after every context is split
 
 - Delete `shared/domain/model/entities/AuditableModel` (no subclasses remain).
-- `AuditableAbstractPersistenceEntity`: `Date` → `Instant`. Regenerate DDL, accept the column-type diff explicitly, once.
+- `AuditableAbstractPersistenceEntity`: delete the two `@JdbcTypeCode(SqlTypes.TIMESTAMP)` annotations so the `Instant` fields map to `timestamp with time zone`. Regenerate DDL, accept the column-type diff explicitly, once, and write the `ALTER TABLE` migration for every table — `ddl-auto: update` does not change an existing column's type.
 - `spring.jpa.open-in-view: false`. Nothing should surface; if something does, it is a missed lazy navigation and is fixed here.
 - Replace `ddl-auto: update` with Flyway `V1__baseline.sql` generated from the final DDL and `ddl-auto: validate`. Delete `DeviceSecretColumnDropMigration`.
 - Listeners: `@EventListener` → `@TransactionalEventListener(phase = AFTER_COMMIT)` for the four cross-context consumers. This changes event timing; it is the intended behaviour and is isolated here so it can be reverted alone.

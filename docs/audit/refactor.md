@@ -94,7 +94,7 @@ and `merge`), and who populates `created_at` / `updated_at` (see the auditing no
 ## Phase 0 — Shared kernel
 
 **Create**
-- `shared/domain/model/aggregates/AbstractDomainAggregateRoot<T>` — wraps `org.springframework.data.domain.AbstractAggregateRoot` (the single documented framework exception in domain), exposes `registerEvent`. `UserPlan` and `PaymentRecord` extend it instead of Spring's class directly.
+- `shared/domain/model/aggregates/AbstractDomainAggregateRoot` — ~~wraps `org.springframework.data.domain.AbstractAggregateRoot` (the single documented framework exception in domain)~~ **Rewritten in Phase 3:** it holds its own event list and imports nothing from any framework, because the Spring class only publishes the events of the instance a repository is handed — the persistence entity after the split, never the aggregate. Exposes `registerEvent` to subclasses and `domainEvents()` / `clearDomainEvents()` to the adapter that drains them. `PaymentRecord` extends it.
 - `shared/infrastructure/persistence/jpa/entities/AuditableAbstractPersistenceEntity` — `@MappedSuperclass`, `@EntityListeners(AuditingEntityListener.class)`, fields `id` (UUID), `createdAt`, `updatedAt` with `@CreatedDate`/`@LastModifiedDate`. **Keep `java.util.Date` for now**; switching to `Instant` changes the generated column type and breaks the DDL gate. Change it in Phase 8.
 - `shared/domain/model/PageResult<T>` — record `(List<T> items, int page, int size, long total)`. Replaces `org.springframework.data.domain.Page` in every port and query record.
 - `shared/domain/exceptions/ResourceNotFoundException` — so `GlobalExceptionHandler` stops importing `analytics.domain.exceptions`.
@@ -200,6 +200,39 @@ have caught it.
 | `UserRegisteredEventHandler` importing `iam.domain.model.events.UserRegisteredEvent` | consume `iam.interfaces.events.UserRegisteredIntegrationEvent` (Phase 6); until then record the import |
 | `domain/gateways/PaymentGateway` | `application/internal/outboundservices/payments/PaymentGateway`; `StripePaymentGatewayAdapter` unchanged |
 | `interfaces/web/StaticWebController` (Thymeleaf demo) | behind a `demo` profile or deleted |
+
+**Done when** `grep -rE 'jakarta.persistence|org.springframework' billing/domain` is empty; DDL diff
+empty; tests green.
+
+**Done, 2026-09-06.** All three gates met: the grep is empty, `schema-phase-3.sql` is byte-identical
+to `schema-phase-2.sql`, 493 tests pass. Deviations:
+
+- **Domain events, settled: the adapter drains.** `PaymentRecordRepositoryImpl.save()` publishes
+  `paymentRecord.domainEvents()` after the write and then clears them. The alternative — the
+  persistence entity carrying the events — was rejected because it puts a domain concern in a
+  storage type and only works while every write goes through a Spring Data `save()`.
+- **`AbstractDomainAggregateRoot` no longer extends Spring Data's `AbstractAggregateRoot`.** It now
+  holds its own event list with `registerEvent`, `domainEvents()` and `clearDomainEvents()`, and
+  imports nothing from any framework. The old base class only worked by having the repository read
+  the events off the instance it was handed, which after the split is the persistence entity — so
+  the wrapper was not just an unnecessary dependency, it was a silent bug. This deletes the one
+  framework import `domain` was allowed to keep; `AuditableModel` (Phase 7) is now the last.
+- `UserPlan` does **not** extend the base class: it publishes nothing. Only `PaymentRecord` does.
+- `SubscriptionPaidEvent` is a record `(String stripePaymentIntentId, UserId userId)`. The `source`
+  argument `ApplicationEvent` demanded is gone; `@EventListener` binds the payload either way.
+- `StaticWebController` is **deleted**, not profiled. `/checkout-demo` returned the Thymeleaf view
+  `checkout`, and there is no `src/main/resources/templates` directory — the endpoint has been a 500
+  for as long as the template has been missing. Its `permitAll()` entry in `SecurityConfiguration`
+  went with it, and so did the only reader of the `stripe.public.key` property.
+- Inbound ports follow Phases 1 and 2: `application/commandservices/SubscriptionCommandService` and
+  `application/queryservices/SubscriptionQueryService`, impls under `application/internal/`.
+- `PaymentRecordRepository` gained `findById`, which the query service used to reach through
+  `JpaRepository` for. `PaymentIntentResult` stays in `domain/model/valueobjects`; it is the
+  gateway's result shape and names nothing from Stripe.
+- Both aggregates keep their audit timestamps as constructor state, `null` until first written, so
+  `isNew()` still reads `createdAt == null` and an assigned id is still a plain insert.
+- Still crossing a boundary, scheduled: `UserRegisteredEventHandler` imports
+  `iam.domain.model.events.UserRegisteredEvent` (Phase 6).
 
 ---
 

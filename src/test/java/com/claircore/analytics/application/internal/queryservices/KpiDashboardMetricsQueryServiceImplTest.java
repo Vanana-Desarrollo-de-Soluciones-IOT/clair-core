@@ -2,7 +2,7 @@ package com.claircore.analytics.application.internal.queryservices;
 
 import com.claircore.analytics.application.internal.outboundservices.cache.KpiLiveMetricsBuffer;
 import com.claircore.analytics.application.internal.outboundservices.cache.LiveMetricsStore;
-import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
+import com.claircore.shared.domain.exceptions.ResourceNotFoundException;
 import com.claircore.analytics.domain.model.aggregates.DeviceAnalyticsSnapshot;
 import com.claircore.analytics.domain.model.queries.GetDashboardMetricsQuery;
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
@@ -137,8 +137,12 @@ class KpiDashboardMetricsQueryServiceImplTest {
         when(snapshotRepository.findAveragesByDeviceIdAndWindow(eq(deviceId), any(), any()))
                 .thenReturn(Optional.empty());
 
+        // The message is the assertion that matters: it is what reaches the client, and the
+        // dedicated exception subclass that used to carry it added nothing else.
         assertThatThrownBy(() -> queryService.handle(query(TrendPeriod.DAY, null, null)))
-                .isInstanceOf(DeviceTelemetryUnavailableException.class);
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("No telemetry data available for device with ID %s in the requested period."
+                        .formatted(deviceId));
     }
 
     private GetDashboardMetricsQuery query(TrendPeriod period, Instant start, Instant end) {

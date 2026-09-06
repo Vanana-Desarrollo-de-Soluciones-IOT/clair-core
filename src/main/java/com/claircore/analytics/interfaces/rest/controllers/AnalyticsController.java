@@ -6,7 +6,7 @@ import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.analytics.domain.model.valueobjects.TrendPeriod;
 import com.claircore.analytics.application.queryservices.KpiDashboardMetricsQueryService;
 import com.claircore.analytics.application.queryservices.KpiHistoricalTrendQueryService;
-import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
+import com.claircore.shared.domain.exceptions.ResourceNotFoundException;
 import com.claircore.analytics.interfaces.rest.resources.DashboardMetricsResponse;
 import com.claircore.analytics.interfaces.rest.resources.TrendChartResponse;
 import com.claircore.analytics.interfaces.rest.transform.AnalyticsResourceFromEntityAssembler;
@@ -60,7 +60,7 @@ public class AnalyticsController {
         return kpiDashboardMetricsQueryService.handle(query)
                 .map(AnalyticsResourceFromEntityAssembler::toDashboardResponse)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, true));
+                .orElseThrow(() -> new ResourceNotFoundException("Device with ID %s has no recent live telemetry data; it might be turned off or disconnected.".formatted(deviceId)));
     }
 
     @GetMapping(value = "/devices/{deviceId}/live/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -94,7 +94,7 @@ public class AnalyticsController {
         return kpiDashboardMetricsQueryService.handle(query)
                 .map(AnalyticsResourceFromEntityAssembler::toDashboardResponse)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, false));
+                .orElseThrow(() -> new ResourceNotFoundException("No telemetry data available for device with ID %s in the requested period.".formatted(deviceId)));
     }
 
     @GetMapping("/devices/{deviceId}/trends")

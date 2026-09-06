@@ -2,7 +2,7 @@ package com.claircore.analytics.application.internal.queryservices;
 
 import com.claircore.analytics.application.internal.outboundservices.cache.LiveMetricsStore;
 import com.claircore.analytics.application.queryservices.KpiDashboardMetricsQueryService;
-import com.claircore.analytics.domain.exceptions.DeviceTelemetryUnavailableException;
+import com.claircore.shared.domain.exceptions.ResourceNotFoundException;
 import com.claircore.analytics.domain.model.queries.GetDashboardMetricsQuery;
 import com.claircore.analytics.domain.model.valueobjects.KpiDashboardMetrics;
 import com.claircore.analytics.domain.model.valueobjects.MetricAverages;
@@ -87,7 +87,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
         Instant start = hasExplicitWindow ? query.startDate() : end.minus(windowOf(query.period()));
 
         var averages = snapshotRepository.findAveragesByDeviceIdAndWindow(deviceId, start, end)
-                .orElseThrow(() -> new DeviceTelemetryUnavailableException(deviceId, false));
+                .orElseThrow(() -> new ResourceNotFoundException("No telemetry data available for device with ID %s in the requested period.".formatted(deviceId)));
         var aqi = aqiCalculator.calculateAqi(averages.pm2_5(), averages.co2());
 
         // Trends compare the window against the window of equal length that precedes it.

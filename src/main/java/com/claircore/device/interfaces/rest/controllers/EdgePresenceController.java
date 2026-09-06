@@ -3,7 +3,7 @@ package com.claircore.device.interfaces.rest.controllers;
 import com.claircore.device.domain.model.commands.UpdateDevicePresenceStatusCommand;
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.HardwareId;
-import com.claircore.device.domain.services.DevicePresenceCommandService;
+import com.claircore.device.application.commandservices.DevicePresenceCommandService;
 import com.claircore.device.interfaces.rest.resources.EdgePresenceRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;

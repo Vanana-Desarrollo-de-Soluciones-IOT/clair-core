@@ -3,10 +3,10 @@ package com.claircore.device.interfaces.rest.controllers;
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
 import com.claircore.device.domain.model.commands.DeleteOrganizationCommand;
 import com.claircore.device.domain.model.commands.UpdateOrganizationNameCommand;
-import com.claircore.device.domain.model.entities.Organization;
+import com.claircore.device.domain.model.aggregates.Organization;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.domain.services.OrganizationCommandService;
-import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.application.commandservices.OrganizationCommandService;
+import com.claircore.device.application.queryservices.DeviceQueryService;
 import com.claircore.device.domain.model.queries.GetOrganizationByIdQuery;
 import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
@@ -107,8 +107,8 @@ public class OrganizationController {
             org.getId(),
             org.getName(),
             org.getOwnerUserId().userId(),
-            org.getAuditFields().getCreatedAt().toInstant(),
-            org.getAuditFields().getUpdatedAt().toInstant()
+            org.getCreatedAt(),
+            org.getUpdatedAt()
         );
     }
 }

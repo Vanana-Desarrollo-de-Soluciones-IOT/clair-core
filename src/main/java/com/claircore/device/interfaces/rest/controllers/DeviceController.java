@@ -4,15 +4,15 @@ import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
-import com.claircore.device.domain.model.entities.DeviceAssignment;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
 import com.claircore.device.domain.model.queries.GetDeviceStatusByDeviceIdForUserQuery;
 import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.domain.services.DeviceCommandService;
-import com.claircore.device.domain.services.DeviceQueryService;
-import com.claircore.device.domain.services.DeviceStatusQueryService;
+import com.claircore.device.application.commandservices.DeviceCommandService;
+import com.claircore.device.application.queryservices.DeviceQueryService;
+import com.claircore.device.application.queryservices.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +20,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.claircore.shared.domain.model.PageResult;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -63,7 +66,7 @@ public class DeviceController {
         DeviceAssignment assignment = deviceCommandService.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 new DevicePairingResource(
-                        assignment.getDevice().getId(),
+                        assignment.getDeviceId(),
                         assignment.getClaimToken() != null ? assignment.getClaimToken().value() : null
                 )
         );
@@ -87,7 +90,9 @@ public class DeviceController {
         );
 
         DeviceAssignment assignment = deviceCommandService.handle(command);
-        return ResponseEntity.ok(toResponse(assignment));
+        return deviceQueryService.findAssignedDeviceByDeviceId(assignment.getDeviceId())
+                .map(assigned -> ResponseEntity.ok(toResponse(assigned)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
@@ -98,15 +103,20 @@ public class DeviceController {
             @RequestParam(defaultValue = "20") Integer size) {
 
         var query = new GetDevicesBySpaceQuery(spaceId, page, size);
-        Page<DeviceAssignment> assignments = deviceQueryService.handle(query);
-        return ResponseEntity.ok(assignments.map(this::toResponse));
+        PageResult<DeviceQueryService.AssignedDevice> assigned = deviceQueryService.handle(query);
+        // The port speaks PageResult; the body stays a Spring Data page so the JSON envelope
+        // clients already consume is unchanged.
+        return ResponseEntity.ok(new PageImpl<>(
+                assigned.items().stream().map(this::toResponse).toList(),
+                PageRequest.of(assigned.page(), assigned.size()),
+                assigned.total()));
     }
 
     @GetMapping("/{deviceId}")
     @Operation(summary = "Get device by ID")
     public ResponseEntity<DeviceResponse> getDevice(@PathVariable UUID deviceId) {
-        return deviceQueryService.findAssignmentByDeviceId(deviceId)
-                .map(assignment -> ResponseEntity.ok(toResponse(assignment)))
+        return deviceQueryService.findAssignedDeviceByDeviceId(deviceId)
+                .map(assigned -> ResponseEntity.ok(toResponse(assigned)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -125,7 +135,7 @@ public class DeviceController {
 
         return deviceStatusQueryService.handle(query)
                 .map(assignment -> ResponseEntity.ok(new DeviceStatusResponse(
-                        assignment.getDevice().getId(),
+                        assignment.getDeviceId(),
                         assignment.getStatus(),
                         assignment.getLastSeenAt()
                 )))
@@ -169,8 +179,9 @@ public class DeviceController {
         return UUID.fromString(userDetails.getUsername());
     }
 
-    private DeviceResponse toResponse(DeviceAssignment assignment) {
-        var device = assignment.getDevice();
+    private DeviceResponse toResponse(DeviceQueryService.AssignedDevice assigned) {
+        var assignment = assigned.assignment();
+        var device = assigned.device();
         return new DeviceResponse(
                 device.getId(),
                 device.getSerialNumber(),
@@ -184,8 +195,8 @@ public class DeviceController {
                 device.getDeviceType().value(),
                 assignment.getActivatedAt(),
                 assignment.getLastSeenAt(),
-                assignment.getAuditFields().getCreatedAt() != null ? assignment.getAuditFields().getCreatedAt().toInstant() : null,
-                assignment.getAuditFields().getUpdatedAt() != null ? assignment.getAuditFields().getUpdatedAt().toInstant() : null
+                assignment.getCreatedAt(),
+                assignment.getUpdatedAt()
         );
     }
 

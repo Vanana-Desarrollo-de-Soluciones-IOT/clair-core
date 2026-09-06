@@ -1,14 +1,12 @@
 package com.claircore.device.interfaces.rest.controllers;
 
-import com.claircore.device.infrastructure.persistence.jpa.repositories.DeviceRepository;
+import com.claircore.device.domain.repositories.DeviceRepository;
 import com.claircore.device.interfaces.rest.resources.DeviceRosterResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -32,30 +30,28 @@ public class DeviceRosterController {
             @RequestParam(required = false) UUID afterId,
             @RequestParam(defaultValue = "200") int limit) {
         if (limit < 1 || limit > 200) return ResponseEntity.badRequest().build();
-        Date parsedSince = parseSince(since);
-        var page = deviceRepository.findProvisionedDevices(parsedSince, afterId, PageRequest.of(0, limit));
-        var devices = page.getContent().stream().map(d -> new DeviceRosterResponse.DeviceRosterItem(
-                d.getDeviceId().toString(), d.getHardwareId(), d.getApiKey(),
-                d.getStatus().name(), d.isDeleted(), d.getUpdatedAt().toInstant().toString())).toList();
-        String nextSince = page.hasNext() && !page.isEmpty()
-                ? page.getContent().getLast().getUpdatedAt().toInstant().toString() : null;
-        String nextAfterId = page.hasNext() && !page.isEmpty()
-                ? page.getContent().getLast().getDeviceId().toString() : null;
+        var page = deviceRepository.findProvisionedDevices(parseSince(since), afterId, limit);
+        var rows = page.items();
+        var devices = rows.stream().map(d -> new DeviceRosterResponse.DeviceRosterItem(
+                d.deviceId().toString(), d.hardwareId(), d.apiKey(),
+                d.status().name(), d.deleted(), d.updatedAt().toString())).toList();
+
+        boolean hasMore = page.total() > rows.size();
+        String nextSince = hasMore && !rows.isEmpty() ? rows.getLast().updatedAt().toString() : null;
+        String nextAfterId = hasMore && !rows.isEmpty() ? rows.getLast().deviceId().toString() : null;
         // The watermark must reflect the last row actually handed back, never wall-clock time:
         // an empty page (e.g. polled before any device exists yet) must not advance the cursor
         // past devices the caller hasn't seen, or they become permanently unreachable since the
         // cursor only ever moves forward and a device's updatedAt never revisits the past.
-        String watermark = !devices.isEmpty()
-                ? page.getContent().getLast().getUpdatedAt().toInstant().toString()
-                : since;
-        return ResponseEntity.ok(new DeviceRosterResponse(watermark, devices, page.hasNext(), nextSince, nextAfterId));
+        String watermark = !rows.isEmpty() ? rows.getLast().updatedAt().toString() : since;
+        return ResponseEntity.ok(new DeviceRosterResponse(watermark, devices, hasMore, nextSince, nextAfterId));
     }
 
-    private Date parseSince(String value) {
+    private Instant parseSince(String value) {
         if (value == null || value.isBlank()) return null;
         try {
-            if (value.matches("\\d+")) return new Date(Long.parseLong(value));
-            return Date.from(Instant.parse(value));
+            if (value.matches("\\d+")) return Instant.ofEpochMilli(Long.parseLong(value));
+            return Instant.parse(value);
         } catch (RuntimeException ex) {
             throw new IllegalArgumentException("since must be epoch milliseconds or ISO-8601", ex);
         }

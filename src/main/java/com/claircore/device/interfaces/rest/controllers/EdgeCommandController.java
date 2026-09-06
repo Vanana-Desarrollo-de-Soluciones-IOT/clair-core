@@ -1,56 +1,69 @@
 package com.claircore.device.interfaces.rest.controllers;
 
-import com.claircore.device.application.internal.commandservices.EdgeCommandAcknowledgementService;
-import com.claircore.device.domain.model.entities.DeviceCommand;
+import com.claircore.device.application.commandservices.EdgeCommandService;
+import com.claircore.device.domain.model.commands.AcknowledgeEdgeCommandCommand;
+import com.claircore.device.domain.model.queries.ClaimPendingEdgeCommandsQuery;
+import com.claircore.device.domain.model.valueobjects.EdgeCommandResult;
 import com.claircore.device.interfaces.rest.resources.EdgeCommandAckRequest;
+import com.claircore.device.interfaces.rest.resources.EdgeCommandResource;
+import com.claircore.device.interfaces.rest.transform.EdgeCommandResourceFromEntityAssembler;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/edge/commands")
 public class EdgeCommandController {
-    private final EdgeCommandAcknowledgementService acknowledgementService;
+
+    private final EdgeCommandService edgeCommandService;
     private final ObjectMapper mapper;
 
-    @Autowired
-    public EdgeCommandController(EdgeCommandAcknowledgementService acknowledgementService,
-                                 ObjectMapper mapper) {
-        this.acknowledgementService = acknowledgementService;
+    public EdgeCommandController(EdgeCommandService edgeCommandService, ObjectMapper mapper) {
+        this.edgeCommandService = edgeCommandService;
         this.mapper = mapper;
     }
 
     @GetMapping("/pending")
-    public List<Map<String,Object>> pending(@RequestParam(required=false, name="hardware_id") String hardwareId,
-                                             @RequestParam(required=false) String since,
-                                             @RequestParam(defaultValue="200") int limit) {
-        if (limit < 1 || limit > 500) throw new IllegalArgumentException("limit must be between 1 and 500");
-        Instant instant = parse(since);
-        return acknowledgementService.claimForEdge(hardwareId, instant, limit)
-                .stream().map(this::toResource).toList();
+    public List<EdgeCommandResource> pending(
+            @RequestParam(required = false, name = "hardware_id") String hardwareId,
+            @RequestParam(required = false) String since,
+            @RequestParam(defaultValue = "200") int limit) {
+        var query = new ClaimPendingEdgeCommandsQuery(hardwareId, parse(since), limit);
+        return edgeCommandService.handle(query).stream()
+                .map(pending -> EdgeCommandResourceFromEntityAssembler.toResourceFromEntity(pending, mapper))
+                .toList();
     }
 
     @PostMapping("/{commandId}/ack")
-    public ResponseEntity<Void> acknowledge(@PathVariable UUID commandId, @Valid @RequestBody EdgeCommandAckRequest body) {
-        return switch (acknowledgementService.acknowledge(commandId, body)) {
-            case OK -> ResponseEntity.ok().<Void>build();
-            case CONFLICT -> ResponseEntity.status(HttpStatus.CONFLICT).<Void>build();
-            case NOT_FOUND -> ResponseEntity.notFound().<Void>build();
+    public ResponseEntity<Void> acknowledge(
+            @PathVariable UUID commandId, @Valid @RequestBody EdgeCommandAckRequest body) {
+        var command = new AcknowledgeEdgeCommandCommand(
+                commandId,
+                body.hardware_id(),
+                body.result() == EdgeCommandAckRequest.Result.FAILED
+                        ? EdgeCommandResult.FAILED : EdgeCommandResult.EXECUTED,
+                body.detail());
+        return switch (edgeCommandService.handle(command)) {
+            case OK -> ResponseEntity.ok().build();
+            case CONFLICT -> ResponseEntity.status(HttpStatus.CONFLICT).build();
+            case NOT_FOUND -> ResponseEntity.notFound().build();
         };
     }
 
-    private Map<String,Object> toResource(DeviceCommand c) {
-        Object payload = c.getPayload();
-        try { payload = mapper.readTree(c.getPayload()); } catch (Exception ignored) { }
-        Map<String,Object> result = new LinkedHashMap<>();
-        result.put("command_id", c.getId().toString()); result.put("device_id", c.getDevice().getId().toString());
-        result.put("hardware_id", c.getDevice().getHardwareId().value()); result.put("command_type", c.getType().name());
-        result.put("payload", payload); result.put("issued_at", c.getAuditFields().getCreatedAt() == null ? "" : c.getAuditFields().getCreatedAt().toInstant().toString());
-        return result;
+    private static Instant parse(String value) {
+        if (value == null || value.isBlank()) return null;
+        return Instant.parse(value);
     }
-    private Instant parse(String value) { if (value == null || value.isBlank()) return null; return Instant.parse(value); }
 }

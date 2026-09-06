@@ -3,10 +3,10 @@ package com.claircore.device.interfaces.rest.controllers;
 import com.claircore.device.domain.model.commands.CreateSpaceCommand;
 import com.claircore.device.domain.model.commands.DeleteSpaceCommand;
 import com.claircore.device.domain.model.commands.UpdateSpaceNameCommand;
-import com.claircore.device.domain.model.entities.Space;
+import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.UserId;
-import com.claircore.device.domain.services.SpaceCommandService;
-import com.claircore.device.domain.services.DeviceQueryService;
+import com.claircore.device.application.commandservices.SpaceCommandService;
+import com.claircore.device.application.queryservices.DeviceQueryService;
 import com.claircore.device.domain.model.queries.GetSpaceByIdQuery;
 import com.claircore.device.domain.model.queries.GetSpacesByOrganizationQuery;
 import com.claircore.device.interfaces.rest.resources.CreateSpaceRequest;
@@ -107,8 +107,8 @@ public class SpaceController {
             space.getName(),
             space.getOrganizationId(),
             space.getOwnerUserId().userId(),
-            space.getAuditFields().getCreatedAt().toInstant(),
-            space.getAuditFields().getUpdatedAt().toInstant()
+            space.getCreatedAt(),
+            space.getUpdatedAt()
         );
     }
 }

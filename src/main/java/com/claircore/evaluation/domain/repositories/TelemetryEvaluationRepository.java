@@ -1,0 +1,24 @@
+package com.claircore.evaluation.domain.repositories;
+
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.valueobjects.HourlyDeviceAverage;
+import com.claircore.shared.domain.model.PageResult;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Port for telemetry evaluation storage. Domain types only. */
+public interface TelemetryEvaluationRepository {
+
+    TelemetryEvaluation save(TelemetryEvaluation evaluation);
+
+    /** Most recently recorded first. */
+    PageResult<TelemetryEvaluation> findByDeviceId(UUID deviceId, int page, int size);
+
+    Optional<TelemetryEvaluation> findLatestByDeviceId(UUID deviceId);
+
+    /** Per-device averages over [start, end), the aggregation analytics reads hourly. */
+    List<HourlyDeviceAverage> findHourlyAveragesBetween(Instant start, Instant end);
+}

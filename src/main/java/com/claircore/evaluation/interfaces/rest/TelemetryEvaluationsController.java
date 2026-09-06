@@ -1,16 +1,16 @@
-package com.claircore.evaluation.interfaces.rest.controllers;
+package com.claircore.evaluation.interfaces.rest;
 
 import com.claircore.evaluation.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.queries.GetEvaluationsByDeviceQuery;
 import com.claircore.evaluation.domain.model.queries.GetLatestEvaluationByDeviceQuery;
 import com.claircore.evaluation.domain.model.valueobjects.*;
-import com.claircore.evaluation.domain.services.TelemetryEvaluationCommandService;
-import com.claircore.evaluation.domain.services.TelemetryEvaluationQueryService;
-import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryRequest;
-import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResponse;
-import com.claircore.evaluation.interfaces.rest.transform.TelemetryEvaluationTransform;
+import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
+import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
+import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryResource;
+import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResource;
+import com.claircore.evaluation.interfaces.rest.transform.TelemetryEvaluationResourceFromEntityAssembler;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +20,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +34,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/evaluations")
 @Tag(name = "Evaluations", description = "Telemetry storage endpoints")
-public class TelemetryEvaluationController {
+public class TelemetryEvaluationsController {
 
     private static final int MAX_BATCH_SIZE = 10;
 
@@ -40,7 +42,7 @@ public class TelemetryEvaluationController {
     private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
     private final ExternalDeviceService externalDeviceService;
 
-    public TelemetryEvaluationController(
+    public TelemetryEvaluationsController(
             TelemetryEvaluationQueryService telemetryEvaluationQueryService,
             TelemetryEvaluationCommandService telemetryEvaluationCommandService,
             ExternalDeviceService externalDeviceService
@@ -57,7 +59,7 @@ public class TelemetryEvaluationController {
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "404", description = "Device not found")
     })
-    public ResponseEntity<TelemetryEvaluationResponse> evaluateTelemetry(@Valid @RequestBody EvaluateTelemetryRequest request) {
+    public ResponseEntity<TelemetryEvaluationResource> evaluateTelemetry(@Valid @RequestBody EvaluateTelemetryResource request) {
         UUID deviceId = resolveDeviceId(request.deviceId()).orElse(null);
         if (deviceId == null) return ResponseEntity.notFound().build();
 
@@ -96,7 +98,7 @@ public class TelemetryEvaluationController {
         );
 
         TelemetryEvaluation evaluation = telemetryEvaluationCommandService.handle(command);
-        return ResponseEntity.status(HttpStatus.CREATED).body(TelemetryEvaluationTransform.toResponse(evaluation));
+        return ResponseEntity.status(HttpStatus.CREATED).body(TelemetryEvaluationResourceFromEntityAssembler.toResourceFromEntity(evaluation));
     }
 
     @PostMapping("/telemetry/batch")
@@ -109,7 +111,7 @@ public class TelemetryEvaluationController {
         for (JsonNode record : records) {
             String ref = record.path("client_ref").asText("");
             try {
-                ResponseEntity<TelemetryEvaluationResponse> response = evaluateTelemetry(batchRequest(record));
+                ResponseEntity<TelemetryEvaluationResource> response = evaluateTelemetry(batchRequest(record));
                 if (response.getStatusCode().is2xxSuccessful()) results.add(java.util.Map.of("client_ref", ref, "status", "CREATED"));
                 else results.add(java.util.Map.of("client_ref", ref, "status", "ERROR", "reason", "DEVICE_NOT_FOUND"));
             }
@@ -118,7 +120,7 @@ public class TelemetryEvaluationController {
         return ResponseEntity.ok(java.util.Map.of("results", results));
     }
 
-    private EvaluateTelemetryRequest batchRequest(JsonNode r) {
+    private EvaluateTelemetryResource batchRequest(JsonNode r) {
         String[] required = {"device_id", "device_time", "uptime_seconds", "co2", "temperature", "humidity", "pm1_0", "pm2_5", "pm10", "wifi_status", "health_status", "status", "recorded_at", "occurred_at"};
         for (String name : required) if (!r.has(name) || r.get(name).isNull() || (r.get(name).isTextual() && r.get(name).asText().isBlank())) throw new IllegalArgumentException("Missing " + name);
         requireText(r, "device_id"); requireText(r, "device_time"); requireText(r, "wifi_status"); requireText(r, "status"); requireText(r, "recorded_at"); requireText(r, "occurred_at");
@@ -131,12 +133,12 @@ public class TelemetryEvaluationController {
         try { deviceTime = Instant.parse(deviceTime).atZone(java.time.ZoneOffset.UTC).toLocalTime().toString(); }
         catch (Exception ex) { java.time.LocalTime.parse(deviceTime); }
         // Construct the existing request shape so singular and batch paths share the same command handling.
-        return new EvaluateTelemetryRequest(r.get("device_id").asText(), deviceTime,
+        return new EvaluateTelemetryResource(r.get("device_id").asText(), deviceTime,
                 Long.toString(r.get("uptime_seconds").asLong()),
-                new EvaluateTelemetryRequest.AirQualityRequest(r.get("co2").doubleValue(), r.get("temperature").doubleValue(), r.get("humidity").doubleValue()),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(r.get("pm1_0").intValue(), r.get("pm2_5").intValue(), r.get("pm10").intValue()),
-                new EvaluateTelemetryRequest.ConnectivityRequest(r.get("wifi_status").asText(), r.path("network_name").asText(null), r.path("signal_strength").isNumber() ? r.get("signal_strength").intValue() : null),
-                new EvaluateTelemetryRequest.LocationRequest(r.path("country").asText(null)), r.get("health_status").intValue(),
+                new EvaluateTelemetryResource.AirQualityResource(r.get("co2").doubleValue(), r.get("temperature").doubleValue(), r.get("humidity").doubleValue()),
+                new EvaluateTelemetryResource.ParticulateMatterResource(r.get("pm1_0").intValue(), r.get("pm2_5").intValue(), r.get("pm10").intValue()),
+                new EvaluateTelemetryResource.ConnectivityResource(r.get("wifi_status").asText(), r.path("network_name").asText(null), r.path("signal_strength").isNumber() ? r.get("signal_strength").intValue() : null),
+                new EvaluateTelemetryResource.LocationResource(r.path("country").asText(null)), r.get("health_status").intValue(),
                 r.get("status").asText(), r.get("recorded_at").asText());
     }
 
@@ -151,7 +153,7 @@ public class TelemetryEvaluationController {
             @ApiResponse(responseCode = "403", description = "Access denied: User does not own the device"),
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
-    public ResponseEntity<Page<TelemetryEvaluationResponse>> getEvaluationsByDevice(
+    public ResponseEntity<Page<TelemetryEvaluationResource>> getEvaluationsByDevice(
             HttpServletRequest httpRequest,
             @PathVariable UUID deviceId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -166,8 +168,15 @@ public class TelemetryEvaluationController {
         }
 
         var query = new GetEvaluationsByDeviceQuery(deviceId, page, size);
-        Page<TelemetryEvaluation> evaluations = telemetryEvaluationQueryService.handle(query);
-        return ResponseEntity.ok(evaluations.map(TelemetryEvaluationTransform::toResponse));
+        var evaluations = telemetryEvaluationQueryService.handle(query);
+        var resources = evaluations.items().stream()
+                .map(TelemetryEvaluationResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+
+        // The port speaks PageResult; the body stays a Spring Data page so the JSON envelope
+        // clients already consume is unchanged.
+        return ResponseEntity.ok(new PageImpl<>(
+                resources, PageRequest.of(evaluations.page(), evaluations.size()), evaluations.total()));
     }
 
     @GetMapping("/devices/{deviceId}/latest")
@@ -177,7 +186,7 @@ public class TelemetryEvaluationController {
             @ApiResponse(responseCode = "403", description = "Access denied: User does not own the device"),
             @ApiResponse(responseCode = "404", description = "No records found for device")
     })
-    public ResponseEntity<TelemetryEvaluationResponse> getLatestEvaluationByDevice(
+    public ResponseEntity<TelemetryEvaluationResource> getLatestEvaluationByDevice(
             HttpServletRequest httpRequest,
             @PathVariable UUID deviceId
     ) {
@@ -191,7 +200,7 @@ public class TelemetryEvaluationController {
 
         var query = new GetLatestEvaluationByDeviceQuery(deviceId);
         return telemetryEvaluationQueryService.handle(query)
-                .map(e -> ResponseEntity.ok(TelemetryEvaluationTransform.toResponse(e)))
+                .map(e -> ResponseEntity.ok(TelemetryEvaluationResourceFromEntityAssembler.toResourceFromEntity(e)))
                 .orElse(ResponseEntity.notFound().build());
     }
 

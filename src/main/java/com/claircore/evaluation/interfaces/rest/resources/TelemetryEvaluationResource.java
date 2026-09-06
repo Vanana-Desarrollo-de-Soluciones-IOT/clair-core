@@ -7,7 +7,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @Schema(description = "Response representing a stored telemetry record")
-public record TelemetryEvaluationResponse(
+public record TelemetryEvaluationResource(
         @Schema(description = "Evaluation ID", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
         UUID id,
 
@@ -21,16 +21,16 @@ public record TelemetryEvaluationResponse(
         Long uptime,
 
         @Schema(description = "Air quality sensor data")
-        AirQualityResponse airQuality,
+        AirQualityResource airQuality,
 
         @Schema(description = "Particulate matter sensor data")
-        ParticulateMatterResponse particulateMatter,
+        ParticulateMatterResource particulateMatter,
 
         @Schema(description = "WiFi connectivity status")
-        ConnectivityResponse connectivity,
+        ConnectivityResource connectivity,
 
         @Schema(description = "Device location")
-        LocationResponse location,
+        LocationResource location,
 
         @Schema(description = "Device health status percentage", example = "100")
         Integer healthStatus,
@@ -45,28 +45,28 @@ public record TelemetryEvaluationResponse(
         Instant createdAt
 ) {
     @Schema(description = "Air quality sensor data")
-    public record AirQualityResponse(
+    public record AirQualityResource(
             Double co2,
             Double temperature,
             Double humidity
     ) {}
 
     @Schema(description = "Particulate matter sensor data")
-    public record ParticulateMatterResponse(
+    public record ParticulateMatterResource(
             Integer pm1_0,
             Integer pm2_5,
             Integer pm10
     ) {}
 
     @Schema(description = "WiFi connectivity status")
-    public record ConnectivityResponse(
+    public record ConnectivityResource(
             String status,
             String network,
             Integer signalStrength
     ) {}
 
     @Schema(description = "Location data")
-    public record LocationResponse(
+    public record LocationResource(
             String country
     ) {}
 }

@@ -1,17 +1,18 @@
-package com.claircore.evaluation.interfaces.rest.controllers;
+package com.claircore.evaluation.interfaces.rest;
 
 import com.claircore.evaluation.application.internal.outboundservices.acl.ExternalDeviceService;
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.queries.GetEvaluationsByDeviceQuery;
 import com.claircore.evaluation.domain.model.queries.GetLatestEvaluationByDeviceQuery;
 import com.claircore.evaluation.domain.model.valueobjects.*;
-import com.claircore.evaluation.domain.services.TelemetryEvaluationCommandService;
-import com.claircore.evaluation.domain.services.TelemetryEvaluationQueryService;
-import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryRequest;
+import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
+import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
+import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryResource;
 import com.claircore.iam.domain.services.TokenQueryService;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
-import com.claircore.shared.interfaces.rest.exceptions.GlobalExceptionHandler;
+import com.claircore.shared.domain.model.PageResult;
+import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +37,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(TelemetryEvaluationController.class)
+@WebMvcTest(TelemetryEvaluationsController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
-class TelemetryEvaluationControllerTest {
+class TelemetryEvaluationsControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -131,14 +132,14 @@ class TelemetryEvaluationControllerTest {
         );
         when(telemetryEvaluationCommandService.handle(any(EvaluateTelemetryCommand.class))).thenReturn(evaluation);
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 resolvedDeviceId.toString(),
                 "12:00:00",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 Instant.now().toString()
@@ -173,14 +174,14 @@ class TelemetryEvaluationControllerTest {
         );
         when(telemetryEvaluationCommandService.handle(any(EvaluateTelemetryCommand.class))).thenReturn(evaluation);
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 hardwareId,
                 "12:00:00",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 Instant.now().toString()
@@ -203,14 +204,14 @@ class TelemetryEvaluationControllerTest {
         UUID resolvedDeviceId = UUID.randomUUID();
         when(externalDeviceService.findHardwareIdByDeviceId(resolvedDeviceId)).thenReturn(Optional.of("HW-002"));
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 resolvedDeviceId.toString(),
                 "invalid-time-format",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 null
@@ -229,14 +230,14 @@ class TelemetryEvaluationControllerTest {
         UUID resolvedDeviceId = UUID.randomUUID();
         when(externalDeviceService.findHardwareIdByDeviceId(resolvedDeviceId)).thenReturn(Optional.of("HW-003"));
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 resolvedDeviceId.toString(),
                 "12:00:00",
                 "invalid-uptime-format",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 null
@@ -256,14 +257,14 @@ class TelemetryEvaluationControllerTest {
         UUID resolvedDeviceId = UUID.randomUUID();
         when(externalDeviceService.findDeviceIdByHardwareId(hardwareId)).thenReturn(Optional.of(resolvedDeviceId));
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 hardwareId,
                 "12:00:00",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 "invalid-instant"
@@ -282,14 +283,14 @@ class TelemetryEvaluationControllerTest {
         String unknownDevice = "unknown-device-id";
         when(externalDeviceService.findDeviceIdByHardwareId(unknownDevice)).thenReturn(Optional.empty());
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 unknownDevice,
                 "12:00:00",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 null
@@ -308,14 +309,14 @@ class TelemetryEvaluationControllerTest {
         UUID unknownDevice = UUID.randomUUID();
         when(externalDeviceService.findHardwareIdByDeviceId(unknownDevice)).thenReturn(Optional.empty());
 
-        var requestBody = new EvaluateTelemetryRequest(
+        var requestBody = new EvaluateTelemetryResource(
                 unknownDevice.toString(),
                 "12:00:00",
                 "3600",
-                new EvaluateTelemetryRequest.AirQualityRequest(400.0, 22.0, 45.0),
-                new EvaluateTelemetryRequest.ParticulateMatterRequest(10, 15, 25),
-                new EvaluateTelemetryRequest.ConnectivityRequest("ONLINE", "WiFi", -50),
-                new EvaluateTelemetryRequest.LocationRequest("Chile"),
+                new EvaluateTelemetryResource.AirQualityResource(400.0, 22.0, 45.0),
+                new EvaluateTelemetryResource.ParticulateMatterResource(10, 15, 25),
+                new EvaluateTelemetryResource.ConnectivityResource("ONLINE", "WiFi", -50),
+                new EvaluateTelemetryResource.LocationResource("Chile"),
                 85,
                 "STABLE",
                 null
@@ -366,7 +367,7 @@ class TelemetryEvaluationControllerTest {
                 new Location("Chile"),
                 85, "STABLE", Instant.now()
         );
-        var page = new PageImpl<>(List.of(evaluation));
+        var page = new PageResult<>(List.of(evaluation), 0, 20, 1L);
         when(telemetryEvaluationQueryService.handle(any(GetEvaluationsByDeviceQuery.class))).thenReturn(page);
 
         // Act & Assert

@@ -1,4 +1,4 @@
-package com.claircore.evaluation.domain.model.entities;
+package com.claircore.evaluation.domain.model.aggregates;
 
 import com.claircore.evaluation.domain.model.valueobjects.*;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,8 @@ class TelemetryEvaluationTest {
         assertThat(evaluation.getHealthStatus()).isEqualTo(85);
         assertThat(evaluation.getStatus()).isEqualTo("STABLE");
         assertThat(evaluation.getRecordedAt()).isEqualTo(sampleRecordedAt);
-        assertThat(evaluation.getAuditFields()).isNotNull();
+        assertThat(evaluation.getId()).isNotNull();
+        assertThat(evaluation.getCreatedAt()).isNull();
     }
 
     @Test

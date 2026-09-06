@@ -1,26 +1,22 @@
 package com.claircore.evaluation.application.internal.queryservices;
 
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.queries.GetEvaluationsByDeviceQuery;
 import com.claircore.evaluation.domain.model.queries.GetLatestEvaluationByDeviceQuery;
 import com.claircore.evaluation.domain.model.valueobjects.*;
-import com.claircore.evaluation.infrastructure.persistence.jpa.repositories.TelemetryEvaluationRepository;
+import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
+import com.claircore.shared.domain.model.PageResult;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,18 +41,18 @@ class TelemetryEvaluationQueryServiceImplTest {
                 new Location("Chile"),
                 85, "STABLE", Instant.now()
         );
-        Page<TelemetryEvaluation> expectedPage = new PageImpl<>(List.of(evaluation));
+        var expectedPage = new PageResult<>(List.of(evaluation), 0, 10, 1L);
 
-        when(telemetryEvaluationRepository.findByDeviceId(eq(deviceId), any(PageRequest.class)))
-                .thenReturn(expectedPage);
+        when(telemetryEvaluationRepository.findByDeviceId(deviceId, 0, 10)).thenReturn(expectedPage);
 
         // Act
-        Page<TelemetryEvaluation> result = telemetryEvaluationQueryService.handle(query);
+        PageResult<TelemetryEvaluation> result = telemetryEvaluationQueryService.handle(query);
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getDeviceId().value()).isEqualTo(deviceId);
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.total()).isEqualTo(1L);
+        assertThat(result.items().get(0).getDeviceId().value()).isEqualTo(deviceId);
     }
 
     @Test
@@ -73,7 +69,7 @@ class TelemetryEvaluationQueryServiceImplTest {
                 85, "STABLE", Instant.now()
         );
 
-        when(telemetryEvaluationRepository.findFirstByDeviceIdValueOrderByRecordedAtDesc(deviceId))
+        when(telemetryEvaluationRepository.findLatestByDeviceId(deviceId))
                 .thenReturn(Optional.of(evaluation));
 
         // Act

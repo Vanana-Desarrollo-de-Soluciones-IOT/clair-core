@@ -1,0 +1,53 @@
+package com.claircore.evaluation.interfaces.events;
+
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * The published contract for a recorded telemetry reading: the only evaluation event another
+ * context may listen to.
+ *
+ * <p>The internal {@code TelemetryRecordedEvent} still exists and is still what alerting and
+ * analytics consume; they move onto this record when they are split, and the internal event stops
+ * being published then.
+ */
+public record TelemetryRecordedIntegrationEvent(
+        UUID deviceId,
+        double co2,
+        double temperature,
+        double humidity,
+        int pm1_0,
+        int pm2_5,
+        int pm10,
+        String connectivityStatus,
+        String network,
+        Integer signalStrength,
+        String country,
+        int healthStatus,
+        String status,
+        long uptimeSeconds,
+        String deviceTime,
+        Instant recordedAt
+) {
+    public static TelemetryRecordedIntegrationEvent from(TelemetryEvaluation evaluation) {
+        return new TelemetryRecordedIntegrationEvent(
+                evaluation.getDeviceId().value(),
+                evaluation.getAirQuality().co2(),
+                evaluation.getAirQuality().temperature(),
+                evaluation.getAirQuality().humidity(),
+                evaluation.getParticulateMatter().pm1_0(),
+                evaluation.getParticulateMatter().pm2_5(),
+                evaluation.getParticulateMatter().pm10(),
+                evaluation.getConnectivity().status(),
+                evaluation.getConnectivity().network(),
+                evaluation.getConnectivity().signalStrength(),
+                evaluation.getLocation().country(),
+                evaluation.getHealthStatus(),
+                evaluation.getStatus(),
+                evaluation.getUptime(),
+                evaluation.getDeviceTime().toString(),
+                evaluation.getRecordedAt());
+    }
+}

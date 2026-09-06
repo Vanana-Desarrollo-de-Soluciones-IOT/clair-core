@@ -1,9 +1,9 @@
 package com.claircore.evaluation.application.internal.commandservices;
 
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.valueobjects.*;
-import com.claircore.evaluation.infrastructure.persistence.jpa.repositories.TelemetryEvaluationRepository;
+import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

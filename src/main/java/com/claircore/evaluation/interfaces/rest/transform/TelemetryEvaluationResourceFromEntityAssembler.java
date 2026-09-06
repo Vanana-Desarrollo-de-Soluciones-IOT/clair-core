@@ -1,43 +1,42 @@
 package com.claircore.evaluation.interfaces.rest.transform;
 
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
-import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResponse;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
+import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResource;
 
-public class TelemetryEvaluationTransform {
+public final class TelemetryEvaluationResourceFromEntityAssembler {
 
-    private TelemetryEvaluationTransform() {}
+    private TelemetryEvaluationResourceFromEntityAssembler() {
+    }
 
-    public static TelemetryEvaluationResponse toResponse(TelemetryEvaluation e) {
+    public static TelemetryEvaluationResource toResourceFromEntity(TelemetryEvaluation e) {
         var aq = e.getAirQuality();
         var pm = e.getParticulateMatter();
         var conn = e.getConnectivity();
         var loc = e.getLocation();
 
-        return new TelemetryEvaluationResponse(
+        return new TelemetryEvaluationResource(
                 e.getId(),
                 e.getDeviceId().value(),
                 e.getDeviceTime(),
                 e.getUptime(),
-                new TelemetryEvaluationResponse.AirQualityResponse(
+                new TelemetryEvaluationResource.AirQualityResource(
                         aq.co2(), aq.temperature(), aq.humidity()
                 ),
-                new TelemetryEvaluationResponse.ParticulateMatterResponse(
+                new TelemetryEvaluationResource.ParticulateMatterResource(
                         pm.pm1_0(), pm.pm2_5(), pm.pm10()
                 ),
-                new TelemetryEvaluationResponse.ConnectivityResponse(
+                new TelemetryEvaluationResource.ConnectivityResource(
                         conn.status(),
                         conn.network(),
                         conn.signalStrength()
                 ),
-                new TelemetryEvaluationResponse.LocationResponse(
+                new TelemetryEvaluationResource.LocationResource(
                         loc.country()
                 ),
                 e.getHealthStatus(),
                 e.getStatus(),
                 e.getRecordedAt(),
-                e.getAuditFields().getCreatedAt() != null
-                        ? e.getAuditFields().getCreatedAt().toInstant()
-                        : null
+                e.getCreatedAt()
         );
     }
 }

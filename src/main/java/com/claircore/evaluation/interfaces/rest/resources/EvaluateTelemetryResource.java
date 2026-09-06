@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "Request to store optimized telemetry data received from an edge device")
-public record EvaluateTelemetryRequest(
+public record EvaluateTelemetryResource(
         @Schema(description = "Device identifier", example = "CLAIR-0001")
         @NotBlank String deviceId,
 
@@ -18,16 +18,16 @@ public record EvaluateTelemetryRequest(
         @NotBlank String uptime,
 
         @Schema(description = "Air quality sensor data")
-        @NotNull AirQualityRequest airQuality,
+        @NotNull AirQualityResource airQuality,
 
         @Schema(description = "Particulate matter sensor data")
-        @NotNull ParticulateMatterRequest particulateMatter,
+        @NotNull ParticulateMatterResource particulateMatter,
 
         @Schema(description = "WiFi connectivity status")
-        @NotNull ConnectivityRequest connectivity,
+        @NotNull ConnectivityResource connectivity,
 
         @Schema(description = "Device location")
-        @NotNull LocationRequest location,
+        @NotNull LocationResource location,
 
         @Schema(description = "Device health status percentage", example = "100")
         @NotNull @Min(0) @Max(100) Integer healthStatus,
@@ -39,7 +39,7 @@ public record EvaluateTelemetryRequest(
         String created_at
 ) {
     @Schema(description = "Air quality sensor data")
-    public record AirQualityRequest(
+    public record AirQualityResource(
             @Schema(description = "CO2 concentration in ppm", example = "450.0")
             @NotNull Double co2,
 
@@ -51,7 +51,7 @@ public record EvaluateTelemetryRequest(
     ) {}
 
     @Schema(description = "Particulate matter sensor data")
-    public record ParticulateMatterRequest(
+    public record ParticulateMatterResource(
             @Schema(description = "PM1.0 in µg/m³", example = "5")
             @NotNull Integer pm1_0,
 
@@ -63,7 +63,7 @@ public record EvaluateTelemetryRequest(
     ) {}
 
     @Schema(description = "WiFi connectivity status")
-    public record ConnectivityRequest(
+    public record ConnectivityResource(
             @Schema(description = "Connection status", example = "connected")
             @NotBlank String status,
 
@@ -75,7 +75,7 @@ public record EvaluateTelemetryRequest(
     ) {}
 
     @Schema(description = "Location data")
-    public record LocationRequest(
+    public record LocationResource(
             @Schema(description = "Country", example = "PERU")
             String country
     ) {}

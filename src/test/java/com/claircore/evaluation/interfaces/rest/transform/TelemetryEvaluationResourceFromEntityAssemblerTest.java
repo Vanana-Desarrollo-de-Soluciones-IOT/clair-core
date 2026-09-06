@@ -1,15 +1,15 @@
 package com.claircore.evaluation.interfaces.rest.transform;
 
-import com.claircore.evaluation.domain.model.entities.TelemetryEvaluation;
+import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.valueobjects.*;
-import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResponse;
+import com.claircore.evaluation.interfaces.rest.resources.TelemetryEvaluationResource;
 import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TelemetryEvaluationTransformTest {
+class TelemetryEvaluationResourceFromEntityAssemblerTest {
 
     @Test
     void shouldTransformTelemetryEvaluationToResponseSuccessfully() {
@@ -29,7 +29,7 @@ class TelemetryEvaluationTransformTest {
         );
 
         // Act
-        TelemetryEvaluationResponse response = TelemetryEvaluationTransform.toResponse(evaluation);
+        TelemetryEvaluationResource response = TelemetryEvaluationResourceFromEntityAssembler.toResourceFromEntity(evaluation);
 
         // Assert
         assertThat(response).isNotNull();

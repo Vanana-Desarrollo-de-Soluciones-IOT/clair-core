@@ -1,6 +1,7 @@
 package com.claircore.alerting.application.internal.outboundservices.acl;
 
 import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
+import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
 import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

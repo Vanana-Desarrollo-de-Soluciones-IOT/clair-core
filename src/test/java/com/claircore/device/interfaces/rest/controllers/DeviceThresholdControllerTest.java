@@ -10,7 +10,7 @@ import com.claircore.device.domain.services.DeviceThresholdCommandService;
 import com.claircore.device.domain.services.DeviceThresholdQueryService;
 import com.claircore.device.interfaces.rest.resources.UpdateDeviceThresholdRequest;
 import com.claircore.iam.domain.services.TokenQueryService;
-import com.claircore.shared.interfaces.rest.exceptions.GlobalExceptionHandler;
+import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;

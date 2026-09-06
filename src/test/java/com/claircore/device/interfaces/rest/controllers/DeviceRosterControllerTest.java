@@ -26,27 +26,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @TestPropertySource(properties = "EDGE_TO_CORE_TOKEN=test-token")
 class DeviceRosterControllerTest {
+    // Authentication is ServiceTokenAuthenticationFilter's, and is asserted in its own test.
+
     @Autowired MockMvc mockMvc;
     @MockitoBean DeviceRepository deviceRepository;
     @MockitoBean JwtAuthenticationFilter jwtAuthenticationFilter;
     @MockitoBean JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Test
-    void rejectsMissingOrInvalidToken() throws Exception {
-        mockMvc.perform(get("/api/v1/edge/devices"))
-                .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/edge/devices").header("X-Edge-Token", "wrong"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
     void invalidSinceReturnsBadRequest() throws Exception {
-        mockMvc.perform(get("/api/v1/edge/devices").header("X-Edge-Token", "test-token").param("since", "not-a-date"))
+        mockMvc.perform(get("/api/v1/edge/devices").param("since", "not-a-date"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void returnsAuthenticatedRosterAndPaginationFlag() throws Exception {
+    void returnsTheRosterAndPaginationFlag() throws Exception {
         var projection = org.mockito.Mockito.mock(DeviceRepository.ProvisionedDeviceProjection.class);
         UUID id = UUID.randomUUID();
         when(projection.getDeviceId()).thenReturn(id);
@@ -57,7 +51,7 @@ class DeviceRosterControllerTest {
         when(projection.getUpdatedAt()).thenReturn(new Date(1000));
         when(deviceRepository.findProvisionedDevices(isNull(), isNull(), any())).thenReturn(new PageImpl<>(List.of(projection)));
 
-        mockMvc.perform(get("/api/v1/edge/devices").header("X-Edge-Token", "test-token"))
+        mockMvc.perform(get("/api/v1/edge/devices"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.devices[0].device_id").value(id.toString()))
                 .andExpect(jsonPath("$.devices[0].hardware_id").value("HW-1"))

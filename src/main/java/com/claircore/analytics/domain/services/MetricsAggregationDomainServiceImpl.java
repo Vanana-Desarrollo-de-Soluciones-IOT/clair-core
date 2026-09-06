@@ -4,13 +4,11 @@ import com.claircore.analytics.domain.model.valueobjects.AggregatedMetrics;
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot;
 import com.claircore.analytics.domain.model.valueobjects.Freshness;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@Service
 public class MetricsAggregationDomainServiceImpl implements MetricsAggregationDomainService {
 
     private final AqiCalculationDomainService aqiCalculationDomainService;

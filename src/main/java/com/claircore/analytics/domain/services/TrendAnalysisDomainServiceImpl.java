@@ -1,10 +1,7 @@
 package com.claircore.analytics.domain.services;
 
 import com.claircore.analytics.domain.model.valueobjects.MetricTrend;
-import com.claircore.analytics.domain.services.TrendAnalysisDomainService;
-import org.springframework.stereotype.Service;
 
-@Service
 public class TrendAnalysisDomainServiceImpl implements TrendAnalysisDomainService {
 
     @Override

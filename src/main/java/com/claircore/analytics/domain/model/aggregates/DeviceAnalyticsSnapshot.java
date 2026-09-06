@@ -1,56 +1,28 @@
-package com.claircore.analytics.domain.model.entities;
+package com.claircore.analytics.domain.model.aggregates;
 
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.DeviceId;
-import com.claircore.shared.domain.model.entities.AuditableModel;
-import jakarta.persistence.*;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "device_analytics_snapshots")
-@EntityListeners(AuditingEntityListener.class)
+/** One device's averaged air quality over a closed hourly window, with the AQI derived from it. */
 public class DeviceAnalyticsSnapshot {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private final UUID id;
+    private final DeviceId deviceId;
+    private final Instant timeWindowStart;
+    private final Instant timeWindowEnd;
+    private final Double averageCo2;
+    private final Double averagePm2_5;
+    private final Double averageTemperature;
+    private final Double averageHumidity;
+    private final AirQualityIndex calculatedAqi;
+    private final Instant createdAt;
+    private final Instant updatedAt;
 
-    @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "device_id", nullable = false))
-    private DeviceId deviceId;
-
-    @Column(name = "time_window_start", nullable = false)
-    private Instant timeWindowStart;
-
-    @Column(name = "time_window_end", nullable = false)
-    private Instant timeWindowEnd;
-
-    @Column(name = "average_co2", nullable = false)
-    private Double averageCo2;
-
-    @Column(name = "average_pm2_5", nullable = false)
-    private Double averagePm2_5;
-
-    @Column(name = "average_temperature", nullable = false)
-    private Double averageTemperature;
-
-    @Column(name = "average_humidity", nullable = false)
-    private Double averageHumidity;
-
-    @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "aqi_value", nullable = false))
-    @AttributeOverride(name = "category", column = @Column(name = "aqi_category", nullable = false))
-    private AirQualityIndex calculatedAqi;
-
-    @Embedded
-    private SnapshotAudit auditFields = new SnapshotAudit();
-
-    protected DeviceAnalyticsSnapshot() {}
-
-    public DeviceAnalyticsSnapshot(
+    private DeviceAnalyticsSnapshot(
+            UUID id,
             DeviceId deviceId,
             Instant timeWindowStart,
             Instant timeWindowEnd,
@@ -58,8 +30,13 @@ public class DeviceAnalyticsSnapshot {
             Double averagePm2_5,
             Double averageTemperature,
             Double averageHumidity,
-            AirQualityIndex calculatedAqi
+            AirQualityIndex calculatedAqi,
+            Instant createdAt,
+            Instant updatedAt
     ) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id must not be null");
+        }
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
@@ -85,6 +62,7 @@ public class DeviceAnalyticsSnapshot {
             throw new IllegalArgumentException("calculatedAqi must not be null");
         }
 
+        this.id = id;
         this.deviceId = deviceId;
         this.timeWindowStart = timeWindowStart;
         this.timeWindowEnd = timeWindowEnd;
@@ -93,6 +71,40 @@ public class DeviceAnalyticsSnapshot {
         this.averageTemperature = averageTemperature;
         this.averageHumidity = averageHumidity;
         this.calculatedAqi = calculatedAqi;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public DeviceAnalyticsSnapshot(
+            DeviceId deviceId,
+            Instant timeWindowStart,
+            Instant timeWindowEnd,
+            Double averageCo2,
+            Double averagePm2_5,
+            Double averageTemperature,
+            Double averageHumidity,
+            AirQualityIndex calculatedAqi
+    ) {
+        this(UUID.randomUUID(), deviceId, timeWindowStart, timeWindowEnd, averageCo2, averagePm2_5,
+                averageTemperature, averageHumidity, calculatedAqi, null, null);
+    }
+
+    /** Rebuilds a snapshot already in storage; only a persistence assembler should call this. */
+    public static DeviceAnalyticsSnapshot reconstitute(
+            UUID id,
+            DeviceId deviceId,
+            Instant timeWindowStart,
+            Instant timeWindowEnd,
+            Double averageCo2,
+            Double averagePm2_5,
+            Double averageTemperature,
+            Double averageHumidity,
+            AirQualityIndex calculatedAqi,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        return new DeviceAnalyticsSnapshot(id, deviceId, timeWindowStart, timeWindowEnd, averageCo2,
+                averagePm2_5, averageTemperature, averageHumidity, calculatedAqi, createdAt, updatedAt);
     }
 
     public UUID getId() { return id; }
@@ -104,8 +116,6 @@ public class DeviceAnalyticsSnapshot {
     public Double getAverageTemperature() { return averageTemperature; }
     public Double getAverageHumidity() { return averageHumidity; }
     public AirQualityIndex getCalculatedAqi() { return calculatedAqi; }
-    public SnapshotAudit getAuditFields() { return auditFields; }
-
-    @Embeddable
-    public static class SnapshotAudit extends AuditableModel {}
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

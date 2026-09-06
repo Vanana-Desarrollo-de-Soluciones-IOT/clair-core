@@ -2,10 +2,7 @@ package com.claircore.analytics.domain.services;
 
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;
 import com.claircore.analytics.domain.model.valueobjects.AqiCategory;
-import com.claircore.analytics.domain.services.AqiCalculationDomainService;
-import org.springframework.stereotype.Service;
 
-@Service
 public class AqiCalculationDomainServiceImpl implements AqiCalculationDomainService {
 
     @Override

@@ -26,3 +26,4 @@ Snapshots use the Postgres dialect; H2 output differs and is not a valid control
 | `schema-phase-1.sql` | none; byte-identical to phase 0 |
 | `schema-phase-2.sql` | none; byte-identical to phase 1 |
 | `schema-phase-3.sql` | none; byte-identical to phase 2 |
+| `schema-phase-4.sql` | none; byte-identical to phase 3 |

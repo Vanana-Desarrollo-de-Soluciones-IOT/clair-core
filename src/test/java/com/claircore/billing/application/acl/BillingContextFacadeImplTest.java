@@ -2,7 +2,7 @@ package com.claircore.billing.application.acl;
 
 import com.claircore.billing.domain.model.aggregates.UserPlan;
 import com.claircore.billing.domain.model.valueobjects.UserId;
-import com.claircore.billing.infrastructure.persistence.jpa.repositories.UserPlanRepository;
+import com.claircore.billing.domain.repositories.UserPlanRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

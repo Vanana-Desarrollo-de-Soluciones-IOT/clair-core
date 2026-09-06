@@ -363,6 +363,47 @@ Deviations from the table above, all deliberate:
 Analytics now consumes evaluation's `TelemetryRecordedIntegrationEvent`, so the internal
 `TelemetryRecordedEvent` has no consumers left and is deleted along with its publish.
 
+### Follow-up, 2026-09-06 — `analytics/domain` tidied
+
+Phase 5 stripped `@Service` off the three domain services but kept their shape unquestioned, which
+left `domain/services/` holding six files where three would do, and `domain/exceptions/` holding one
+class defined by an HTTP status code. Two commits, both structural, tests unchanged at 587 and the
+DDL untouched.
+
+`refactor: collapse the analytics domain services to plain classes`
+
+| before | after |
+|---|---|
+| `AqiCalculationDomainService` + `…Impl` | `AqiCalculator` |
+| `TrendAnalysisDomainService` + `…Impl` | `TrendAnalyzer` |
+| `MetricsAggregationDomainService` + `…Impl` | `MetricsAggregator` |
+
+An interface exists to invert a dependency — that is why `XRepository` and `TokenService` are
+interfaces and must stay so. These three hid nothing: pure functions of numbers, one implementation
+each, no I/O. The interface was a leftover from when they were `@Service` beans, and it bought a
+file and a level of indirection per rule while inverting no dependency. Each class now carries a
+javadoc saying so, so the split is not reintroduced by habit.
+
+`AnalyticsDomainServicesConfiguration` stays. The domain classes still carry no Spring annotation,
+so the container still has to be told about them explicitly — that is the property Phase 5 bought
+and this change preserves.
+
+`refactor: drop the analytics domain exception shaped by an http status`
+
+`DeviceTelemetryUnavailableException` extended `ResourceNotFoundException`, whose own javadoc reads
+"Mapped to HTTP 404 by the global exception handler" — so a class in `domain/` was defined by a
+transport concern. It was also never caught and never matched on: it added message formatting and
+nothing else, and it was thrown only from `application/` and `interfaces/`, never from the domain
+that housed it. Deleted; the three throw sites raise `ResourceNotFoundException` with the same two
+messages, byte-for-byte, and the query-service test now asserts the message rather than the type,
+which is the part a client actually sees. `analytics/domain/exceptions/` is gone; `domain/` is
+`model`, `repositories`, `services`.
+
+**Left deliberately alone:** `shared/domain/exceptions/ResourceNotFoundException` is still a domain
+class that names an HTTP status, and it is used by every context. Fixing that means a domain
+exception plus an explicit mapping in `GlobalExceptionHandler`, which touches all seven contexts —
+too wide for a cleanup commit. It belongs in Phase 9's ArchUnit work or a backlog row, not here.
+
 ---
 
 ## Phase 6 — iam

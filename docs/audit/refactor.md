@@ -318,6 +318,51 @@ Writers are schedulers, not command services. The move fixes the self-invocation
 | `*Transform` | `*ResourceFromEntityAssembler` |
 | `GetDashboardMetricsQuery.period: String` | `TrendPeriod` enum with `LIVE` added |
 
+**Done when** `grep -rE 'jakarta.persistence|org.springframework' analytics/domain` is empty; no
+`JdbcTemplate` and no `telemetry_evaluations` anywhere in analytics; DDL diff empty; tests green.
+
+**Done, 2026-09-06.** All four gates met: the grep is empty, analytics names neither `JdbcTemplate`
+nor another context's table, `schema-phase-5.sql` is byte-identical to `schema-phase-4.sql`, and 546
+tests pass.
+
+The self-invocation defect is fixed, and it was real: `aggregatePreviousDay()` and
+`aggregatePreviousMonth()` carried `@Scheduled` on the same bean as the `@Transactional`
+`generateForDate()` / `generateForMonth()` they called, so the call went to `this` rather than
+through the proxy and **both nightly runs executed with no transaction at all**. `AnalyticsScheduler`
+is now a separate bean, so the proxy is in the path and the annotation takes effect. This is a
+behaviour correction, not a refactor: a failure mid-run now rolls back instead of leaving a partial
+set of summaries written.
+
+Deviations from the table above, all deliberate:
+
+- **`MetricTrend` gets no persistence embeddable.** It carried `@Embeddable` but is embedded in no
+  entity — it only ever travels through `KpiDashboardMetrics` to the REST layer. The annotation was
+  stripped and nothing replaced it, so this phase adds three embeddables, not four. The DDL gate
+  confirms nothing was lost.
+- **`AnalyticsContextFacade` and its impl are deleted, not moved.** No context consumed either
+  method. Likewise `ExternalDeviceService.findDeviceIdByHardwareId`, the analytics-local
+  `TelemetryRecordedIntegrationEvent` stub, and `DeviceDailySummaryRepository.findByDeviceIdAndDateBetween`
+  — all with zero callers.
+- **The cache is reached through a port, not directly.** The plan puts `KpiLiveMetricsCache` in
+  `infrastructure/`, which would leave application services depending on infrastructure. It is now
+  `LiveMetricsStore` in `application/internal/outboundservices/cache/` with the Caffeine
+  implementation in `infrastructure/cache/`, the same shape Phase 3 gave `PaymentGateway`.
+  `AnalyticsSseService` moved to `infrastructure/sse/` as the plan says; the controller reaches it
+  directly because an `SseEmitter` is the response, not a dependency.
+- **`findAveragesByDeviceIdAndWindow` returns `Optional<MetricAverages>` instead of
+  `List<Object[]>`.** The old signature made every caller unpack an array and null-check `row[0]` to
+  tell "no data" from "averaged to zero"; the Optional says it once, in the adapter.
+- **`DailyReportAggregationService`'s raw SQL moved into evaluation rather than being deleted.** It
+  became `EvaluationContextFacade.getReadingsBetween`, backed by the same statement in evaluation's
+  own adapter. Analytics needs whole readings, not averages: min, max and the peak timestamp are true
+  extremes, which no aggregate can reproduce.
+- **One behaviour change at the REST layer.** `?period=` is still case-insensitive, but an
+  unrecognised name is now a 400 rather than being silently read as `DAY`. Both dashboard endpoints
+  also reject `startDate == endDate`, which used to produce a zero-length window.
+
+Analytics now consumes evaluation's `TelemetryRecordedIntegrationEvent`, so the internal
+`TelemetryRecordedEvent` has no consumers left and is deleted along with its publish.
+
 ---
 
 ## Phase 6 — iam

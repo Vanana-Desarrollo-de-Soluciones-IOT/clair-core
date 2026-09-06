@@ -1,6 +1,5 @@
 package com.claircore.analytics.application.internal.queryservices;
 
-import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
 import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.alerting.interfaces.acl.AlertingContextFacade;
 import com.claircore.analytics.application.internal.outboundservices.acl.ExternalDeviceService;
@@ -28,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQueryService {
 
-    private static final List<AlertStatus> DEFAULT_ALERT_STATUSES = List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED);
+    private static final List<String> DEFAULT_ALERT_STATUSES = List.of("ACTIVE", "ACKNOWLEDGED");
 
     private final ExternalDeviceService externalDeviceService;
     private final AlertingContextFacade alertingContextFacade;

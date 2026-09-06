@@ -29,3 +29,4 @@ Snapshots use the Postgres dialect; H2 output differs and is not a valid control
 | `schema-phase-4.sql` | none; byte-identical to phase 3 |
 | `schema-phase-5.sql` | none; byte-identical to phase 4 |
 | `schema-phase-6.sql` | none; byte-identical to phase 5. Covers `users` only — the Redis session format is controlled by `RedisSessionWireFormatTest`, not by this gate |
+| `schema-phase-7.sql` | two foreign keys removed: `device_assignments.device_id → devices` and `device_commands.device_id → devices`. Both came from the `@ManyToOne` associations the phase replaced with plain ids; every column, index and unique constraint is unchanged |

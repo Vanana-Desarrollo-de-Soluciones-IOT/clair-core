@@ -10,7 +10,7 @@ import com.claircore.device.domain.services.DeviceCommandService;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.services.DeviceStatusQueryService;
 import com.claircore.device.interfaces.rest.resources.*;
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

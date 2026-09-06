@@ -48,7 +48,7 @@ class AnalyticsControllerTest {
     private AnalyticsSseService analyticsSseService;
 
     @MockitoBean
-    private com.claircore.iam.domain.services.TokenQueryService tokenQueryService;
+    private com.claircore.iam.application.queryservices.TokenQueryService tokenQueryService;
 
     @MockitoBean
     private com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter jwtAuthenticationFilter;

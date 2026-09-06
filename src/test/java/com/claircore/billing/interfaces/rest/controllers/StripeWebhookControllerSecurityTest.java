@@ -1,7 +1,7 @@
 package com.claircore.billing.interfaces.rest.controllers;
 
 import com.claircore.billing.application.commandservices.SubscriptionCommandService;
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.iam.infrastructure.config.JwtAuthenticationEntryPoint;
 import com.claircore.iam.infrastructure.config.SecurityConfiguration;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;

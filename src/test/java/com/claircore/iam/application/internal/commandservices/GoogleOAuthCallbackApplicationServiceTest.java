@@ -1,11 +1,11 @@
 package com.claircore.iam.application.internal.commandservices;
 
-import com.claircore.iam.domain.model.entities.User;
+import com.claircore.iam.domain.model.aggregates.User;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.OAuthProvider;
 import com.claircore.iam.domain.model.valueobjects.Password;
 import com.claircore.iam.infrastructure.oauth.google.GoogleAuthorizationCodeTokenClient;
-import com.claircore.iam.domain.services.GoogleAuthenticationCommandService;
+import com.claircore.iam.application.commandservices.GoogleAuthenticationCommandService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

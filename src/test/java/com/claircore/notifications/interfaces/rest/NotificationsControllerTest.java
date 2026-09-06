@@ -1,6 +1,6 @@
 package com.claircore.notifications.interfaces.rest;
 
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import com.claircore.notifications.application.queryservices.PushNotificationHistoryQueryService;
 import com.claircore.notifications.domain.model.aggregates.PushNotificationLog;

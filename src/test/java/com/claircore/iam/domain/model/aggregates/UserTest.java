@@ -1,4 +1,4 @@
-package com.claircore.iam.domain.model.entities;
+package com.claircore.iam.domain.model.aggregates;
 
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.OAuthProvider;

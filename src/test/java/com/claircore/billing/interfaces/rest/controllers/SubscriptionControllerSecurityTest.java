@@ -4,7 +4,7 @@ import com.claircore.billing.domain.model.commands.CreateCheckoutSessionCommand;
 import com.claircore.billing.domain.model.queries.GetSubscriptionsByUserIdQuery;
 import com.claircore.billing.application.commandservices.SubscriptionCommandService;
 import com.claircore.billing.application.queryservices.SubscriptionQueryService;
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.iam.infrastructure.config.JwtAuthenticationEntryPoint;
 import com.claircore.iam.infrastructure.config.SecurityConfiguration;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;

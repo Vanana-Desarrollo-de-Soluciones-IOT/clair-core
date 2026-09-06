@@ -9,7 +9,7 @@ import com.claircore.evaluation.domain.model.valueobjects.*;
 import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
 import com.claircore.evaluation.interfaces.rest.resources.EvaluateTelemetryResource;
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import com.claircore.shared.domain.model.PageResult;
 import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;

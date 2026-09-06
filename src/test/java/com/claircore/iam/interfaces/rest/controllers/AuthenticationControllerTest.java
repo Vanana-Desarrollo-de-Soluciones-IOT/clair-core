@@ -2,9 +2,9 @@ package com.claircore.iam.interfaces.rest.controllers;
 
 import com.claircore.iam.application.internal.commandservices.GoogleOAuthCallbackApplicationService;
 import com.claircore.iam.domain.model.commands.SignOutCommand;
-import com.claircore.iam.domain.model.entities.RegistrationSession;
-import com.claircore.iam.domain.model.entities.TokenSession;
-import com.claircore.iam.domain.model.entities.User;
+import com.claircore.iam.domain.model.aggregates.RegistrationSession;
+import com.claircore.iam.domain.model.aggregates.TokenSession;
+import com.claircore.iam.domain.model.aggregates.User;
 import com.claircore.iam.domain.model.valueobjects.EmailAddress;
 import com.claircore.iam.domain.model.valueobjects.OAuthProvider;
 import com.claircore.iam.domain.model.valueobjects.Password;
@@ -13,11 +13,11 @@ import com.claircore.iam.domain.model.valueobjects.TokenJti;
 import com.claircore.iam.domain.model.valueobjects.TokenType;
 import com.claircore.iam.domain.model.valueobjects.UserId;
 import com.claircore.iam.domain.model.valueobjects.VerificationCode;
-import com.claircore.iam.domain.services.GoogleAuthenticationCommandService;
-import com.claircore.iam.domain.services.TokenCommandService;
-import com.claircore.iam.domain.services.TokenQueryService;
-import com.claircore.iam.domain.services.UserCommandService;
-import com.claircore.iam.domain.services.UserQueryService;
+import com.claircore.iam.application.commandservices.GoogleAuthenticationCommandService;
+import com.claircore.iam.application.commandservices.TokenCommandService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
+import com.claircore.iam.application.commandservices.UserCommandService;
+import com.claircore.iam.application.queryservices.UserQueryService;
 import com.claircore.iam.infrastructure.oauth.google.GoogleOAuthStateManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -241,6 +241,7 @@ class AuthenticationControllerTest {
                 com.claircore.iam.domain.model.valueobjects.UserStatus.ACTIVE,
                 com.claircore.iam.domain.model.valueobjects.OAuthProvider.MAIL,
                 null
-        );
+        ,
+                null, null);
     }
 }

@@ -8,7 +8,7 @@ import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.domain.services.DeviceQueryService;
 import com.claircore.device.domain.services.OrganizationCommandService;
 import com.claircore.device.interfaces.rest.resources.CreateOrganizationRequest;
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

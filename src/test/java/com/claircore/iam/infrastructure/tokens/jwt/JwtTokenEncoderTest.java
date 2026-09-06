@@ -17,7 +17,7 @@ class JwtTokenEncoderTest {
         UUID userId = UUID.randomUUID();
         String jti = UUID.randomUUID().toString();
 
-        String token = encoder.generateToken(userId, 60000L, jti);
+        String token = encoder.generateAccessToken(userId, 60000L, jti);
 
         assertEquals(userId, encoder.extractUserId(token).orElseThrow());
         assertEquals(jti, encoder.extractJti(token).orElseThrow());

@@ -1,8 +1,11 @@
-package com.claircore.iam.infrastructure.persistence.redis.repositories;
+package com.claircore.iam.infrastructure.persistence.redis.adapters;
 
-import com.claircore.iam.domain.model.entities.TokenSession;
+import com.claircore.iam.domain.model.aggregates.TokenSession;
 import com.claircore.iam.domain.model.valueobjects.TokenJti;
 import com.claircore.iam.domain.model.valueobjects.TokenType;
+import com.claircore.iam.domain.repositories.TokenSessionRepository;
+import com.claircore.iam.infrastructure.persistence.redis.assemblers.TokenSessionRedisAssembler;
+import com.claircore.iam.infrastructure.persistence.redis.documents.TokenSessionRedisDocument;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -15,8 +18,14 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Redis-backed {@link TokenSessionRepository}. Package-private: the port is the only way in.
+ *
+ * <p>Both key layouts are unchanged — the session key and the per-user index the
+ * one-token-per-type rule depends on — so a token issued before the split still validates after it.
+ */
 @Repository
-public class TokenSessionRepository {
+class TokenSessionRepositoryImpl implements TokenSessionRepository {
 
     private static final String KEY_PREFIX = "token:";
     private static final String USER_INDEX_PREFIX = "user:tokens:";
@@ -24,38 +33,40 @@ public class TokenSessionRepository {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public TokenSessionRepository(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    TokenSessionRepositoryImpl(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public void save(TokenSession session) {
         try {
-            String tokenKey = buildTokenKey(session.jti().jti(), session.type());
-            String value = objectMapper.writeValueAsString(session);
+            String value = objectMapper.writeValueAsString(
+                    TokenSessionRedisAssembler.toDocumentFromDomain(session));
             long ttlSeconds = Duration.between(Instant.now(), session.expiresAt()).getSeconds();
             if (ttlSeconds <= 0) {
                 throw new IllegalArgumentException("Token session TTL must be positive");
             }
-            redisTemplate.opsForValue().set(tokenKey, value, Duration.ofSeconds(ttlSeconds));
+            Duration ttl = Duration.ofSeconds(ttlSeconds);
 
-            String indexKey = buildUserIndexKey(session.userId(), session.type());
-            redisTemplate.opsForValue().set(indexKey, session.jti().jti(), Duration.ofSeconds(ttlSeconds));
+            redisTemplate.opsForValue().set(buildTokenKey(session.jti().jti(), session.type()), value, ttl);
+            redisTemplate.opsForValue().set(
+                    buildUserIndexKey(session.userId(), session.type()), session.jti().jti(), ttl);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize token session", e);
+            throw new IllegalStateException("Failed to serialize token session", e);
         }
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public void replaceForUser(TokenSession session) {
         UUID userId = session.userId();
         TokenType type = session.type();
 
-        String indexKey = buildUserIndexKey(userId, type);
-        String existingJti = redisTemplate.opsForValue().get(indexKey);
+        String existingJti = redisTemplate.opsForValue().get(buildUserIndexKey(userId, type));
         if (existingJti != null) {
             redisTemplate.delete(buildTokenKey(existingJti, type));
         }
@@ -63,6 +74,7 @@ public class TokenSessionRepository {
         save(session);
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public void revokeAllTokensForUser(UUID userId) {
@@ -83,34 +95,34 @@ public class TokenSessionRepository {
         redisTemplate.delete(refreshIndex);
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public Optional<TokenSession> findByJti(TokenJti jti, TokenType type) {
-        String key = buildTokenKey(jti.jti(), type);
-        String value = redisTemplate.opsForValue().get(key);
+        String value = redisTemplate.opsForValue().get(buildTokenKey(jti.jti(), type));
         if (value == null) {
             return Optional.empty();
         }
         try {
-            TokenSession session = objectMapper.readValue(value, TokenSession.class);
-            return Optional.of(session);
+            return Optional.of(TokenSessionRedisAssembler.toDomainFromDocument(
+                    objectMapper.readValue(value, TokenSessionRedisDocument.class)));
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize token session", e);
+            throw new IllegalStateException("Failed to deserialize token session", e);
         }
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public void deleteByJti(TokenJti jti, TokenType type) {
-        String key = buildTokenKey(jti.jti(), type);
-        redisTemplate.delete(key);
+        redisTemplate.delete(buildTokenKey(jti.jti(), type));
     }
 
+    @Override
     @Retry(name = "redisRepository")
     @CircuitBreaker(name = "redisRepository")
     public boolean existsByJti(TokenJti jti, TokenType type) {
-        String key = buildTokenKey(jti.jti(), type);
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+        return Boolean.TRUE.equals(redisTemplate.hasKey(buildTokenKey(jti.jti(), type)));
     }
 
     private String buildTokenKey(String jti, TokenType type) {

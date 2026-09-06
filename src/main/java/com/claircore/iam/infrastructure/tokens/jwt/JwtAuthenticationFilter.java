@@ -1,6 +1,6 @@
 package com.claircore.iam.infrastructure.tokens.jwt;
 
-import com.claircore.iam.domain.services.TokenQueryService;
+import com.claircore.iam.application.queryservices.TokenQueryService;
 import com.claircore.shared.interfaces.rest.security.CurrentUserIdArgumentResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

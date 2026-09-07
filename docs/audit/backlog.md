@@ -1,9 +1,12 @@
 # clair-core — Behaviour Backlog
 
-Everything here changes what the system does. None of it is part of the structural refactor in `refactor.md`, and none of it may share a branch with a structural phase, because a structural phase is verified by "DDL unchanged, tests unchanged" and behaviour work breaks both gates by design.
+Everything here changes what the system does. None of it was part of the structural refactor, and none of it may share a branch with a structural phase, because a structural phase is verified by "DDL unchanged, tests unchanged" and behaviour work breaks both gates by design.
 
-The structural follow-up is recorded in [current-state.md](current-state.md). This backlog
-contains additional domain behavior work; it is not a list of unresolved follow-up repairs.
+The structural refactor is finished: phases 0–9 are merged on `refactor/domain-purity`. Its planning
+and completion records (`refactor.md`, `current-state.md`, the per-phase DDL snapshots) were removed
+from the working tree once the work landed; recover any of them with
+`git show 5da6b2e:docs/audit/refactor.md`. This backlog is the remaining domain-behaviour work — it
+is not a list of unresolved repairs from that refactor.
 
 ## Rule
 
@@ -13,9 +16,9 @@ An item may start only when the structural phase it names is merged. Each item i
 
 | # | Item | Source | Control |
 |---|---|---|---|
-| B0.1 | Delete `DeviceEdgeController` and `DevicePresenceSecurityConfiguration`; keep `/api/v1/edge/presence`. Add `/api/v1/evaluations/telemetry` to `ServiceTokenAuthenticationFilter.PATHS`. | I§1 | request without token → 401 |
-| B0.2 | AQI breakpoint gaps: make ranges contiguous, clamp above the last bound. | A§1 | `AqiCalculationDomainServiceImplTest` sweeps 0..1000 step 0.01, asserts monotonic |
-| B0.3 | `TelemetryRecordedEvent.pm100` assigned from `pm1_0`; `hardwareId` always null; `healthStatus.toString()`. | I§13 rows 1–3 | event field test |
+| ~~B0.1~~ | **Done in Phase 7.** Both classes are deleted and `ServiceTokenAuthenticationFilter.PATHS` is `{"/api/v1/edge/**", "/api/v1/evaluations/telemetry/batch"}` — the real route carries the `/batch` suffix the row omitted. | I§1 | request without token → 401 |
+| B0.2 | AQI breakpoint gaps: make ranges contiguous, clamp above the last bound. Still open. | A§1 | `AqiCalculatorTest` sweeps 0..1000 step 0.01, asserts monotonic |
+| ~~B0.3~~ | **Obsolete.** The internal `TelemetryRecordedEvent` was deleted in Phase 5; consumers read evaluation's `TelemetryRecordedIntegrationEvent`, whose `from(...)` maps `pm10` from `pm10()`, carries no `hardwareId` field, and keeps `healthStatus` as an `int`. All three defects are gone with the class. | I§13 rows 1–3 | event field test |
 
 ## After Phase 2 (evaluation split)
 

@@ -34,6 +34,29 @@ public class AlertQueryServiceImpl implements AlertQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Optional<Alert> findById(UUID alertId) {
+        return alertRepository.findById(alertId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Alert> findActiveByDeviceId(UUID deviceId) {
+        return alertRepository.findByDeviceIdAndStatus(deviceId, AlertStatus.ACTIVE);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Alert> findRecentByOwnerId(UUID ownerId, List<AlertStatus> statuses, int limit) {
+        if (ownerId == null || limit <= 0) return List.of();
+        var deviceIds = externalDeviceService.fetchDeviceIdsByOwnerId(ownerId);
+        if (deviceIds == null || deviceIds.isEmpty()) return List.of();
+        return (statuses.isEmpty()
+                ? alertRepository.findByDeviceIdIn(deviceIds, 0, limit)
+                : alertRepository.findByDeviceIdInAndStatusIn(deviceIds, statuses, 0, limit)).items();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResult<Alert> fetchByDevice(GetAlertsByDeviceQuery query) {
         return alertRepository.findByDeviceId(query.deviceId(), query.page(), query.size());
     }

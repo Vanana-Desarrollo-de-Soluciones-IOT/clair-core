@@ -43,10 +43,15 @@ public class SubscriptionQueryServiceImpl implements SubscriptionQueryService {
     @Override
     @Transactional(readOnly = true)
     public String resolveUserPlan(GetUserPlanQuery query) {
+        return resolveEffectivePlan(query).name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PlanType resolveEffectivePlan(GetUserPlanQuery query) {
         var uid = new UserId(UUID.fromString(query.userId()));
         return userPlanRepository.findByUserId(uid)
                 .map(userPlan -> userPlan.isPremiumExpired() ? PlanType.FREEMIUM : userPlan.getPlanType())
-                .orElse(PlanType.FREEMIUM)
-                .name().toLowerCase();
+                .orElse(PlanType.FREEMIUM);
     }
 }

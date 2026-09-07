@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DeviceThresholdQueryService {
+    List<DeviceMetricThresholdConfiguration> findEnabledByDeviceId(UUID deviceId);
     List<DeviceMetricThresholdConfiguration> handle(GetDeviceThresholdsByDeviceQuery query);
     Optional<DeviceMetricThresholdConfiguration> handle(GetDeviceThresholdByMetricQuery query);
     List<DeviceMetricThresholdConfiguration> findAllByAssignmentId(UUID assignmentId);

@@ -41,6 +41,12 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResult<com.claircore.device.domain.model.valueobjects.ProvisionedDevice> handle(GetDeviceRosterQuery query) {
+        return deviceRepository.findProvisionedDevices(query.since(), query.afterId(), query.limit());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<Organization> handle(GetOrganizationByIdQuery query) {
         return organizationRepository.findById(query.organizationId());
     }

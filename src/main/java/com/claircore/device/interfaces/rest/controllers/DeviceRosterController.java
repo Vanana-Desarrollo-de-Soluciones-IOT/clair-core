@@ -1,6 +1,7 @@
 package com.claircore.device.interfaces.rest.controllers;
 
-import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.application.queryservices.DeviceQueryService;
+import com.claircore.device.domain.model.queries.GetDeviceRosterQuery;
 import com.claircore.device.interfaces.rest.resources.DeviceRosterResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/edge")
 public class DeviceRosterController {
-    private final DeviceRepository deviceRepository;
+    private final DeviceQueryService deviceQueryService;
 
-    public DeviceRosterController(DeviceRepository deviceRepository) {
-        this.deviceRepository = deviceRepository;
+    public DeviceRosterController(DeviceQueryService deviceQueryService) {
+        this.deviceQueryService = deviceQueryService;
     }
 
     @GetMapping("/devices")
@@ -30,7 +31,7 @@ public class DeviceRosterController {
             @RequestParam(required = false) UUID afterId,
             @RequestParam(defaultValue = "200") int limit) {
         if (limit < 1 || limit > 200) return ResponseEntity.badRequest().build();
-        var page = deviceRepository.findProvisionedDevices(parseSince(since), afterId, limit);
+        var page = deviceQueryService.handle(new GetDeviceRosterQuery(parseSince(since), afterId, limit));
         var rows = page.items();
         var devices = rows.stream().map(d -> new DeviceRosterResponse.DeviceRosterItem(
                 d.deviceId().toString(), d.hardwareId(), d.apiKey(),

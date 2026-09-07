@@ -2,7 +2,8 @@ package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.valueobjects.DeviceStatus;
 import com.claircore.device.domain.model.valueobjects.ProvisionedDevice;
-import com.claircore.device.domain.repositories.DeviceRepository;
+import com.claircore.device.application.queryservices.DeviceQueryService;
+import com.claircore.device.domain.model.queries.GetDeviceRosterQuery;
 import com.claircore.shared.domain.model.PageResult;
 import com.claircore.iam.infrastructure.config.JwtAuthenticationEntryPoint;
 import com.claircore.iam.infrastructure.tokens.jwt.JwtAuthenticationFilter;
@@ -30,7 +31,7 @@ class DeviceRosterControllerTest {
     // Authentication is ServiceTokenAuthenticationFilter's, and is asserted in its own test.
 
     @Autowired MockMvc mockMvc;
-    @MockitoBean DeviceRepository deviceRepository;
+    @MockitoBean DeviceQueryService deviceQueryService;
     @MockitoBean JwtAuthenticationFilter jwtAuthenticationFilter;
     @MockitoBean JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
@@ -45,7 +46,7 @@ class DeviceRosterControllerTest {
         UUID id = UUID.randomUUID();
         var row = new ProvisionedDevice(id, "HW-1", "secret", DeviceStatus.OFFLINE, true,
                 Instant.ofEpochMilli(1000));
-        when(deviceRepository.findProvisionedDevices(isNull(), isNull(), anyInt()))
+        when(deviceQueryService.handle(new GetDeviceRosterQuery(null, null, 200)))
                 .thenReturn(new PageResult<>(List.of(row), 0, 200, 1));
 
         mockMvc.perform(get("/api/v1/edge/devices"))

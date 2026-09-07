@@ -14,6 +14,9 @@ import java.util.UUID;
 
 /** Inbound port for the alerting read side. */
 public interface AlertQueryService {
+    java.util.Optional<Alert> findById(UUID alertId);
+    List<Alert> findActiveByDeviceId(UUID deviceId);
+    List<Alert> findRecentByOwnerId(UUID ownerId, List<AlertStatus> statuses, int limit);
     PageResult<Alert> fetchByDevice(GetAlertsByDeviceQuery query);
     PageResult<Alert> fetchBySpace(GetAlertsBySpaceQuery query);
     PageResult<Alert> fetchByOwner(GetAlertsByOwnerQuery query, List<UUID> ownerDeviceIds);

@@ -10,6 +10,7 @@ import java.util.Optional;
 
 /** Inbound port for the billing read side. */
 public interface SubscriptionQueryService {
+    com.claircore.billing.domain.model.valueobjects.PlanType resolveEffectivePlan(GetUserPlanQuery query);
     Optional<PaymentRecord> handle(GetSubscriptionByIdQuery query);
     List<PaymentRecord> handle(GetSubscriptionsByUserIdQuery query);
     /** Returns {@code "premium"} or {@code "freemium"}. */

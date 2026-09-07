@@ -5,7 +5,6 @@ import com.claircore.billing.domain.model.valueobjects.UserId;
 import com.claircore.billing.domain.repositories.UserPlanRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,8 +25,13 @@ class BillingContextFacadeImplTest {
     @Mock
     private UserPlanRepository userPlanRepository;
 
-    @InjectMocks
     private BillingContextFacadeImpl facade;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        facade = new BillingContextFacadeImpl(new com.claircore.billing.application.internal.queryservices.SubscriptionQueryServiceImpl(
+                org.mockito.Mockito.mock(com.claircore.billing.domain.repositories.PaymentRecordRepository.class), userPlanRepository));
+    }
 
     @Test
     void shouldReturnPremiumLimitsWhenPlanIsActive() {

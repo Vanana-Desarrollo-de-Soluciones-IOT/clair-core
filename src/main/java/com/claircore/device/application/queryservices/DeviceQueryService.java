@@ -5,7 +5,6 @@ import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.aggregates.Organization;
 import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.queries.*;
-import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.shared.domain.model.PageResult;
 
 import java.util.Map;
@@ -14,6 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DeviceQueryService {
+    PageResult<com.claircore.device.domain.model.valueobjects.ProvisionedDevice> handle(GetDeviceRosterQuery query);
     Optional<Organization> handle(GetOrganizationByIdQuery query);
     List<Organization> handle(GetOrganizationsByOwnerQuery query);
     Optional<Space> handle(GetSpaceByIdQuery query);

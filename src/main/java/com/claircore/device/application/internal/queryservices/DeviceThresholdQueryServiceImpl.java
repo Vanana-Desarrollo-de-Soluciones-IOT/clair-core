@@ -68,6 +68,14 @@ public class DeviceThresholdQueryServiceImpl implements DeviceThresholdQueryServ
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeviceMetricThresholdConfiguration> findEnabledByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .map(this::readThresholdsFromConfig).orElseGet(List::of).stream()
+                .filter(DeviceMetricThresholdConfiguration::enabled).toList();
+    }
+
     private List<DeviceMetricThresholdConfiguration> readThresholdsFromConfig(DeviceAssignment assignment) {
         return Stream.of(MetricThreshold.values())
                 .map(metric -> assignment.findConfigurationValue(thresholdConfigKey(metric))

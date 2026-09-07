@@ -1,12 +1,11 @@
 package com.claircore.device.application.internal.commandservices;
 
-import com.claircore.device.application.internal.outboundservices.acl.DeviceChangedIntegrationEvent;
+import com.claircore.device.interfaces.events.DeviceChangedIntegrationEvent;
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedPublisher;
+import com.claircore.device.application.internal.outboundservices.edge.ProvisioningDevicesChangedPublisher;
 import com.claircore.device.domain.model.commands.*;
 import com.claircore.device.domain.model.aggregates.Device;
 import com.claircore.device.domain.model.aggregates.DeviceAssignment;
-import com.claircore.device.domain.model.aggregates.Organization;
 import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.*;
 import com.claircore.device.application.commandservices.DeviceCommandService;

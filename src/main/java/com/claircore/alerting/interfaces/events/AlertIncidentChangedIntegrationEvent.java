@@ -1,7 +1,5 @@
 package com.claircore.alerting.interfaces.events;
 
-import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
-import com.claircore.alerting.domain.model.valueobjects.MetricType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,11 +16,11 @@ public record AlertIncidentChangedIntegrationEvent(
         UUID deviceId,
         String hardwareId,
         UUID spaceId,
-        MetricType metric,
+        String metric,
         BigDecimal thresholdValue,
         BigDecimal actualValue,
         String message,
-        AlertStatus status,
+        String status,
         Instant occurredAt,
         Instant resolvedAt
 ) {

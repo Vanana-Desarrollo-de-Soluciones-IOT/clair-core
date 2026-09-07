@@ -1,7 +1,7 @@
 package com.claircore.alerting.application.internal.commandservices;
 
 import com.claircore.alerting.application.commandservices.AlertCommandService.AcknowledgementOutcome;
-import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedPublisher;
+import com.claircore.alerting.application.internal.outboundservices.edge.AlertIncidentsChangedPublisher;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
 import com.claircore.alerting.domain.model.aggregates.Alert;

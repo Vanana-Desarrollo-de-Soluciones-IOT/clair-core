@@ -1,6 +1,8 @@
-package com.claircore.device.application.internal.outboundservices.acl;
+package com.claircore.device.application.internal.outboundservices.edge;
 
-import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
+import com.claircore.device.interfaces.events.DeviceCommandIssuedIntegrationEvent;
+
+import com.claircore.shared.application.outboundservices.EdgeNotifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -13,7 +15,7 @@ import static org.mockito.Mockito.verify;
 class DeviceCommandsPendingPublisherTest {
 
     @Mock
-    private EdgeEventPublisher edgeEventPublisher;
+    private EdgeNotifier edgeEventPublisher;
 
     @InjectMocks
     private DeviceCommandsPendingPublisher publisher;

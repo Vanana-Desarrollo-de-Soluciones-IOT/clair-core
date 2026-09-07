@@ -1,8 +1,7 @@
-package com.claircore.alerting.application.internal.outboundservices.acl;
+package com.claircore.alerting.application.internal.outboundservices.edge;
 
-import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
 import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
-import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
+import com.claircore.shared.application.outboundservices.EdgeNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -16,11 +15,11 @@ public class AlertIncidentsChangedPublisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(AlertIncidentsChangedPublisher.class);
 
     private final ApplicationEventPublisher eventPublisher;
-    private final EdgeEventPublisher edgeEventPublisher;
+    private final EdgeNotifier edgeEventPublisher;
 
     public AlertIncidentsChangedPublisher(
             ApplicationEventPublisher eventPublisher,
-            EdgeEventPublisher edgeEventPublisher
+            EdgeNotifier edgeEventPublisher
     ) {
         this.eventPublisher = eventPublisher;
         this.edgeEventPublisher = edgeEventPublisher;
@@ -30,19 +29,7 @@ public class AlertIncidentsChangedPublisher {
         LOGGER.info("Publishing alert incident change {} (status={})", event.alertId(), event.status());
         publishAfterCommit(() -> {
             // Publish internal Spring event for local monolith communication (e.g. Notifications BC).
-            eventPublisher.publishEvent(new AlertIncidentChangedEvent(
-                    event.alertId(),
-                    event.deviceId(),
-                    event.hardwareId(),
-                    event.spaceId(),
-                    event.metric(),
-                    event.thresholdValue(),
-                    event.actualValue(),
-                    event.message(),
-                    event.status(),
-                    event.occurredAt(),
-                    event.resolvedAt()
-            ));
+            eventPublisher.publishEvent(event);
 
             // Publish external Edge event via HTTPS.
             edgeEventPublisher.notifyChange("alert", event.alertId().toString());

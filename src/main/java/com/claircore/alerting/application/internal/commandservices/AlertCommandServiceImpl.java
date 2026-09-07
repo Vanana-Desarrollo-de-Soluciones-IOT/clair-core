@@ -3,7 +3,7 @@ package com.claircore.alerting.application.internal.commandservices;
 import com.claircore.alerting.application.commandservices.AlertCommandService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
-import com.claircore.alerting.application.internal.outboundservices.acl.AlertIncidentsChangedPublisher;
+import com.claircore.alerting.application.internal.outboundservices.edge.AlertIncidentsChangedPublisher;
 import com.claircore.alerting.domain.model.aggregates.Alert;
 import com.claircore.alerting.domain.model.commands.AcknowledgeEdgeAlertCommand;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
@@ -132,11 +132,11 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                 alert.getDeviceId(),
                 hardwareId,
                 alert.getSpaceId(),
-                alert.getMetric(),
+                alert.getMetric().name(),
                 alert.getThresholdValue(),
                 alert.getActualValue(),
                 alert.getMessage(),
-                alert.getStatus(),
+                alert.getStatus().name(),
                 alert.getOccurredAt(),
                 alert.getResolvedAt()
         ));

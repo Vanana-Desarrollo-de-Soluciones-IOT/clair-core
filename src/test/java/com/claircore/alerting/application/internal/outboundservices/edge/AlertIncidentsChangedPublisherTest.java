@@ -1,10 +1,7 @@
-package com.claircore.alerting.application.internal.outboundservices.acl;
+package com.claircore.alerting.application.internal.outboundservices.edge;
 
-import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
 import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
-import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
-import com.claircore.alerting.domain.model.valueobjects.MetricType;
-import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
+import com.claircore.shared.application.outboundservices.EdgeNotifier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,7 +25,7 @@ class AlertIncidentsChangedPublisherTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
-    private EdgeEventPublisher edgeEventPublisher;
+    private EdgeNotifier edgeEventPublisher;
 
     @InjectMocks
     private AlertIncidentsChangedPublisher publisher;
@@ -52,7 +49,7 @@ class AlertIncidentsChangedPublisherTest {
         verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
         verify(edgeEventPublisher, never()).notifyChange("alert", event.alertId().toString());
         TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
-        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(AlertIncidentChangedEvent.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.eq(event));
         verify(edgeEventPublisher).notifyChange("alert", event.alertId().toString());
     }
 
@@ -76,14 +73,14 @@ class AlertIncidentsChangedPublisherTest {
 
         publisher.publish(event);
 
-        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(AlertIncidentChangedEvent.class));
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.eq(event));
         verify(edgeEventPublisher).notifyChange("alert", event.alertId().toString());
     }
 
     private AlertIncidentChangedIntegrationEvent event() {
         return new AlertIncidentChangedIntegrationEvent(
-                UUID.randomUUID(), UUID.randomUUID(), "HW-01", UUID.randomUUID(), MetricType.CO2,
-                BigDecimal.valueOf(800), BigDecimal.valueOf(900), "Too high", AlertStatus.ACTIVE,
+                UUID.randomUUID(), UUID.randomUUID(), "HW-01", UUID.randomUUID(), "CO2",
+                BigDecimal.valueOf(800), BigDecimal.valueOf(900), "Too high", "ACTIVE",
                 Instant.parse("2026-05-16T22:30:00Z"), null);
     }
 }

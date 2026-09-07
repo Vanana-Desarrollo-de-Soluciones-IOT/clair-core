@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.internal.outboundservices.acl.ExternalBillingService;
-import com.claircore.device.application.internal.outboundservices.acl.ProvisioningDevicesChangedPublisher;
+import com.claircore.device.application.internal.outboundservices.edge.ProvisioningDevicesChangedPublisher;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;

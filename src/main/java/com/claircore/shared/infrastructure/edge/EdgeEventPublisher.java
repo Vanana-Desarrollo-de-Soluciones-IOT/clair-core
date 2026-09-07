@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class EdgeEventPublisher {
+public class EdgeEventPublisher implements com.claircore.shared.application.outboundservices.EdgeNotifier {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeEventPublisher.class);
 
@@ -22,7 +22,10 @@ public class EdgeEventPublisher {
             @Value("${EDGE_WEBHOOK_URL:${EDGE_WEBHOOK_DEVICES_URL:${edge.webhook-url:http://localhost:5000}}}") String edgeWebhookUrl,
             @Value("${EDGE_TOKEN:${edge.token:}}") String edgeToken
     ) {
-        this.restTemplate = new RestTemplate();
+        var requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(3));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(5));
+        this.restTemplate = new RestTemplate(requestFactory);
         this.edgeWebhookUrl = edgeWebhookUrl;
         this.edgeToken = edgeToken;
     }

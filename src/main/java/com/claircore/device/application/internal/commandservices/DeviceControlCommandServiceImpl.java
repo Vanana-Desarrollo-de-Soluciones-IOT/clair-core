@@ -1,7 +1,7 @@
 package com.claircore.device.application.internal.commandservices;
 
-import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandIssuedIntegrationEvent;
-import com.claircore.device.application.internal.outboundservices.acl.DeviceCommandsPendingPublisher;
+import com.claircore.device.interfaces.events.DeviceCommandIssuedIntegrationEvent;
+import com.claircore.device.application.internal.outboundservices.edge.DeviceCommandsPendingPublisher;
 import com.claircore.device.domain.model.commands.AcknowledgeDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.CreateDeviceCommandCommand;
 import com.claircore.device.domain.model.commands.DispatchPendingDeviceCommandsCommand;

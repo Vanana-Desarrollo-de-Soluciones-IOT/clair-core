@@ -1,7 +1,6 @@
 package com.claircore.notifications.application.internal.eventhandlers;
 
-import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
-import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
+import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
 import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.notifications.application.commandservices.PushNotificationCommandService;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalAlertingService;
@@ -15,13 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Turns an alerting incident into a push notification command.
- *
- * <p>Recorded deviation, to be closed in Phase 4: this still imports alerting's domain event
- * ({@code alerting.domain.model.events.AlertIncidentChangedEvent}) instead of an integration event
- * under {@code alerting.interfaces.events}, which does not exist yet.
- */
+/** Turns alerting's published incident contract into a push command. */
 @Service
 public class AlertIncidentChangedEventHandler {
 
@@ -41,10 +34,10 @@ public class AlertIncidentChangedEventHandler {
     }
 
     @EventListener
-    public void on(AlertIncidentChangedEvent event) {
-        LOGGER.info("Notifications BC received AlertIncidentChangedEvent for alert {}", event.alertId());
+    public void on(AlertIncidentChangedIntegrationEvent event) {
+        LOGGER.info("Notifications BC received AlertIncidentChangedIntegrationEvent for alert {}", event.alertId());
         try {
-            if (event.status() != AlertStatus.ACTIVE && event.status() != AlertStatus.RESOLVED) {
+            if (!"ACTIVE".equals(event.status()) && !"RESOLVED".equals(event.status())) {
                 return;
             }
             UUID deviceId = event.deviceId();

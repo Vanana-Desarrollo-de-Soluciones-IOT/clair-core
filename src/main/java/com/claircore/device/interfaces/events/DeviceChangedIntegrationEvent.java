@@ -1,4 +1,4 @@
-package com.claircore.device.application.internal.outboundservices.acl;
+package com.claircore.device.interfaces.events;
 
 /**
  * Outbound device change event used by integration adapters

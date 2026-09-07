@@ -1,6 +1,8 @@
-package com.claircore.device.application.internal.outboundservices.acl;
+package com.claircore.device.application.internal.outboundservices.edge;
 
-import com.claircore.shared.infrastructure.edge.EdgeEventPublisher;
+import com.claircore.device.interfaces.events.DeviceCommandIssuedIntegrationEvent;
+
+import com.claircore.shared.application.outboundservices.EdgeNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,9 +14,9 @@ public class DeviceCommandsPendingPublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCommandsPendingPublisher.class);
 
-    private final EdgeEventPublisher edgeEventPublisher;
+    private final EdgeNotifier edgeEventPublisher;
 
-    public DeviceCommandsPendingPublisher(EdgeEventPublisher edgeEventPublisher) {
+    public DeviceCommandsPendingPublisher(EdgeNotifier edgeEventPublisher) {
         this.edgeEventPublisher = edgeEventPublisher;
     }
 

@@ -1,8 +1,7 @@
 package com.claircore.notifications.application.internal.eventhandlers;
 
-import com.claircore.alerting.domain.model.events.AlertIncidentChangedEvent;
+import com.claircore.alerting.interfaces.events.AlertIncidentChangedIntegrationEvent;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
-import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.interfaces.acl.AlertDetails;
 import com.claircore.notifications.application.commandservices.PushNotificationCommandService;
 import com.claircore.notifications.application.internal.outboundservices.acl.ExternalAlertingService;
@@ -75,17 +74,17 @@ class AlertIncidentChangedEventHandlerTest {
         verifyNoInteractions(pushNotificationCommandService, externalDeviceService, externalAlertingService);
     }
 
-    private AlertIncidentChangedEvent event(AlertStatus status) {
-        return new AlertIncidentChangedEvent(
+    private AlertIncidentChangedIntegrationEvent event(AlertStatus status) {
+        return new AlertIncidentChangedIntegrationEvent(
                 alertId,
                 deviceId,
                 "HW-01",
                 UUID.randomUUID(),
-                MetricType.CO2,
+                "CO2",
                 BigDecimal.valueOf(800.0),
                 BigDecimal.valueOf(1000.0),
                 "CO2 threshold exceeded",
-                status,
+                status.name(),
                 Instant.now(),
                 null);
     }

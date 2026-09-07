@@ -55,6 +55,10 @@ class DeviceRepositoryImplTest {
         assertThat(found.getName()).isEqualTo("Sensor");
         assertThat(found.getFactoryName()).isEqualTo("Sensor");
         assertThat(found.getHardwareId()).isEqualTo(new HardwareId("HW-0002"));
+        var row = repository.findProvisionedDevices(null, null, 10).items().getFirst();
+        assertThat(row.hardwareId()).isEqualTo("HW-0002");
+        assertThat(row.apiKey()).isEqualTo(device.getApiKey().value());
+        assertThat(row.updatedAt()).isCloseTo(found.getUpdatedAt(), org.assertj.core.api.Assertions.within(1, java.time.temporal.ChronoUnit.MICROS));
         assertThat(found.getApiKey()).isEqualTo(device.getApiKey());
         assertThat(found.getDeviceType()).isEqualTo(new DeviceType("air-quality-v1"));
         assertThat(found.isDeleted()).isFalse();
@@ -138,6 +142,25 @@ class DeviceRepositoryImplTest {
 
         assertThat(row.status()).isEqualTo(DeviceStatus.ONLINE);
         assertThat(row.updatedAt()).isAfterOrEqualTo(deviceOnly);
+    }
+
+    @Test
+    void resettingAnUnrenamedDeviceRemainsVisibleAfterAssignmentDeletion() {
+        var device = repository.save(device("SN-10", "HW-0010"));
+        var assignment = assignmentRepository.save(new DeviceAssignment(device.getId(), ClaimToken.generate()));
+        assignment.markOnline();
+        assignmentRepository.save(assignment);
+        var watermark = repository.findProvisionedDevices(null, null, 10).items().getLast().updatedAt();
+        device = repository.findById(device.getId()).orElseThrow();
+        device.resetNameToFactoryDefault();
+        repository.save(device);
+        assignmentRepository.deleteById(assignment.getId());
+        repository.advanceRosterWatermark(device.getId(), watermark);
+        var rows = repository.findProvisionedDevices(watermark, device.getId(), 10).items();
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.status()).isEqualTo(DeviceStatus.OFFLINE);
+            assertThat(row.updatedAt()).isAfter(watermark);
+        });
     }
 
     private static Device device(String serial, String hardware) {

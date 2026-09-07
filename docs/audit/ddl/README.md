@@ -7,7 +7,7 @@ and writes the PostgreSQL DDL Hibernate would emit. It opens no database connect
 is safe to run against any working tree.
 
 ```sh
-mvn -q -DskipTests compile
+mvn -q -DskipTests clean compile
 mvn -q dependency:build-classpath -Dmdep.outputFile=/tmp/cp.txt
 CP="$(cat /tmp/cp.txt):target/classes"
 javac -cp "$CP" -d /tmp docs/audit/ddl/DdlGate.java
@@ -30,3 +30,10 @@ Snapshots use the Postgres dialect; H2 output differs and is not a valid control
 | `schema-phase-5.sql` | none; byte-identical to phase 4 |
 | `schema-phase-6.sql` | none; byte-identical to phase 5. Covers `users` only — the Redis session format is controlled by `RedisSessionWireFormatTest`, not by this gate |
 | `schema-phase-7.sql` | two foreign keys removed: `device_assignments.device_id → devices` and `device_commands.device_id → devices`. Both came from the `@ManyToOne` associations the phase replaced with plain ids; every column, index and unique constraint is unchanged |
+
+| `schema-phase-8.sql` | `created_at` and `updated_at` become `timestamp(6) with time zone` on all 15 audited tables |
+
+Phase 8 restores the two device foreign keys through Flyway V2, not JPA associations. These
+constraints are therefore checked by `MigrationIntegrationTest`, not the ORM-only DDL gate.
+Always run `mvn clean compile` before regenerating snapshots so deleted mapped classes cannot
+remain in `target/classes`.

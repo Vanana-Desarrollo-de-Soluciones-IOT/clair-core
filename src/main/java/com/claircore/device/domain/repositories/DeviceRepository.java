@@ -15,6 +15,9 @@ public interface DeviceRepository {
 
     Device save(Device device);
 
+    /** Advances the roster after an assignment is removed, even if no device field changed. */
+    void advanceRosterWatermark(UUID deviceId, Instant previousWatermark);
+
     List<Device> saveAll(Collection<Device> devices);
 
     Optional<Device> findById(UUID id);

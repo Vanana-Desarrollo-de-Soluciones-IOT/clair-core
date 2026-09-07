@@ -1,3 +1,4 @@
+
 # clair-core
 
 Spring Boot project (Java 25) with Swagger/OpenAPI.
@@ -57,7 +58,9 @@ EDGE_TO_CORE_TOKEN=change-me-long-random-secret
 CORS_ALLOWED_ORIGINS=http://localhost:4200
 ```
 
-> ⚠️ **Importante:** Si borraste la base de datos, la primera vez corre con `ddl-auto: update` en `application.yml`. Cuando arranque bien, cámbialo a `validate`.
+Database schemas are managed by Flyway. Empty databases migrate automatically on startup;
+Hibernate validates the resulting schema. For an existing installation, follow
+[the migration instructions](docs/audit/migrations.md) before its first Flyway deployment.
 
 ## Compile the Project
 
@@ -248,8 +251,25 @@ java -jar target/clair-core-1.0.0.jar
 
 ## Security Checklist for Production
 
-- [ ] Change `ddl-auto` from `update` to `validate` in `application.yml`
+- [ ] Follow the Flyway adoption instructions for an existing database
 - [ ] Rotate the JWT secret (minimum 32 characters)
 - [ ] Rotate the Resend API key
 - [ ] Restrict `CORS_ALLOWED_ORIGINS` to your real domain(s)
 - [ ] Enable HTTPS (HSTS is already configured)
+
+## Verification
+
+`mvn clean verify` runs the unit tests, JPA tests, complete application-context test, and
+architecture rules. H2 tests use H2's dialect, with Flyway disabled.
+
+To include PostgreSQL migration and roster integration tests, point these variables at a
+**disposable test database** (the tests create and remove their own schemas):
+
+```sh
+export CLAIR_TEST_POSTGRES_URL=jdbc:postgresql://localhost:5432/clair_test
+export CLAIR_TEST_POSTGRES_USER=clair_test
+export CLAIR_TEST_POSTGRES_PASSWORD=clair_test
+mvn clean verify
+```
+
+CI supplies PostgreSQL 15 and runs these checks on every build.

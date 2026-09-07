@@ -8,7 +8,6 @@ import com.claircore.device.domain.repositories.DeviceRepository;
 import com.claircore.device.infrastructure.persistence.jpa.assemblers.DevicePersistenceAssembler;
 import com.claircore.device.infrastructure.persistence.jpa.repositories.DevicePersistenceRepository;
 import com.claircore.shared.domain.model.PageResult;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -25,15 +24,33 @@ public class DeviceRepositoryImpl implements DeviceRepository {
     private static final UUID ID_CURSOR_START = new UUID(0L, 0L);
 
     private final DevicePersistenceRepository devicePersistenceRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    public DeviceRepositoryImpl(DevicePersistenceRepository devicePersistenceRepository) {
+    private static final String ROSTER_FROM = """
+            FROM devices d LEFT JOIN device_assignments a ON a.device_id = d.id
+            WHERE greatest(d.updated_at, coalesce(a.updated_at, d.updated_at)) > ?
+               OR (greatest(d.updated_at, coalesce(a.updated_at, d.updated_at)) = ? AND d.id > ?)
+            """;
+
+
+    public DeviceRepositoryImpl(DevicePersistenceRepository devicePersistenceRepository, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.devicePersistenceRepository = devicePersistenceRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     public Device save(Device device) {
         var saved = devicePersistenceRepository.save(DevicePersistenceAssembler.toPersistenceFromDomain(device));
         return DevicePersistenceAssembler.toDomainFromPersistence(saved);
+    }
+
+    @Override
+    public void advanceRosterWatermark(UUID deviceId, Instant previousWatermark) {
+        Instant watermark = Instant.now();
+        if (previousWatermark != null && !watermark.isAfter(previousWatermark.plusNanos(1000))) {
+            watermark = previousWatermark.plusNanos(1000);
+        }
+        devicePersistenceRepository.advanceRosterWatermark(deviceId, watermark);
     }
 
     @Override
@@ -90,15 +107,22 @@ public class DeviceRepositoryImpl implements DeviceRepository {
 
     @Override
     public PageResult<ProvisionedDevice> findProvisionedDevices(Instant since, UUID afterId, int limit) {
-        var page = devicePersistenceRepository.findProvisionedDevicesForCursor(
-                since != null ? since : CURSOR_START,
-                afterId != null ? afterId : ID_CURSOR_START,
-                PageRequest.of(0, limit));
-        var rows = page.getContent().stream()
-                .map(row -> new ProvisionedDevice(
-                        row.getDeviceId(), row.getHardwareId(), row.getApiKey(),
-                        row.getStatus(), row.isDeleted(), row.getUpdatedAt()))
-                .toList();
-        return new PageResult<>(rows, 0, limit, page.getTotalElements());
+        devicePersistenceRepository.flush();
+        // Read JDBC values explicitly: interface projections stringify VOs and can reinterpret
+        // CASE timestamp results in the JVM timezone instead of preserving the stored instant.
+        var cursor = (since != null ? since : CURSOR_START).atOffset(java.time.ZoneOffset.UTC);
+        var id = afterId != null ? afterId : ID_CURSOR_START;
+        var rows = jdbcTemplate.query("""
+                SELECT d.id, d.hardware_id, d.api_key, coalesce(a.status, 'OFFLINE') AS status,
+                       coalesce(d.deleted, false) AS deleted,
+                       greatest(d.updated_at, coalesce(a.updated_at, d.updated_at)) AS updated_at
+                """ + ROSTER_FROM + " ORDER BY updated_at ASC, d.id ASC LIMIT ?",
+                (rs, rowNum) -> new ProvisionedDevice(
+                        rs.getObject("id", UUID.class), rs.getString("hardware_id"), rs.getString("api_key"),
+                        com.claircore.device.domain.model.valueobjects.DeviceStatus.valueOf(rs.getString("status")),
+                        rs.getBoolean("deleted"), rs.getTimestamp("updated_at").toInstant()),
+                cursor, cursor, id, limit);
+        Long total = jdbcTemplate.queryForObject("SELECT count(*) " + ROSTER_FROM, Long.class, cursor, cursor, id);
+        return new PageResult<>(rows, 0, limit, total == null ? 0 : total);
     }
 }

@@ -175,6 +175,11 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         deviceRepository.save(device);
 
         deviceAssignmentRepository.deleteById(assignment.getId());
+        Instant previousWatermark = assignment.getUpdatedAt();
+        if (previousWatermark == null || device.getUpdatedAt().isAfter(previousWatermark)) {
+            previousWatermark = device.getUpdatedAt();
+        }
+        deviceRepository.advanceRosterWatermark(device.getId(), previousWatermark);
         // Reset/unlink is not a decommission. Keep the device cached on the edge.
         publishDeviceChanged(device, DeviceStatus.OFFLINE.name(), "UPDATED");
     }

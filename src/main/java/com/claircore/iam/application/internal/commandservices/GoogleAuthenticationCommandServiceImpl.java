@@ -54,6 +54,7 @@ public class GoogleAuthenticationCommandServiceImpl implements GoogleAuthenticat
             if (!user.isOAuthUser()) {
                 user.linkOAuthAccount(OAuthProvider.GOOGLE, subject);
             }
+            user = userRepository.save(user);
         } else {
             user = new User(email, OAuthProvider.GOOGLE, subject);
             user = userRepository.save(user);

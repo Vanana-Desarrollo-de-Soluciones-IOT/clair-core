@@ -100,13 +100,15 @@ class GoogleAuthenticationCommandServiceImplTest {
         ));
         when(userRepository.findByEmail(new EmailAddress("user@example.com"))).thenReturn(Optional.of(existingUser));
 
+        when(userRepository.save(existingUser)).thenAnswer(invocation -> invocation.getArgument(0));
+
         Optional<User> result = service.handle(new AuthenticateWithGoogleCommand(new GoogleIdToken("token")));
 
         assertTrue(result.isPresent());
         assertTrue(result.get().isActive());
         assertEquals(OAuthProvider.GOOGLE, result.get().getOauthProvider());
         assertEquals("google-subject", result.get().getOauthSubject());
-        verify(userRepository, never()).save(any());
+        verify(userRepository).save(existingUser);
         verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(UserAuthenticatedWithGoogleEvent.class));
     }
 

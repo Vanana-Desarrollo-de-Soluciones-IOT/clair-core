@@ -1,8 +1,8 @@
 package com.claircore.shared.domain.exceptions;
 
 /**
- * Raised when a requested resource does not exist or is no longer available. Mapped to HTTP 404 by
- * the global exception handler, so contexts do not need their own handler entries.
+ * Raised when a requested resource does not exist or is no longer available.
+ * Transport adapters decide how to represent this failure.
  */
 public class ResourceNotFoundException extends RuntimeException {
 

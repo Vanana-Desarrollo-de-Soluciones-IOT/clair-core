@@ -1,6 +1,9 @@
 # clair-core — Behaviour Backlog
 
-Everything here changes what the system does. None of it is part of the structural refactor in `01-audit-report.md`, and none of it may share a branch with a structural phase, because a structural phase is verified by "DDL unchanged, tests unchanged" and behaviour work breaks both gates by design.
+Everything here changes what the system does. None of it is part of the structural refactor in `refactor.md`, and none of it may share a branch with a structural phase, because a structural phase is verified by "DDL unchanged, tests unchanged" and behaviour work breaks both gates by design.
+
+The structural follow-up is recorded in [current-state.md](current-state.md). This backlog
+contains additional domain behavior work; it is not a list of unresolved follow-up repairs.
 
 ## Rule
 

@@ -1,5 +1,9 @@
 # clair-core — Structural Refactor Plan by Bounded Context
 
+**Current status:** the follow-up repairs and phases 8–9 are implemented. See
+[current-state.md](current-state.md) for the verified outcome and [migrations.md](migrations.md)
+for existing-database adoption. The phase notes below are historical, not an acceptance checklist.
+
 Baseline: branch `refactor/domain-purity` at `04f3c95` (zero source changes ahead of `main`). Reference: `upc-pre-202610-1asi0729-11848/learning-center-platform` (verified by clone and grep on 2026-09-05).
 
 Scope of this document: packaging and persistence structure only. No behaviour change. Anything in the former `03-` and `04-domain-improvements` documents is out of scope and goes to a separate backlog.
@@ -23,7 +27,7 @@ The fix is not "remove the imports". Removing `@Entity` from an aggregate breaks
 | VO mapping | `infrastructure/persistence/jpa/converters/<VO>PersistenceConverter` (single field) or `…/embeddables/<VO>PersistenceEmbeddable` (multi field) | `@Converter(autoApply = true)` / `@Embeddable` |
 | Spring Data | `infrastructure/persistence/jpa/repositories/XPersistenceRepository` | `extends JpaRepository<XPersistenceEntity, UUID>`; existing `@Query` bodies kept, entity name swapped |
 | Assembler | `infrastructure/persistence/jpa/assemblers/XPersistenceAssembler` | `final`, private constructor, exactly two static methods `toDomainFromPersistence` and `toPersistenceFromDomain`, null-safe, delegates for nested types |
-| Adapter | `infrastructure/persistence/jpa/adapters/XRepositoryImpl` | `@Repository`, implements the port, the **only** class naming both `X` and `XPersistenceEntity` |
+| Adapter | `infrastructure/persistence/jpa/adapters/XRepositoryImpl` | `@Repository`, implements the port; adapters and persistence assemblers may name both `X` and `XPersistenceEntity` |
 | REST | `interfaces/rest/XsController`, `interfaces/rest/resources/*Resource`, `interfaces/rest/transform/XResourceFromEntityAssembler`, `<Cmd>CommandFromResourceAssembler` | plural controller, records for resources |
 | ACL | `interfaces/acl/<Ctx>ContextFacade` (+ DTO records), `application/acl/<Ctx>ContextFacadeImpl` | facade exposes DTOs, never domain types |
 | Integration events | `interfaces/events/<Event>IntegrationEvent` | record; the only event type another context may import |
@@ -270,9 +274,8 @@ alerting query names another context's table; DDL diff empty; tests green.
   `AlertCommandService.AcknowledgementOutcome`. It was a command service that took a REST DTO; the
   outcome enum stays because a 404/409/200 mapping is not an exception.
 - `ThresholdContextFacade.findEnabledThresholdsByDeviceId` now returns `List<ThresholdSummary>`
-  (`String metric`, `BigDecimal value`, `boolean enabled`). The three assignment-scoped methods still
-  return `DeviceMetricThresholdConfiguration`; their only callers are inside device, so they are
-  Phase 7's problem, not a cross-context leak.
+  (`String metric`, `BigDecimal value`, `boolean enabled`). The three assignment-scoped methods remained at this point. The follow-up removed
+  these unused facade methods and moved threshold reads behind the query service.
 - `AlertingContextFacade.getRecentAlertsByOwnerId` takes `List<String>`; an unrecognised status name
   is dropped rather than throwing, because the caller is another context. Analytics passes
   `List.of("ACTIVE", "ACKNOWLEDGED")` and no longer imports `alerting.domain`.
@@ -285,8 +288,9 @@ alerting query names another context's table; DDL diff empty; tests green.
   and `JwtAuthenticationFilter.USER_ID_ATTRIBUTE` is an alias pointing at it, so the four
   controllers still reading the attribute by hand keep working until their phases. `AlertController`
   is the first adopter.
-- `AlertIncidentChangedIntegrationEvent` moved to `interfaces/events/`; notifications' handler
-  already consumed it and needed no change. The alerting side now consumes evaluation's
+- **Correction:** the event moved to `interfaces/events/`, but notifications still consumed the
+  internal domain event at phase 4. The follow-up now publishes and consumes the integration
+  event, whose fields expose no alerting domain enums. The alerting side now consumes evaluation's
   `TelemetryRecordedIntegrationEvent` — `AlertingTelemetryRecordedEventListener` becomes
   `application/internal/eventhandlers/TelemetryRecordedEventHandler`. The internal
   `TelemetryRecordedEvent` is still published for analytics, which switches in Phase 5. The
@@ -348,7 +352,8 @@ Deviations from the table above, all deliberate:
   `LiveMetricsStore` in `application/internal/outboundservices/cache/` with the Caffeine
   implementation in `infrastructure/cache/`, the same shape Phase 3 gave `PaymentGateway`.
   `AnalyticsSseService` moved to `infrastructure/sse/` as the plan says; the controller reaches it
-  directly because an `SseEmitter` is the response, not a dependency.
+  directly at that point. **Corrected in the follow-up:** SSE is an HTTP concern and now lives
+  in `interfaces/rest/sse`, eliminating the controller-to-infrastructure dependency.
 - **`findAveragesByDeviceIdAndWindow` returns `Optional<MetricAverages>` instead of
   `List<Object[]>`.** The old signature made every caller unpack an array and null-check `row[0]` to
   tell "no data" from "averaged to zero"; the Optional says it once, in the adapter.
@@ -523,7 +528,11 @@ own fallback header and its own reading of a blank secret, on a path the filter 
 Those assertions moved into `ServiceTokenAuthenticationFilterTest`, where the check actually lives,
 and grew to cover the legacy header and the blank-secret case.
 
-**`touchUpdatedAt` is deleted, and the roster cursor is asserted against storage.** The plan left
+**Historical claim, corrected in the follow-up:** `touchUpdatedAt` was deleted, and the
+roster cursor tests covered renames but missed resets whose name was already the factory name.
+Such resets require explicit watermark advancement when their assignment is removed.
+
+**Original phase-7 reasoning (incomplete):** The plan left
 this open. Every call site that invoked it also mutated a persisted field, so Hibernate marks the row
 dirty and `@LastModifiedDate` moves `updated_at` forward on the same update — the aggregate was
 forcing a timestamp the framework was about to write anyway. `DeviceRepositoryImplTest` pins the
@@ -563,6 +572,13 @@ Deviations from the table above, all deliberate:
 
 ## Phase 8 — shared cleanup, after every context is split
 
+**Implemented in the follow-up.** Flyway V1 preserves the phase-7 baseline; V2 converts audit
+columns using `LEGACY_AUDIT_ZONE` and restores both device foreign keys. Cross-context telemetry
+and registration handlers run after commit; writing consumers start independent transactions.
+Alert notifications already use explicit after-commit publication, so their ordinary event listener
+is retained and the push command starts `REQUIRES_NEW`. Edge hints use `EdgeNotifier` with HTTP
+timeouts. Both the unused auditing base and startup column-drop component are removed.
+
 - Delete `shared/domain/model/entities/AuditableModel` (no subclasses remain).
 - `AuditableAbstractPersistenceEntity`: delete the two `@JdbcTypeCode(SqlTypes.TIMESTAMP)` annotations so the `Instant` fields map to `timestamp with time zone`. Regenerate DDL, accept the column-type diff explicitly, once, and write the `ALTER TABLE` migration for every table — `ddl-auto: update` does not change an existing column's type.
 - `spring.jpa.open-in-view: false`. Nothing should surface; if something does, it is a missed lazy navigation and is fixed here.
@@ -571,6 +587,10 @@ Deviations from the table above, all deliberate:
 - `EdgeEventPublisher`: extract port `shared/application/outboundservices/EdgeNotifier`; add HTTP timeouts.
 
 ## Phase 9 — ArchUnit
+
+**Implemented in the follow-up.** `ArchitectureTest` enforces framework-free domain code,
+layer direction, published context contracts, facade/query separation and static persistence
+assemblers. Full application startup and actual transaction lifecycle tests supplement these rules.
 
 Written last so it locks a state that already holds. Rules, in prose:
 1. No class under `..domain..` depends on `jakarta.persistence..`, `org.springframework.web..`, `org.springframework.data.jpa..`, `org.springframework.stereotype..`, `com.fasterxml..`.
@@ -583,7 +603,11 @@ Written last so it locks a state that already holds. Rules, in prose:
 
 Version of `archunit-junit5`: look up on Maven Central when writing the test; do not copy from memory.
 
-Carried in from the Phase 5 follow-up, to settle before rule 1 is written:
+**Resolved:** `ResourceNotFoundException` is framework-free and describes missing resources.
+Its HTTP mapping belongs to `GlobalExceptionHandler`; the exception documentation no longer
+defines it by an HTTP status. No special ArchUnit exemption is needed.
+
+Historical question carried in from the Phase 5 follow-up:
 `shared/domain/exceptions/ResourceNotFoundException` is a `domain` class whose contract is an HTTP
 status ("Mapped to HTTP 404 by the global exception handler"). Rule 1 as stated does not catch it —
 it names no forbidden package — but it is the same defect the rule exists to prevent. Either widen

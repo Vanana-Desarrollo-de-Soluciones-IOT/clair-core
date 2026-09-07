@@ -6,11 +6,12 @@ import com.claircore.analytics.domain.model.valueobjects.DeviceId;
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.stereotype.Component;
 
 /** Feeds the live-metrics buffer from evaluation's published telemetry event. */
-@Component
+@Component("analyticsTelemetryRecordedEventHandler")
 public class TelemetryRecordedEventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRecordedEventHandler.class);
@@ -21,7 +22,7 @@ public class TelemetryRecordedEventHandler {
         this.kpiLiveMetricsCommandService = kpiLiveMetricsCommandService;
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void on(TelemetryRecordedIntegrationEvent event) {
         try {
             kpiLiveMetricsCommandService.handle(new ProcessTelemetryAnalyticCommand(

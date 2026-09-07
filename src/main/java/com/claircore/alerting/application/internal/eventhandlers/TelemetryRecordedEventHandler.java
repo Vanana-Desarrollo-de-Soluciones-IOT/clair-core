@@ -5,13 +5,14 @@ import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCo
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
 /** Turns evaluation's published telemetry event into an alert evaluation. */
-@Component
+@Component("alertingTelemetryRecordedEventHandler")
 public class TelemetryRecordedEventHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRecordedEventHandler.class);
@@ -22,7 +23,8 @@ public class TelemetryRecordedEventHandler {
         this.alertCommandService = alertCommandService;
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void on(TelemetryRecordedIntegrationEvent event) {
         LOGGER.info("Alerting BC received telemetry recorded event for device {}", event.deviceId());
         try {

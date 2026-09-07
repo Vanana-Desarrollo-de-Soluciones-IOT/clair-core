@@ -31,17 +31,17 @@ public class PushNotificationCommandServiceImpl implements PushNotificationComma
      * before the split, when it held the same try/catch itself.
      */
     @Override
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void handle(SendPushNotificationCommand command) {
+        PushNotificationLog attempt;
         try {
             pushNotificationDeliveryService.sendPushNotification(command.userId(), command.title(), command.message());
-            pushNotificationLogRepository.save(
-                    PushNotificationLog.sent(command.userId(), command.alertId(), command.title(), command.message()));
-            LOGGER.info("Push notification sent successfully to user {} for alert {}", command.userId(), command.alertId());
+            attempt = PushNotificationLog.sent(command.userId(), command.alertId(), command.title(), command.message());
         } catch (Exception e) {
-            pushNotificationLogRepository.save(
-                    PushNotificationLog.failed(command.userId(), command.alertId(), command.title(), command.message(), e.getMessage()));
-            LOGGER.error("Failed to send push notification to user {} for alert {}: {}", command.userId(), command.alertId(), e.getMessage());
+            attempt = PushNotificationLog.failed(command.userId(), command.alertId(), command.title(), command.message(), e.getMessage());
+            LOGGER.error("Push delivery failed for alert {}", command.alertId(), e);
         }
+        // A storage failure must not be mistaken for a delivery failure or saved twice.
+        pushNotificationLogRepository.save(attempt);
     }
 }

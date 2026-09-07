@@ -1,4 +1,3 @@
-
 # clair-core
 
 Spring Boot project (Java 25) with Swagger/OpenAPI.

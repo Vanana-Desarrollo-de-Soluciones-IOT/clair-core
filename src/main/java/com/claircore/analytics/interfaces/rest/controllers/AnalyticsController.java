@@ -19,7 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import com.claircore.analytics.infrastructure.sse.AnalyticsSseService;
+import com.claircore.analytics.interfaces.rest.sse.AnalyticsSseService;
 import org.springframework.format.annotation.DateTimeFormat;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;

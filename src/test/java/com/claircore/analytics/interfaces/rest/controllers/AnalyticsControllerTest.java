@@ -1,6 +1,6 @@
 package com.claircore.analytics.interfaces.rest.controllers;
 
-import com.claircore.analytics.infrastructure.sse.AnalyticsSseService;
+import com.claircore.analytics.interfaces.rest.sse.AnalyticsSseService;
 import com.claircore.analytics.domain.model.queries.GetDashboardMetricsQuery;
 import com.claircore.analytics.domain.model.queries.GetHistoricalTrendQuery;
 import com.claircore.analytics.domain.model.valueobjects.AirQualityIndex;

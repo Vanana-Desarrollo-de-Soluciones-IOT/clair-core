@@ -1,4 +1,4 @@
-package com.claircore.analytics.infrastructure.sse;
+package com.claircore.analytics.interfaces.rest.sse;
 
 import com.claircore.analytics.domain.model.events.TelemetryReceivedEvent;
 import org.slf4j.Logger;

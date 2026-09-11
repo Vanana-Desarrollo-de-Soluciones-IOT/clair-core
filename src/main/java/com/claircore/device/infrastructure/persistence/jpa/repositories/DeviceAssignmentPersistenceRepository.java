@@ -33,6 +33,9 @@ public interface DeviceAssignmentPersistenceRepository
     Optional<DeviceAssignmentPersistenceEntity> findByDeviceIdForUpdate(@Param("deviceId") UUID deviceId);
 
     Optional<DeviceAssignmentPersistenceEntity> findByClaimToken(ClaimToken claimToken);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM DeviceAssignmentPersistenceEntity a WHERE a.claimToken = :claimToken")
+    Optional<DeviceAssignmentPersistenceEntity> findByClaimTokenForUpdate(@Param("claimToken") ClaimToken claimToken);
 
     @Query("""
             SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END

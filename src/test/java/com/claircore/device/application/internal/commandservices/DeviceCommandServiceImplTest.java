@@ -75,7 +75,7 @@ class DeviceCommandServiceImplTest {
 
     @Test
     void pairDeviceFailsWhenHardwareNotFoundInFactoryInventory() {
-        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.empty());
+        when(deviceRepository.findByHardwareIdForUpdate("HW-0001")).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
             service.handle(new PairDeviceCommand("HW-0001"))
@@ -87,7 +87,7 @@ class DeviceCommandServiceImplTest {
     @Test
     void pairDeviceCreatesAssignmentForFactoryDeviceWithoutAssignment() {
         Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
-        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
+        when(deviceRepository.findByHardwareIdForUpdate("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.empty());
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
         when(deviceRepository.findById(existing.getId())).thenReturn(Optional.of(existing));
@@ -104,7 +104,7 @@ class DeviceCommandServiceImplTest {
         Device existing = deviceWithId(UUID.randomUUID(), "SN-001", "HW-0001");
         DeviceAssignment assignment = new DeviceAssignment(existing.getId(), ClaimToken.generate());
         assignment.claimToSpace(UUID.randomUUID(), new UserId(UUID.randomUUID()));
-        when(deviceRepository.findByHardwareId("HW-0001")).thenReturn(Optional.of(existing));
+        when(deviceRepository.findByHardwareIdForUpdate("HW-0001")).thenReturn(Optional.of(existing));
         when(deviceAssignmentRepository.findByDeviceIdForUpdate(existing.getId())).thenReturn(Optional.of(assignment));
 
         assertThrows(IllegalStateException.class, () ->
@@ -121,7 +121,9 @@ class DeviceCommandServiceImplTest {
         Space space = spaceWithId(spaceId, userId);
 
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
-        when(deviceAssignmentRepository.findByClaimToken(assignment.getClaimToken().value())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByClaimTokenForUpdate(assignment.getClaimToken().value())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.countByOwnerUserId(new UserId(userId))).thenReturn(0L);
+        when(externalBillingService.getMaxDevices(userId)).thenReturn(3);
         when(deviceAssignmentRepository.save(any(DeviceAssignment.class))).thenAnswer(i -> i.getArgument(0));
         when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
 
@@ -149,7 +151,29 @@ class DeviceCommandServiceImplTest {
         assertThrows(AccessDeniedException.class, () ->
             service.handle(new ClaimDeviceCommand("claim-token", spaceId, new UserId(userId)))
         );
-        verify(deviceAssignmentRepository, never()).findByClaimToken(any());
+        verify(deviceAssignmentRepository, never()).findByClaimTokenForUpdate(any());
+    }
+
+    @Test
+    void claimAtQuotaFailsBeforeConsumingTheToken() {
+        UUID userId = UUID.randomUUID();
+        UUID spaceId = UUID.randomUUID();
+        Device device = deviceWithId(UUID.randomUUID(), "SN-002", "HW-0002");
+        DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
+        String token = assignment.getClaimToken().value();
+        when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(spaceWithId(spaceId, userId)));
+        when(deviceAssignmentRepository.findByClaimTokenForUpdate(token)).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.countByOwnerUserId(new UserId(userId))).thenReturn(3L);
+        when(externalBillingService.getMaxDevices(userId)).thenReturn(3);
+        assertThrows(IllegalStateException.class, () ->
+            service.handle(new ClaimDeviceCommand(token, spaceId, new UserId(userId))));
+        // Nothing was written and the aggregate still carries its token, so a retry after
+        // freeing a slot can succeed.
+        verify(deviceAssignmentRepository, never()).save(any(DeviceAssignment.class));
+        assertEquals(token, assignment.getClaimToken().value());
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(deviceAssignmentRepository);
+        order.verify(deviceAssignmentRepository).lockOwnerQuotaBoundary(new UserId(userId));
+        order.verify(deviceAssignmentRepository).countByOwnerUserId(new UserId(userId));
     }
 
     @Test

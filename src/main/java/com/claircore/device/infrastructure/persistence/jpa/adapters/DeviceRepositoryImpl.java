@@ -95,6 +95,12 @@ public class DeviceRepositoryImpl implements DeviceRepository {
     }
 
     @Override
+    public Optional<Device> findByHardwareIdForUpdate(String hardwareId) {
+        return devicePersistenceRepository.findByHardwareIdForUpdate(new HardwareId(hardwareId))
+                .map(DevicePersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
     public Optional<Device> findByApiKey(String apiKey) {
         return devicePersistenceRepository.findByApiKey(new ApiKey(apiKey))
                 .map(DevicePersistenceAssembler::toDomainFromPersistence);

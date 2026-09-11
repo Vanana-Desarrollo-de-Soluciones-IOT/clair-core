@@ -19,8 +19,12 @@ public class DeviceAssignmentRepositoryImpl implements DeviceAssignmentRepositor
 
     private final DeviceAssignmentPersistenceRepository assignmentPersistenceRepository;
 
-    public DeviceAssignmentRepositoryImpl(DeviceAssignmentPersistenceRepository assignmentPersistenceRepository) {
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public DeviceAssignmentRepositoryImpl(DeviceAssignmentPersistenceRepository assignmentPersistenceRepository,
+                                          org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.assignmentPersistenceRepository = assignmentPersistenceRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -71,6 +75,35 @@ public class DeviceAssignmentRepositoryImpl implements DeviceAssignmentRepositor
     public Optional<DeviceAssignment> findByClaimToken(String claimToken) {
         return assignmentPersistenceRepository.findByClaimToken(new ClaimToken(claimToken))
                 .map(DeviceAssignmentPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public Optional<DeviceAssignment> findByClaimTokenForUpdate(String claimToken) {
+        return assignmentPersistenceRepository.findByClaimTokenForUpdate(new ClaimToken(claimToken))
+                .map(DeviceAssignmentPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    /**
+     * A transaction-scoped advisory lock keyed by the owner. There is no owner row in this context
+     * to lock, and the quota spans every space the owner has, so a row lock on any one of them would
+     * not serialize the count. H2 (tests) has no advisory locks; there the method is a no-op.
+     */
+    @Override
+    public void lockOwnerQuotaBoundary(UserId ownerUserId) {
+        if (isPostgres()) {
+            jdbcTemplate.queryForObject("SELECT pg_advisory_xact_lock(hashtext(?))", Object.class,
+                    "device-quota:" + ownerUserId.userId());
+        }
+    }
+
+    private boolean isPostgres() {
+        var dataSource = jdbcTemplate.getDataSource();
+        if (dataSource == null) return false;
+        try (var connection = dataSource.getConnection()) {
+            return connection.getMetaData().getDatabaseProductName().toLowerCase().contains("postgres");
+        } catch (java.sql.SQLException e) {
+            return false;
+        }
     }
 
     @Override

@@ -26,6 +26,9 @@ public interface DevicePersistenceRepository extends JpaRepository<DevicePersist
     List<DevicePersistenceEntity> findAllBySerialNumberIn(Collection<String> serialNumbers);
 
     Optional<DevicePersistenceEntity> findByHardwareId(HardwareId hardwareId);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM DevicePersistenceEntity d WHERE d.hardwareId = :hardwareId")
+    Optional<DevicePersistenceEntity> findByHardwareIdForUpdate(@Param("hardwareId") HardwareId hardwareId);
 
     Optional<DevicePersistenceEntity> findByApiKey(ApiKey apiKey);
 

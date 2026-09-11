@@ -30,6 +30,14 @@ public interface DeviceAssignmentRepository {
     Optional<DeviceAssignment> findByDeviceIdForUpdate(UUID deviceId);
 
     Optional<DeviceAssignment> findByClaimToken(String claimToken);
+    /** As {@link #findByClaimToken}, holding a row lock so one token can be consumed only once. */
+    Optional<DeviceAssignment> findByClaimTokenForUpdate(String claimToken);
+    /**
+     * Serializes every claim of one owner for the rest of the transaction, so two concurrent claims
+     * cannot both read a count under the quota and both succeed. Implementations that cannot lock
+     * per owner may no-op; the quota is then best effort on that database.
+     */
+    void lockOwnerQuotaBoundary(UserId ownerUserId);
 
     boolean existsByOrganizationId(UUID organizationId);
 

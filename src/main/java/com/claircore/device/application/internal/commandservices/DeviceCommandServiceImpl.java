@@ -113,8 +113,10 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     @Override
     @Transactional
     public DeviceAssignment handle(PairDeviceCommand command) {
+        // The device row is the only thing two first pairings share; locking it serializes them so
+        // the loser sees the winner's assignment instead of racing the unique constraint.
         Device device = deviceRepository
-            .findByHardwareId(command.hardwareId())
+            .findByHardwareIdForUpdate(command.hardwareId())
             .orElseThrow(() -> new IllegalArgumentException("Device not registered in factory inventory"));
 
         Optional<DeviceAssignment> existingAssignment = deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId());
@@ -145,12 +147,39 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         }
 
         DeviceAssignment assignment = deviceAssignmentRepository
-            .findByClaimToken(command.claimToken())
+            .findByClaimTokenForUpdate(command.claimToken())
             .orElseThrow(() -> new IllegalArgumentException("Invalid claim token"));
 
         if (assignment.getOwnerUserId() != null && !assignment.getOwnerUserId().equals(command.userId())) {
             throw new AccessDeniedException("Device assignment belongs to another user");
         }
+
+        // Quota is enforced at the owner boundary, under a lock, before the token is consumed: a
+
+
+        // failed claim rolls back and leaves the token usable.
+
+
+        deviceAssignmentRepository.lockOwnerQuotaBoundary(command.userId());
+
+
+        long owned = deviceAssignmentRepository.countByOwnerUserId(command.userId());
+
+
+        int maxAllowed = externalBillingService.getMaxDevices(command.userId().userId());
+
+
+        if (owned >= maxAllowed) {
+
+
+            throw new IllegalStateException(
+
+
+                "Cannot claim device. User has " + owned + " devices, max allowed is " + maxAllowed);
+
+
+        }
+
 
         assignment.claimToSpace(command.spaceId(), command.userId());
         DeviceAssignment savedAssignment = deviceAssignmentRepository.save(assignment);

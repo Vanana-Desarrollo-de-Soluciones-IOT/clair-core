@@ -29,6 +29,11 @@ public interface DeviceRepository {
     List<Device> findAllBySerialNumberIn(Collection<String> serialNumbers);
 
     Optional<Device> findByHardwareId(String hardwareId);
+    /**
+     * Row-locks the inventory device for the transaction. A first pairing has no assignment row to
+     * lock yet, so the device row is what serializes two simultaneous first pairs of one unit.
+     */
+    Optional<Device> findByHardwareIdForUpdate(String hardwareId);
 
     Optional<Device> findByApiKey(String apiKey);
 

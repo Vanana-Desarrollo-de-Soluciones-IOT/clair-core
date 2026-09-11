@@ -13,6 +13,8 @@ import java.util.UUID;
 @Repository
 public interface TelemetryEvaluationPersistenceRepository extends JpaRepository<TelemetryEvaluationPersistenceEntity, UUID> {
 
+    Optional<TelemetryEvaluationPersistenceEntity> findByDeviceIdAndReadingId(DeviceId deviceId, UUID readingId);
+
     Page<TelemetryEvaluationPersistenceEntity> findByDeviceIdOrderByRecordedAtDesc(DeviceId deviceId, Pageable pageable);
 
     Optional<TelemetryEvaluationPersistenceEntity> findFirstByDeviceIdOrderByRecordedAtDesc(DeviceId deviceId);

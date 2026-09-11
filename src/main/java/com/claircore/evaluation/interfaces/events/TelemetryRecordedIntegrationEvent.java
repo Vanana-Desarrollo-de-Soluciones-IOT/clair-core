@@ -16,9 +16,9 @@ public record TelemetryRecordedIntegrationEvent(
         double co2,
         double temperature,
         double humidity,
-        int pm1_0,
-        int pm2_5,
-        int pm10,
+        double pm1_0,
+        double pm2_5,
+        double pm10,
         String connectivityStatus,
         String network,
         Integer signalStrength,
@@ -26,7 +26,7 @@ public record TelemetryRecordedIntegrationEvent(
         int healthStatus,
         String status,
         long uptimeSeconds,
-        String deviceTime,
+        String readingId,
         Instant recordedAt
 ) {
     public static TelemetryRecordedIntegrationEvent from(TelemetryEvaluation evaluation) {
@@ -45,7 +45,7 @@ public record TelemetryRecordedIntegrationEvent(
                 evaluation.getHealthStatus(),
                 evaluation.getStatus(),
                 evaluation.getUptime(),
-                evaluation.getDeviceTime().toString(),
+                evaluation.getReadingId().toString(),
                 evaluation.getRecordedAt());
     }
 }

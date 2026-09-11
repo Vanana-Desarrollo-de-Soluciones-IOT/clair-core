@@ -14,7 +14,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
-import java.time.LocalTime;
+import java.util.UUID;
 
 /**
  * Storage shape of {@code TelemetryEvaluation}.
@@ -26,6 +26,7 @@ import java.time.LocalTime;
 @Entity
 @Table(
         name = "telemetry_evaluations",
+        uniqueConstraints = @jakarta.persistence.UniqueConstraint(columnNames = {"device_id", "reading_id"}),
         indexes = {
                 @Index(name = "idx_telemetry_eval_device_recorded", columnList = "device_id, recorded_at")
         }
@@ -57,8 +58,8 @@ public class TelemetryEvaluationPersistenceEntity extends AuditableAbstractPersi
     @AttributeOverride(name = "country", column = @Column(name = "location_country"))
     private LocationPersistenceEmbeddable location;
 
-    @Column(name = "device_time", nullable = false)
-    private LocalTime deviceTime;
+    @Column(name = "reading_id", nullable = false)
+    private UUID readingId;
 
     @Column(name = "uptime_seconds", nullable = false)
     private Long uptime;
@@ -91,8 +92,8 @@ public class TelemetryEvaluationPersistenceEntity extends AuditableAbstractPersi
     public LocationPersistenceEmbeddable getLocation() { return location; }
     public void setLocation(LocationPersistenceEmbeddable location) { this.location = location; }
 
-    public LocalTime getDeviceTime() { return deviceTime; }
-    public void setDeviceTime(LocalTime deviceTime) { this.deviceTime = deviceTime; }
+    public UUID getReadingId() { return readingId; }
+    public void setReadingId(UUID readingId) { this.readingId = readingId; }
 
     public Long getUptime() { return uptime; }
     public void setUptime(Long uptime) { this.uptime = uptime; }

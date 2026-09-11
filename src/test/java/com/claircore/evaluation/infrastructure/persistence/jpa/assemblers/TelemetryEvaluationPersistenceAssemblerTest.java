@@ -9,7 +9,6 @@ import com.claircore.evaluation.domain.model.valueobjects.ParticulateMatter;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,10 +20,10 @@ class TelemetryEvaluationPersistenceAssemblerTest {
         var original = TelemetryEvaluation.reconstitute(
                 UUID.randomUUID(),
                 new DeviceId(UUID.randomUUID()),
-                LocalTime.of(14, 30, 25),
+                UUID.fromString("00000000-0000-0000-0000-000000000123"),
                 3600L,
                 new AirQuality(400.0, 22.0, 45.0),
-                new ParticulateMatter(10, 15, 25),
+                new ParticulateMatter(10.0, 15.0, 25.0),
                 new Connectivity("ONLINE", "WiFi", -50),
                 new Location("Chile"),
                 85,
@@ -38,7 +37,7 @@ class TelemetryEvaluationPersistenceAssemblerTest {
 
         assertThat(roundTripped.getId()).isEqualTo(original.getId());
         assertThat(roundTripped.getDeviceId()).isEqualTo(original.getDeviceId());
-        assertThat(roundTripped.getDeviceTime()).isEqualTo(original.getDeviceTime());
+        assertThat(roundTripped.getReadingId()).isEqualTo(original.getReadingId());
         assertThat(roundTripped.getUptime()).isEqualTo(3600L);
         assertThat(roundTripped.getAirQuality()).isEqualTo(original.getAirQuality());
         assertThat(roundTripped.getParticulateMatter()).isEqualTo(original.getParticulateMatter());
@@ -54,9 +53,9 @@ class TelemetryEvaluationPersistenceAssemblerTest {
     @Test
     void nullConnectivityNetworkAndSignalStrengthSurvive() {
         var original = new TelemetryEvaluation(
-                new DeviceId(UUID.randomUUID()), LocalTime.NOON, 1L,
+                new DeviceId(UUID.randomUUID()), UUID.fromString("00000000-0000-0000-0000-000000000123"), 1L,
                 new AirQuality(400.0, 22.0, 45.0),
-                new ParticulateMatter(10, 15, 25),
+                new ParticulateMatter(10.0, 15.0, 25.0),
                 new Connectivity("ONLINE", null, null),
                 new Location("Chile"), 85, "STABLE", Instant.now());
 
@@ -71,9 +70,9 @@ class TelemetryEvaluationPersistenceAssemblerTest {
     void anUnsavedReadingMapsToAnEntityThatCountsAsNew() {
         var entity = TelemetryEvaluationPersistenceAssembler.toPersistenceFromDomain(
                 new TelemetryEvaluation(
-                        new DeviceId(UUID.randomUUID()), LocalTime.NOON, 1L,
+                        new DeviceId(UUID.randomUUID()), UUID.fromString("00000000-0000-0000-0000-000000000123"), 1L,
                         new AirQuality(400.0, 22.0, 45.0),
-                        new ParticulateMatter(10, 15, 25),
+                        new ParticulateMatter(10.0, 15.0, 25.0),
                         new Connectivity("ONLINE", "WiFi", -50),
                         new Location("Chile"), 85, "STABLE", Instant.now()));
 

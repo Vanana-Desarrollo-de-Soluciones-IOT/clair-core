@@ -11,8 +11,8 @@ public record EvaluateTelemetryResource(
         @Schema(description = "Device identifier", example = "CLAIR-0001")
         @NotBlank String deviceId,
 
-        @Schema(description = "Device local time", example = "14:30:25")
-        @NotBlank String timestamp,
+        @Schema(description = "Stable reading UUID reused on retries", example = "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        @NotBlank @com.fasterxml.jackson.annotation.JsonAlias("reading_id") String readingId,
 
         @Schema(description = "System uptime", example = "00:00:20")
         @NotBlank String uptime,
@@ -35,8 +35,9 @@ public record EvaluateTelemetryResource(
         @Schema(description = "Overall device status", example = "Optimal")
         @NotBlank String status,
 
-        @Schema(description = "Optional timestamp override", example = "2026-05-16T22:30:00-05:00")
-        String created_at
+        @Schema(description = "Measurement instant, including UTC offset", example = "2026-05-16T22:30:00-05:00")
+        @NotBlank @com.fasterxml.jackson.annotation.JsonProperty("measuredAt")
+        @com.fasterxml.jackson.annotation.JsonAlias({"occurred_at", "created_at"}) String created_at
 ) {
     @Schema(description = "Air quality sensor data")
     public record AirQualityResource(
@@ -53,13 +54,13 @@ public record EvaluateTelemetryResource(
     @Schema(description = "Particulate matter sensor data")
     public record ParticulateMatterResource(
             @Schema(description = "PM1.0 in µg/m³", example = "5")
-            @NotNull Integer pm1_0,
+            @NotNull Double pm1_0,
 
             @Schema(description = "PM2.5 in µg/m³", example = "12")
-            @NotNull Integer pm2_5,
+            @NotNull Double pm2_5,
 
             @Schema(description = "PM10 in µg/m³", example = "25")
-            @NotNull Integer pm10
+            @NotNull Double pm10
     ) {}
 
     @Schema(description = "WiFi connectivity status")

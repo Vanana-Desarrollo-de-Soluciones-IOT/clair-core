@@ -26,7 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.time.LocalTime;
+
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
@@ -62,11 +62,11 @@ public class TelemetryEvaluationsController {
         UUID deviceId = resolveDeviceId(request.deviceId()).orElse(null);
         if (deviceId == null) return ResponseEntity.notFound().build();
 
-        LocalTime deviceTime;
+        UUID readingId;
         try {
-            deviceTime = LocalTime.parse(request.timestamp());
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Invalid timestamp format: " + request.timestamp(), e);
+            readingId = UUID.fromString(request.readingId());
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("readingId must be a UUID", e);
         }
 
         Long uptimeSeconds;
@@ -78,14 +78,14 @@ public class TelemetryEvaluationsController {
 
         Instant recordedAt;
         try {
-            recordedAt = request.created_at() != null ? Instant.parse(request.created_at()) : Instant.now();
+            recordedAt = Instant.parse(request.created_at());
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("Invalid created_at format: " + request.created_at(), e);
         }
 
         var command = new EvaluateTelemetryCommand(
                 new DeviceId(deviceId),
-                deviceTime,
+                readingId,
                 uptimeSeconds,
                 new AirQuality(request.airQuality().co2(), request.airQuality().temperature(), request.airQuality().humidity()),
                 new ParticulateMatter(request.particulateMatter().pm1_0(), request.particulateMatter().pm2_5(), request.particulateMatter().pm10()),
@@ -114,31 +114,30 @@ public class TelemetryEvaluationsController {
                 if (response.getStatusCode().is2xxSuccessful()) results.add(java.util.Map.of("client_ref", ref, "status", "CREATED"));
                 else results.add(java.util.Map.of("client_ref", ref, "status", "ERROR", "reason", "DEVICE_NOT_FOUND"));
             }
-            catch (RuntimeException ex) { results.add(java.util.Map.of("client_ref", ref, "status", "ERROR", "reason", "VALIDATION_ERROR")); }
+            catch (IllegalArgumentException ex) { results.add(java.util.Map.of("client_ref", ref, "status", "ERROR", "reason", "VALIDATION_ERROR")); }
         }
         return ResponseEntity.ok(java.util.Map.of("results", results));
     }
 
     private EvaluateTelemetryResource batchRequest(JsonNode r) {
-        String[] required = {"device_id", "device_time", "uptime_seconds", "co2", "temperature", "humidity", "pm1_0", "pm2_5", "pm10", "wifi_status", "health_status", "status", "recorded_at", "occurred_at"};
+        String[] required = {"device_id", "reading_id", "uptime_seconds", "co2", "temperature", "humidity", "pm1_0", "pm2_5", "pm10", "wifi_status", "health_status", "status", "occurred_at"};
         for (String name : required) if (!r.has(name) || r.get(name).isNull() || (r.get(name).isTextual() && r.get(name).asText().isBlank())) throw new IllegalArgumentException("Missing " + name);
-        requireText(r, "device_id"); requireText(r, "device_time"); requireText(r, "wifi_status"); requireText(r, "status"); requireText(r, "recorded_at"); requireText(r, "occurred_at");
-        try { Instant.parse(r.get("recorded_at").asText()); Instant.parse(r.get("occurred_at").asText()); }
+        requireText(r, "device_id"); requireText(r, "reading_id"); requireText(r, "wifi_status"); requireText(r, "status"); requireText(r, "occurred_at");
+        try { Instant.parse(r.get("occurred_at").asText()); }
         catch (DateTimeParseException ex) { throw new IllegalArgumentException("Invalid timestamp format", ex); }
         requireNumber(r, "uptime_seconds"); requireNumber(r, "co2"); requireNumber(r, "temperature"); requireNumber(r, "humidity"); requireNumber(r, "health_status");
-        requireInteger(r, "pm1_0"); requireInteger(r, "pm2_5"); requireInteger(r, "pm10");
+        requireNumber(r, "pm1_0"); requireNumber(r, "pm2_5"); requireNumber(r, "pm10");
+        requireInteger(r, "health_status");
+        if (!r.get("uptime_seconds").isIntegralNumber() || !r.get("uptime_seconds").canConvertToLong()) throw new IllegalArgumentException("Invalid uptime_seconds");
         if (r.get("uptime_seconds").asLong() < 0 || r.get("health_status").asInt() < 0 || r.get("health_status").asInt() > 100) throw new IllegalArgumentException("Invalid range");
-        String deviceTime = r.get("device_time").asText();
-        try { deviceTime = Instant.parse(deviceTime).atZone(java.time.ZoneOffset.UTC).toLocalTime().toString(); }
-        catch (Exception ex) { java.time.LocalTime.parse(deviceTime); }
         // Construct the existing request shape so singular and batch paths share the same command handling.
-        return new EvaluateTelemetryResource(r.get("device_id").asText(), deviceTime,
+        return new EvaluateTelemetryResource(r.get("device_id").asText(), r.get("reading_id").asText(),
                 Long.toString(r.get("uptime_seconds").asLong()),
                 new EvaluateTelemetryResource.AirQualityResource(r.get("co2").doubleValue(), r.get("temperature").doubleValue(), r.get("humidity").doubleValue()),
-                new EvaluateTelemetryResource.ParticulateMatterResource(r.get("pm1_0").intValue(), r.get("pm2_5").intValue(), r.get("pm10").intValue()),
+                new EvaluateTelemetryResource.ParticulateMatterResource(r.get("pm1_0").doubleValue(), r.get("pm2_5").doubleValue(), r.get("pm10").doubleValue()),
                 new EvaluateTelemetryResource.ConnectivityResource(r.get("wifi_status").asText(), r.path("network_name").asText(null), r.path("signal_strength").isNumber() ? r.get("signal_strength").intValue() : null),
                 new EvaluateTelemetryResource.LocationResource(r.path("country").asText(null)), r.get("health_status").intValue(),
-                r.get("status").asText(), r.get("recorded_at").asText());
+                r.get("status").asText(), r.get("occurred_at").asText());
     }
 
     private void requireText(JsonNode r, String name) { if (!r.get(name).isTextual() || r.get(name).asText().isBlank()) throw new IllegalArgumentException("Invalid " + name); }

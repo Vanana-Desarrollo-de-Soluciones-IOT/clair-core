@@ -21,7 +21,7 @@ public final class TelemetryEvaluationPersistenceAssembler {
         return TelemetryEvaluation.reconstitute(
                 entity.getId(),
                 entity.getDeviceId(),
-                entity.getDeviceTime(),
+                entity.getReadingId(),
                 entity.getUptime(),
                 toDomain(entity.getAirQuality()),
                 toDomain(entity.getParticulateMatter()),
@@ -39,7 +39,7 @@ public final class TelemetryEvaluationPersistenceAssembler {
         var entity = new TelemetryEvaluationPersistenceEntity();
         entity.setId(evaluation.getId());
         entity.setDeviceId(evaluation.getDeviceId());
-        entity.setDeviceTime(evaluation.getDeviceTime());
+        entity.setReadingId(evaluation.getReadingId());
         entity.setUptime(evaluation.getUptime());
         entity.setAirQuality(toPersistence(evaluation.getAirQuality()));
         entity.setParticulateMatter(toPersistence(evaluation.getParticulateMatter()));

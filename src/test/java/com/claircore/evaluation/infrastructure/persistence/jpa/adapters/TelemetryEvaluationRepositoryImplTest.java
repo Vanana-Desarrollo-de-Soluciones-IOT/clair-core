@@ -17,7 +17,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,13 +130,13 @@ class TelemetryEvaluationRepositoryImplTest {
         assertThat(rows.get(0).get("recorded_at")).isNotNull();
     }
 
-    private TelemetryEvaluation reading(UUID deviceId, Instant recordedAt, double co2, int pm25) {
+    private TelemetryEvaluation reading(UUID deviceId, Instant recordedAt, double co2, double pm25) {
         return new TelemetryEvaluation(
                 new DeviceId(deviceId),
-                LocalTime.NOON,
+                UUID.randomUUID(),
                 3600L,
                 new AirQuality(co2, 22.0, 45.0),
-                new ParticulateMatter(5, pm25, 25),
+                new ParticulateMatter(5.0, pm25, 25.0),
                 new Connectivity("ONLINE", "WiFi", -50),
                 new Location("Chile"),
                 85,

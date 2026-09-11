@@ -33,6 +33,11 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
                    AVG(aq_humidity) as avg_humidity
             FROM telemetry_evaluations
             WHERE recorded_at >= ? AND recorded_at < ?
+              AND aq_co2 BETWEEN 0 AND 1000000 AND aq_temperature BETWEEN -50 AND 100
+              AND aq_humidity BETWEEN 0 AND 100
+              AND pm_pm1_0 BETWEEN 0 AND 10000
+              AND pm_pm2_5 BETWEEN 0 AND 10000
+              AND pm_pm10 BETWEEN 0 AND 10000
             GROUP BY device_id
             """;
 
@@ -45,6 +50,11 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
             SELECT device_id, aq_co2, pm_pm2_5, aq_temperature, aq_humidity, recorded_at
             FROM telemetry_evaluations
             WHERE recorded_at >= ? AND recorded_at < ?
+              AND aq_co2 BETWEEN 0 AND 1000000 AND aq_temperature BETWEEN -50 AND 100
+              AND aq_humidity BETWEEN 0 AND 100
+              AND pm_pm1_0 BETWEEN 0 AND 10000
+              AND pm_pm2_5 BETWEEN 0 AND 10000
+              AND pm_pm10 BETWEEN 0 AND 10000
             ORDER BY device_id, recorded_at
             """;
 
@@ -63,6 +73,27 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
         var saved = telemetryEvaluationPersistenceRepository.save(
                 TelemetryEvaluationPersistenceAssembler.toPersistenceFromDomain(evaluation));
         return TelemetryEvaluationPersistenceAssembler.toDomainFromPersistence(saved);
+    }
+
+    @Override
+    public StoredReading saveIfAbsent(TelemetryEvaluation e) {
+        Instant receivedAt = Instant.now();
+        int inserted = jdbcTemplate.update("""
+                INSERT INTO telemetry_evaluations
+                    (id, device_id, reading_id, uptime_seconds, aq_co2, aq_temperature, aq_humidity,
+                     pm_pm1_0, pm_pm2_5, pm_pm10, conn_status, conn_network, conn_signal_strength,
+                     location_country, health_status, status, recorded_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (device_id, reading_id) DO NOTHING
+                """, e.getId(), e.getDeviceId().value(), e.getReadingId(), e.getUptime(),
+                e.getAirQuality().co2(), e.getAirQuality().temperature(), e.getAirQuality().humidity(),
+                e.getParticulateMatter().pm1_0(), e.getParticulateMatter().pm2_5(), e.getParticulateMatter().pm10(),
+                e.getConnectivity().status(), e.getConnectivity().network(), e.getConnectivity().signalStrength(),
+                e.getLocation().country(), e.getHealthStatus(), e.getStatus(),
+                Timestamp.from(e.getRecordedAt()), Timestamp.from(receivedAt), Timestamp.from(receivedAt));
+        var stored = telemetryEvaluationPersistenceRepository
+                .findByDeviceIdAndReadingId(e.getDeviceId(), e.getReadingId()).orElseThrow();
+        return new StoredReading(TelemetryEvaluationPersistenceAssembler.toDomainFromPersistence(stored), inserted == 1);
     }
 
     @Override

@@ -17,7 +17,7 @@ public final class TelemetryEvaluationResourceFromEntityAssembler {
         return new TelemetryEvaluationResource(
                 e.getId(),
                 e.getDeviceId().value(),
-                e.getDeviceTime(),
+                e.getReadingId(),
                 e.getUptime(),
                 new TelemetryEvaluationResource.AirQualityResource(
                         aq.co2(), aq.temperature(), aq.humidity()

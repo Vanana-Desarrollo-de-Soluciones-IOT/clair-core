@@ -28,7 +28,7 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
     public TelemetryEvaluation handle(EvaluateTelemetryCommand command) {
         var evaluation = new TelemetryEvaluation(
                 command.deviceId(),
-                command.deviceTime(),
+                command.readingId(),
                 command.uptime(),
                 command.airQuality(),
                 command.particulateMatter(),
@@ -39,7 +39,22 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
                 command.recordedAt()
         );
 
-        TelemetryEvaluation saved = telemetryEvaluationRepository.save(evaluation);
+        var result = telemetryEvaluationRepository.saveIfAbsent(evaluation);
+        TelemetryEvaluation saved = result.reading();
+        if (!result.inserted()) {
+            // Identity is immutable. Reusing it for different measurements is a client error.
+            if (!saved.getRecordedAt().equals(evaluation.getRecordedAt())
+                    || !saved.getAirQuality().equals(evaluation.getAirQuality())
+                    || !saved.getParticulateMatter().equals(evaluation.getParticulateMatter())
+                    || !saved.getUptime().equals(evaluation.getUptime())
+                    || !saved.getConnectivity().equals(evaluation.getConnectivity())
+                    || !saved.getLocation().equals(evaluation.getLocation())
+                    || !saved.getHealthStatus().equals(evaluation.getHealthStatus())
+                    || !saved.getStatus().equals(evaluation.getStatus())) {
+                throw new IllegalArgumentException("readingId already exists with different measurement data");
+            }
+            return saved;
+        }
 
         // The published contract, and now the only telemetry event: alerting and analytics both
         // listen to it, so the internal event this used to be published alongside is gone.

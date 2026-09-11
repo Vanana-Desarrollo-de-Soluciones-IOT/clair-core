@@ -15,6 +15,12 @@ public interface TelemetryEvaluationRepository {
 
     TelemetryEvaluation save(TelemetryEvaluation evaluation);
 
+    /** Atomic insert-or-return-existing; a duplicate must not publish another event. */
+    StoredReading saveIfAbsent(TelemetryEvaluation evaluation);
+
+    record StoredReading(TelemetryEvaluation reading, boolean inserted) {}
+
+
     /** Most recently recorded first. */
     PageResult<TelemetryEvaluation> findByDeviceId(UUID deviceId, int page, int size);
 

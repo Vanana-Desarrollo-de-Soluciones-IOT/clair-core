@@ -7,7 +7,6 @@ import com.claircore.evaluation.domain.model.valueobjects.Location;
 import com.claircore.evaluation.domain.model.valueobjects.ParticulateMatter;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -22,7 +21,7 @@ public class TelemetryEvaluation {
     private final ParticulateMatter particulateMatter;
     private final Connectivity connectivity;
     private final Location location;
-    private final LocalTime deviceTime;
+    private final UUID readingId;
     private final Long uptime;
     private final String status;
     private final Integer healthStatus;
@@ -33,7 +32,7 @@ public class TelemetryEvaluation {
     private TelemetryEvaluation(
             UUID id,
             DeviceId deviceId,
-            LocalTime deviceTime,
+            UUID readingId,
             Long uptime,
             AirQuality airQuality,
             ParticulateMatter particulateMatter,
@@ -50,8 +49,8 @@ public class TelemetryEvaluation {
         if (deviceId == null) {
             throw new IllegalArgumentException("Device ID must not be null");
         }
-        if (deviceTime == null) {
-            throw new IllegalArgumentException("deviceTime must not be null");
+        if (readingId == null) {
+            throw new IllegalArgumentException("readingId must not be null");
         }
         if (uptime == null || uptime < 0) {
             throw new IllegalArgumentException("uptime must not be null or negative");
@@ -80,7 +79,7 @@ public class TelemetryEvaluation {
 
         this.id = id;
         this.deviceId = deviceId;
-        this.deviceTime = deviceTime;
+        this.readingId = readingId;
         this.uptime = uptime;
         this.airQuality = airQuality;
         this.particulateMatter = particulateMatter;
@@ -95,7 +94,7 @@ public class TelemetryEvaluation {
 
     public TelemetryEvaluation(
             DeviceId deviceId,
-            LocalTime deviceTime,
+            UUID readingId,
             Long uptime,
             AirQuality airQuality,
             ParticulateMatter particulateMatter,
@@ -105,7 +104,7 @@ public class TelemetryEvaluation {
             String status,
             Instant recordedAt
     ) {
-        this(UUID.randomUUID(), deviceId, deviceTime, uptime, airQuality, particulateMatter, connectivity,
+        this(UUID.randomUUID(), deviceId, readingId, uptime, airQuality, particulateMatter, connectivity,
                 location, healthStatus, status, recordedAt, null, null);
     }
 
@@ -113,7 +112,7 @@ public class TelemetryEvaluation {
     public static TelemetryEvaluation reconstitute(
             UUID id,
             DeviceId deviceId,
-            LocalTime deviceTime,
+            UUID readingId,
             Long uptime,
             AirQuality airQuality,
             ParticulateMatter particulateMatter,
@@ -124,7 +123,7 @@ public class TelemetryEvaluation {
             Instant recordedAt,
             Instant createdAt,
             Instant updatedAt) {
-        return new TelemetryEvaluation(id, deviceId, deviceTime, uptime, airQuality, particulateMatter,
+        return new TelemetryEvaluation(id, deviceId, readingId, uptime, airQuality, particulateMatter,
                 connectivity, location, healthStatus, status, recordedAt, createdAt, updatedAt);
     }
 
@@ -134,7 +133,7 @@ public class TelemetryEvaluation {
     public ParticulateMatter getParticulateMatter() { return particulateMatter; }
     public Connectivity getConnectivity() { return connectivity; }
     public Location getLocation() { return location; }
-    public LocalTime getDeviceTime() { return deviceTime; }
+    public UUID getReadingId() { return readingId; }
     public Long getUptime() { return uptime; }
     public Integer getHealthStatus() { return healthStatus; }
     public String getStatus() { return status; }

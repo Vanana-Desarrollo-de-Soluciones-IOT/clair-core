@@ -1,6 +1,6 @@
 # Laptop profile: `SPRING_PROFILES_ACTIVE=local` (add `,demo` to seed five inventory devices).
 #
-# PostgreSQL, Redis and Mailpit come from ../docker-compose.local.yml. External integrations are
+# PostgreSQL, Redis and Mailpit come from docker-compose.local.yml. External integrations are
 # given placeholder credentials so the application starts; each one fails closed:
 #   - Google login: the placeholder client id never matches a real token audience -> login refused.
 #   - Stripe: API calls fail -> no checkout; plans stay FREEMIUM and quotas keep applying.

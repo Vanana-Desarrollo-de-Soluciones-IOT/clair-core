@@ -90,12 +90,12 @@ Google login is refused (placeholder client id), Stripe checkout fails and plans
 push notifications fail and are logged, and sign-up emails land in Mailpit at http://localhost:8025.
 
 ```bash
-docker compose -f ../docker-compose.local.yml up -d
+docker compose -f docker-compose.local.yml up -d
 SPRING_PROFILES_ACTIVE=local,demo mvn spring-boot:run     # demo seeds CLAIR-0001..0005 and writes provisioned-devices.csv
 ```
 
 `SMTP_AUTH`, `SMTP_SSL` and `SMTP_STARTTLS` control the mail transport in every profile. The full
-laptop runbook, including the edge and the device, is `../docs/RUNBOOK.md`.
+laptop runbook, including the edge and the device, is `docs/RUNBOOK.md`.
 
 ## Compile the Project
 

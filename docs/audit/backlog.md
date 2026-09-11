@@ -104,6 +104,28 @@ Paths in the following table are relative to `src/main/java/com/claircore/`.
 
 Suggested order: B7.7/B7.8, then B7.9/B7.10, then B7.11–B7.13. Implement behavior fixes separately from this documentation review.
 
+### Phase 1 outcome — 2026-09-11
+
+Implemented on `refactor/domain-purity` as the first phase of `IMPLEMENTATION_PLAN.md`:
+
+| Item | State |
+|---|---|
+| B7.7 | **Done.** Space create verifies the organization owner; space and organization rename/delete carry the actor and refuse other owners; space, organization and device reads go through owner-scoped queries (`*ForUserQuery`). Unscoped queries remain for trusted internal callers only. |
+| B7.8 | **Done.** Claim locks the assignment row by token (`findByClaimTokenForUpdate`); the loser sees "already claimed". |
+| B7.9 | **Done.** Claim takes a per-owner advisory lock (PostgreSQL) then counts owned devices against the billing quota before consuming the token. A refused claim rolls back and keeps the token. |
+| B7.10 | **Done.** `device_commands.assignment_id` (Flyway V4) binds a command to the pairing generation. Unlink expires outstanding commands; the edge command queries only return commands whose assignment still exists; an ACK for another generation voids the command and answers 409. The roster and the edge command resource expose `assignment_id` so the edge can drop its own cached copies. |
+| B7.11 | **Partial.** The legacy application ACK now shares the generation guard. Consolidating the transition matrix into the aggregate is still open. |
+| B7.13 | **Done.** Pairing locks the inventory device row, so two first pairings serialize instead of racing the unique constraint. |
+| B7.5 | **Partial.** Seeding only under the `demo` profile with predictable hardware ids; CSV import/export for inventory. Keys are still stored in clear. |
+
+Pre-claim telemetry is accepted for any inventory device and stored against the device id. The raw
+telemetry reads (`/api/v1/evaluations/devices/{id}` and `/latest`) hide readings recorded before the
+current assignment's `activated_at`, so a new owner never sees a previous owner's samples there.
+
+| # | Item | Control |
+|---|---|---|
+| B7.14 | Analytics summaries, live dashboard and reports still aggregate by device id across owners. Apply the same `visibleSince` clamp (or rebuild summaries per assignment) before exposing per-device history to a reassigned owner. | After unlink/reclaim, the new owner's daily report for the reclaim day contains only readings after `activated_at`. |
+
 ### Test value and redundancy
 
 Local validation: `mvn -q test` completed successfully on 2026-09-07. Surefire reports **602 tests: 598 passed, 0 failures/errors, 4 skipped**. The skipped tests are `PostgresRosterIntegrationTest` (1) and `MigrationIntegrationTest` (3); this run does not establish PostgreSQL migration/locking correctness. Source inventory has 203 device test methods: 95 domain, 52 application, 30 REST, and 26 persistence. These are counts, not coverage percentages.

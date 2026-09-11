@@ -55,7 +55,28 @@ EDGE_TO_CORE_TOKEN=change-me-long-random-secret
 
 # CORS — tu web app Angular
 CORS_ALLOWED_ORIGINS=http://localhost:4200
+
+# Factory inventory (optional). CSV columns: serial_number,hardware_id,api_key,name
+DEVICE_PROVISIONING_IMPORT_PATH=
+# Where the demo profile writes its generated inventory (contains API keys; keep it out of git)
+DEVICE_PROVISIONING_EXPORT_PATH=provisioned-devices.csv
 ```
+
+## Device inventory and the demo profile
+
+Devices exist in the core before anyone registers them. There are two ways to get them there:
+
+- **Import** a CSV at startup by setting `DEVICE_PROVISIONING_IMPORT_PATH`. Rows already present
+  (same serial number or hardware id) are skipped, so the file can stay configured permanently.
+- **Demo profile**: run with `SPRING_PROFILES_ACTIVE=demo` and the core seeds five units
+  `CLAIR-0001`..`CLAIR-0005` with fresh API keys, then writes the whole inventory including keys to
+  `DEVICE_PROVISIONING_EXPORT_PATH`. Flash a hardware id and its key into the firmware from that file.
+  Without the profile nothing is seeded.
+
+Registering a device in the app is a two-step ownership handshake, not discovery: `POST /api/v1/devices/pair`
+with the hardware id returns a one-time claim token; `POST /api/v1/devices/claim` with that token and one of
+your spaces makes you the owner. Telemetry from a unit that is in inventory but not yet claimed is accepted
+and stored against the device; it becomes visible to whoever claims it only from the moment of that claim.
 
 Database schemas are managed by Flyway. Empty databases migrate automatically on startup;
 Hibernate validates the resulting schema. For an existing installation, follow

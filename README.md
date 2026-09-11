@@ -82,6 +82,21 @@ Database schemas are managed by Flyway. Empty databases migrate automatically on
 Hibernate validates the resulting schema. For an existing installation, follow
 [the migration instructions](docs/audit/migrations.md) before its first Flyway deployment.
 
+## Running on one laptop (local profile)
+
+Start PostgreSQL, Redis and Mailpit with the compose file in the parent directory, then run the
+core with the `local` profile. Every external integration has an explicit disabled behaviour:
+Google login is refused (placeholder client id), Stripe checkout fails and plans stay FREEMIUM,
+push notifications fail and are logged, and sign-up emails land in Mailpit at http://localhost:8025.
+
+```bash
+docker compose -f ../docker-compose.local.yml up -d
+SPRING_PROFILES_ACTIVE=local,demo mvn spring-boot:run     # demo seeds CLAIR-0001..0005 and writes provisioned-devices.csv
+```
+
+`SMTP_AUTH`, `SMTP_SSL` and `SMTP_STARTTLS` control the mail transport in every profile. The full
+laptop runbook, including the edge and the device, is `../docs/RUNBOOK.md`.
+
 ## Compile the Project
 
 ```bash

@@ -17,6 +17,12 @@ public interface DeviceQueryService {
     Optional<Organization> handle(GetOrganizationByIdQuery query);
     List<Organization> handle(GetOrganizationsByOwnerQuery query);
     Optional<Space> handle(GetSpaceByIdQuery query);
+    /** Owner-scoped reads. The unscoped variants above stay for trusted internal callers only. */
+    Optional<Space> handle(GetSpaceByIdForUserQuery query);
+    List<Space> handle(GetSpacesByOrganizationForUserQuery query);
+    Optional<Organization> handle(GetOrganizationByIdForUserQuery query);
+    PageResult<AssignedDevice> handle(GetDevicesBySpaceForUserQuery query);
+    Optional<AssignedDevice> handle(GetAssignedDeviceByIdForUserQuery query);
     List<Space> handle(GetSpacesByOrganizationQuery query);
     Optional<Device> handle(GetDeviceByIdQuery query);
     Optional<Device> handle(GetDeviceBySerialNumberQuery query);

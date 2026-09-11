@@ -5,7 +5,8 @@ import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
 import com.claircore.device.domain.model.commands.UpdateDeviceNameCommand;
 import com.claircore.device.domain.model.aggregates.DeviceAssignment;
-import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
+import com.claircore.device.domain.model.queries.GetAssignedDeviceByIdForUserQuery;
+import com.claircore.device.domain.model.queries.GetDevicesBySpaceForUserQuery;
 import com.claircore.device.domain.model.queries.GetDeviceStatusByDeviceIdForUserQuery;
 import com.claircore.device.domain.model.valueobjects.DeviceMetricThresholdConfiguration;
 import com.claircore.device.domain.model.valueobjects.MetricThreshold;
@@ -102,7 +103,7 @@ public class DeviceController {
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
 
-        var query = new GetDevicesBySpaceQuery(spaceId, page, size);
+        var query = new GetDevicesBySpaceForUserQuery(spaceId, page, size, new UserId(getAuthenticatedUserId()));
         PageResult<DeviceQueryService.AssignedDevice> assigned = deviceQueryService.handle(query);
         // The port speaks PageResult; the body stays a Spring Data page so the JSON envelope
         // clients already consume is unchanged.
@@ -115,7 +116,7 @@ public class DeviceController {
     @GetMapping("/{deviceId}")
     @Operation(summary = "Get device by ID")
     public ResponseEntity<DeviceResponse> getDevice(@PathVariable UUID deviceId) {
-        return deviceQueryService.findAssignedDeviceByDeviceId(deviceId)
+        return deviceQueryService.handle(new GetAssignedDeviceByIdForUserQuery(deviceId, new UserId(getAuthenticatedUserId())))
                 .map(assigned -> ResponseEntity.ok(toResponse(assigned)))
                 .orElse(ResponseEntity.notFound().build());
     }

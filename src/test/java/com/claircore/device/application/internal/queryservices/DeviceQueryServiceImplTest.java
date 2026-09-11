@@ -15,6 +15,12 @@ import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
 import com.claircore.device.domain.repositories.DeviceRepository;
 import com.claircore.device.domain.repositories.OrganizationRepository;
 import com.claircore.device.domain.repositories.SpaceRepository;
+import com.claircore.device.domain.model.queries.GetSpaceByIdForUserQuery;
+import com.claircore.device.domain.model.queries.GetSpacesByOrganizationForUserQuery;
+import com.claircore.device.domain.model.queries.GetOrganizationByIdForUserQuery;
+import com.claircore.device.domain.model.queries.GetDevicesBySpaceForUserQuery;
+import com.claircore.device.domain.model.queries.GetAssignedDeviceByIdForUserQuery;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -145,5 +151,55 @@ class DeviceQueryServiceImplTest {
         return Device.reconstitute(deviceId, "SN-0001", "Sensor 0001", "Sensor 0001", false,
                 new HardwareId("CLAIR-0KBG"), ApiKey.generate(), new DeviceType("air-quality-v1"),
                 null, null);
+    }
+
+    @Test
+    void anotherUserCannotReadASpaceByIdOrListItsDevices() {
+        DeviceQueryServiceImpl service = new DeviceQueryServiceImpl(
+                organizationRepository, spaceRepository, deviceRepository, deviceAssignmentRepository);
+        UUID spaceId = UUID.randomUUID();
+        UserId owner = new UserId(UUID.randomUUID());
+        UserId intruder = new UserId(UUID.randomUUID());
+        Space space = Space.reconstitute(spaceId, "Kitchen", UUID.randomUUID(), owner, null, null);
+        when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
+        when(spaceRepository.existsByIdAndOwnerUserId(spaceId, intruder)).thenReturn(false);
+
+        assertTrue(service.handle(new GetSpaceByIdForUserQuery(spaceId, intruder)).isEmpty());
+        assertTrue(service.handle(new GetSpaceByIdForUserQuery(spaceId, owner)).isPresent());
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.handle(new GetDevicesBySpaceForUserQuery(spaceId, 0, 20, intruder)));
+        verify(deviceAssignmentRepository, never()).findBySpaceId(any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void anotherUserCannotListSpacesOfAnOrganizationOrReadItById() {
+        DeviceQueryServiceImpl service = new DeviceQueryServiceImpl(
+                organizationRepository, spaceRepository, deviceRepository, deviceAssignmentRepository);
+        UUID organizationId = UUID.randomUUID();
+        UserId owner = new UserId(UUID.randomUUID());
+        UserId intruder = new UserId(UUID.randomUUID());
+        Organization organization = Organization.reconstitute(organizationId, "Home", owner, null, null);
+        when(organizationRepository.findById(organizationId)).thenReturn(Optional.of(organization));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.handle(new GetSpacesByOrganizationForUserQuery(organizationId, intruder)));
+        verify(spaceRepository, never()).findByOrganizationId(any());
+        assertTrue(service.handle(new GetOrganizationByIdForUserQuery(organizationId, intruder)).isEmpty());
+        assertTrue(service.handle(new GetOrganizationByIdForUserQuery(organizationId, owner)).isPresent());
+    }
+
+    @Test
+    void anotherUserCannotReadAClaimedDeviceById() {
+        DeviceQueryServiceImpl service = new DeviceQueryServiceImpl(
+                organizationRepository, spaceRepository, deviceRepository, deviceAssignmentRepository);
+        UserId owner = new UserId(UUID.randomUUID());
+        var assignment = new DeviceAssignment(UUID.randomUUID(), ClaimToken.generate());
+        assignment.claimToSpace(UUID.randomUUID(), owner);
+        var device = deviceFor(assignment.getDeviceId());
+        when(deviceAssignmentRepository.findByDeviceId(device.getId())).thenReturn(Optional.of(assignment));
+        when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
+
+        assertTrue(service.handle(new GetAssignedDeviceByIdForUserQuery(device.getId(), new UserId(UUID.randomUUID()))).isEmpty());
+        assertTrue(service.handle(new GetAssignedDeviceByIdForUserQuery(device.getId(), owner)).isPresent());
     }
 }

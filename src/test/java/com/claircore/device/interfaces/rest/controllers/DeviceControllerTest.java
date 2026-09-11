@@ -4,7 +4,8 @@ import com.claircore.device.domain.model.aggregates.Device;
 import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
-import com.claircore.device.domain.model.queries.GetDevicesBySpaceQuery;
+import com.claircore.device.domain.model.queries.GetAssignedDeviceByIdForUserQuery;
+import com.claircore.device.domain.model.queries.GetDevicesBySpaceForUserQuery;
 import com.claircore.device.domain.model.valueobjects.*;
 import com.claircore.device.application.commandservices.DeviceCommandService;
 import com.claircore.device.application.queryservices.DeviceQueryService;
@@ -127,13 +128,30 @@ class DeviceControllerTest {
         authenticate("550e8400-e29b-41d4-a716-446655442000");
         Device device = device();
         DeviceAssignment assignment = new DeviceAssignment(device.getId(), ClaimToken.generate());
-        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetDevicesBySpaceQuery.class)))
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetDevicesBySpaceForUserQuery.class)))
                 .thenReturn(new PageResult<>(
                         List.of(new DeviceQueryService.AssignedDevice(assignment, device)), 0, 20, 1));
 
         mockMvc.perform(get("/api/v1/devices").param("spaceId", UUID.randomUUID().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].serialNumber").value("SN-1000"));
+    }
+
+    @Test
+    void deviceListAndDetailAreRefusedWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/devices").param("spaceId", UUID.randomUUID().toString()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/devices/{deviceId}", UUID.randomUUID())).andExpect(status().isForbidden());
+        org.mockito.Mockito.verifyNoInteractions(deviceQueryService);
+    }
+
+    @Test
+    void deviceDetailIsNotFoundWhenTheScopedQueryYieldsNothing() throws Exception {
+        authenticate("550e8400-e29b-41d4-a716-446655442000");
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetAssignedDeviceByIdForUserQuery.class)))
+                .thenReturn(Optional.empty());
+        mockMvc.perform(get("/api/v1/devices/{deviceId}", UUID.randomUUID())).andExpect(status().isNotFound());
+        org.mockito.Mockito.verify(deviceQueryService, org.mockito.Mockito.never()).findAssignedDeviceByDeviceId(org.mockito.ArgumentMatchers.any());
     }
 
     private Device device() {

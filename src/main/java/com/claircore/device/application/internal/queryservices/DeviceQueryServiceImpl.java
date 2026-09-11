@@ -1,5 +1,7 @@
 package com.claircore.device.application.internal.queryservices;
 
+import com.claircore.device.domain.model.queries.*;
+import org.springframework.security.access.AccessDeniedException;
 import com.claircore.device.domain.model.aggregates.Device;
 import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.aggregates.Organization;
@@ -61,6 +63,48 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     @Transactional(readOnly = true)
     public Optional<Space> handle(GetSpaceByIdQuery query) {
         return spaceRepository.findById(query.spaceId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Space> handle(GetSpaceByIdForUserQuery query) {
+        // Another user's space reads as absent: a 404 leaks nothing about its existence.
+        return spaceRepository.findById(query.spaceId())
+                .filter(space -> query.userId().equals(space.getOwnerUserId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Space> handle(GetSpacesByOrganizationForUserQuery query) {
+        Organization organization = organizationRepository.findById(query.organizationId())
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+        if (!query.userId().equals(organization.getOwnerUserId())) {
+            throw new AccessDeniedException("Organization does not belong to user");
+        }
+        return spaceRepository.findByOrganizationId(query.organizationId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Organization> handle(GetOrganizationByIdForUserQuery query) {
+        return organizationRepository.findById(query.organizationId())
+                .filter(organization -> query.userId().equals(organization.getOwnerUserId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResult<AssignedDevice> handle(GetDevicesBySpaceForUserQuery query) {
+        if (!spaceRepository.existsByIdAndOwnerUserId(query.spaceId(), query.userId())) {
+            throw new AccessDeniedException("Space does not belong to user");
+        }
+        return handle(new GetDevicesBySpaceQuery(query.spaceId(), query.page(), query.size()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AssignedDevice> handle(GetAssignedDeviceByIdForUserQuery query) {
+        return findAssignedDeviceByDeviceId(query.deviceId())
+                .filter(assigned -> query.userId().equals(assigned.assignment().getOwnerUserId()));
     }
 
     @Override

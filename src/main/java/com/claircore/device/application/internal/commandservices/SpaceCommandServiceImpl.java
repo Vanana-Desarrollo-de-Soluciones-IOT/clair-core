@@ -11,6 +11,7 @@ import com.claircore.device.application.commandservices.SpaceCommandService;
 import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
 import com.claircore.device.domain.repositories.OrganizationRepository;
 import com.claircore.device.domain.repositories.SpaceRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,9 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
         Organization org = organizationRepository
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+        if (!command.ownerUserId().equals(org.getOwnerUserId())) {
+            throw new AccessDeniedException("Organization does not belong to user");
+        }
 
         UUID userId = command.ownerUserId().userId();
         int currentCount = spaceRepository.countByOwnerUserId(command.ownerUserId());
@@ -69,6 +73,7 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
         Space space = spaceRepository
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+        requireOwner(space, command.userId());
 
         if (deviceAssignmentRepository.existsBySpaceId(command.spaceId())) {
             throw new IllegalStateException("Cannot delete space with devices. Remove all devices first.");
@@ -83,9 +88,16 @@ public class SpaceCommandServiceImpl implements SpaceCommandService {
         Space space = spaceRepository
             .findById(command.spaceId())
             .orElseThrow(() -> new IllegalArgumentException("Space not found"));
+        requireOwner(space, command.userId());
 
         space.updateName(command.name());
         spaceRepository.save(space);
+    }
+
+    private static void requireOwner(Space space, UserId userId) {
+        if (!userId.equals(space.getOwnerUserId())) {
+            throw new AccessDeniedException("Space does not belong to user");
+        }
     }
 
     @Override

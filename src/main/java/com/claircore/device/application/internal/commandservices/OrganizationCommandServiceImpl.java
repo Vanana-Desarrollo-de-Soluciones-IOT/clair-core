@@ -10,6 +10,7 @@ import com.claircore.device.application.commandservices.OrganizationCommandServi
 import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
 import com.claircore.device.domain.repositories.OrganizationRepository;
 import com.claircore.device.domain.repositories.SpaceRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,6 +65,7 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
         Organization organization = organizationRepository
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+        requireOwner(organization, command.userId());
 
         if (deviceAssignmentRepository.existsByOrganizationId(command.organizationId())) {
             throw new IllegalStateException(
@@ -81,9 +83,16 @@ public class OrganizationCommandServiceImpl implements OrganizationCommandServic
         Organization organization = organizationRepository
             .findById(command.organizationId())
             .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+        requireOwner(organization, command.userId());
 
         organization.updateName(command.name());
         organizationRepository.save(organization);
+    }
+
+    private static void requireOwner(Organization organization, UserId userId) {
+        if (!userId.equals(organization.getOwnerUserId())) {
+            throw new AccessDeniedException("Organization does not belong to user");
+        }
     }
 
     @Override

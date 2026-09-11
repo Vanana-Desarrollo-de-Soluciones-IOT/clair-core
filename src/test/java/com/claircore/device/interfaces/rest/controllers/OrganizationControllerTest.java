@@ -2,7 +2,7 @@ package com.claircore.device.interfaces.rest.controllers;
 
 import com.claircore.device.domain.model.aggregates.Organization;
 import com.claircore.device.domain.model.commands.CreateOrganizationCommand;
-import com.claircore.device.domain.model.queries.GetOrganizationByIdQuery;
+import com.claircore.device.domain.model.queries.GetOrganizationByIdForUserQuery;
 import com.claircore.device.domain.model.queries.GetOrganizationsByOwnerQuery;
 import com.claircore.device.domain.model.valueobjects.UserId;
 import com.claircore.device.application.queryservices.DeviceQueryService;
@@ -84,7 +84,8 @@ class OrganizationControllerTest {
 
     @Test
     void shouldReturnNotFoundWhenOrganizationDoesNotExist() throws Exception {
-        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetOrganizationByIdQuery.class))).thenReturn(Optional.empty());
+        authenticate("550e8400-e29b-41d4-a716-446655446000");
+        when(deviceQueryService.handle(org.mockito.ArgumentMatchers.any(GetOrganizationByIdForUserQuery.class))).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/v1/organizations/{organizationId}", UUID.randomUUID()))
                 .andExpect(status().isNotFound());
@@ -99,6 +100,12 @@ class OrganizationControllerTest {
         mockMvc.perform(get("/api/v1/organizations"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Home"));
+    }
+
+    @Test
+    void readByIdIsRefusedWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/organizations/{organizationId}", UUID.randomUUID())).andExpect(status().isForbidden());
+        org.mockito.Mockito.verifyNoInteractions(deviceQueryService);
     }
 
     private void authenticate(String userId) {

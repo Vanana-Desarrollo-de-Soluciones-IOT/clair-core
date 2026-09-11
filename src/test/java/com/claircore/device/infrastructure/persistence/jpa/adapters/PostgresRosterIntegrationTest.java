@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfEnvironmentVariable(named = "CLAIR_TEST_POSTGRES_URL", matches = ".+")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JpaAuditingConfiguration.class, DeviceRepositoryImpl.class, DeviceAssignmentRepositoryImpl.class,
-        DeviceCommandServiceImpl.class})
+        DeviceCommandRepositoryImpl.class, DeviceCommandServiceImpl.class})
 class PostgresRosterIntegrationTest {
     private static final String SCHEMA = "roster_" + UUID.randomUUID().toString().replace("-", "");
     @Autowired DeviceRepository devices;

@@ -22,4 +22,19 @@ public interface TelemetryEvaluationPersistenceRepository extends JpaRepository<
             DeviceId deviceId, java.time.Instant since, Pageable pageable);
     Optional<TelemetryEvaluationPersistenceEntity> findFirstByDeviceIdAndRecordedAtGreaterThanEqualOrderByRecordedAtDesc(
             DeviceId deviceId, java.time.Instant since);
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @org.springframework.data.jpa.repository.Query("""
+            UPDATE TelemetryEvaluationPersistenceEntity e SET e.alertsEvaluatedAt = :at
+            WHERE e.deviceId = :deviceId AND e.readingId = :readingId AND e.alertsEvaluatedAt IS NULL
+            """)
+    int markAlertsEvaluated(@org.springframework.data.repository.query.Param("deviceId") DeviceId deviceId,
+                            @org.springframework.data.repository.query.Param("readingId") UUID readingId,
+                            @org.springframework.data.repository.query.Param("at") java.time.Instant at);
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT e FROM TelemetryEvaluationPersistenceEntity e
+            WHERE e.alertsEvaluatedAt IS NULL AND e.createdAt < :createdBefore
+            ORDER BY e.recordedAt ASC
+            """)
+    java.util.List<TelemetryEvaluationPersistenceEntity> findAlertsPending(
+            @org.springframework.data.repository.query.Param("createdBefore") java.time.Instant createdBefore, Pageable pageable);
 }

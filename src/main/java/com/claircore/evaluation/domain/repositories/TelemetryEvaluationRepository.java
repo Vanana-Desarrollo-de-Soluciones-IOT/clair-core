@@ -28,6 +28,10 @@ public interface TelemetryEvaluationRepository {
     PageResult<TelemetryEvaluation> findByDeviceIdSince(UUID deviceId, Instant since, int page, int size);
     Optional<TelemetryEvaluation> findLatestByDeviceId(UUID deviceId);
     Optional<TelemetryEvaluation> findLatestByDeviceIdSince(UUID deviceId, Instant since);
+    /** Records that alert evaluation handled this reading; idempotent. */
+    void markAlertsEvaluated(UUID deviceId, UUID readingId, Instant at);
+    /** Readings whose alert evaluation never completed, oldest measurement first. */
+    List<TelemetryEvaluation> findAlertsPending(Instant createdBefore, int limit);
 
     /** Per-device averages over [start, end), the aggregation analytics reads hourly. */
     List<HourlyDeviceAverage> findHourlyAveragesBetween(Instant start, Instant end);

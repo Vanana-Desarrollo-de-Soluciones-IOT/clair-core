@@ -30,7 +30,11 @@ public class EdgeEventPublisher implements com.claircore.shared.application.outb
         this.edgeToken = edgeToken;
     }
 
-    /** Sends only a hint; edge must reconcile through its authenticated pull endpoints. */
+    /**
+     * Sends only a hint; edge must reconcile through its authenticated pull endpoints. Runs on the
+     * bounded edge-notifier executor so an unreachable edge never holds a request thread.
+     */
+    @org.springframework.scheduling.annotation.Async("edgeNotifierExecutor")
     public void notifyChange(String resource, String hint) {
         sendPost("/api/v1/edge/notify", java.util.Map.of("resource", resource, "hint", hint == null ? "" : hint));
     }
@@ -61,7 +65,7 @@ public class EdgeEventPublisher implements com.claircore.shared.application.outb
             LOGGER.info("Successfully sent event to edge at {}", url);
         } catch (Exception e) {
             LOGGER.error("Failed to send event to edge at {}: {}", url, e.getMessage());
-            // In a production system, you would retry or queue this.
+            // The edge polls on a timer; a lost hint only delays it by one interval.
         }
     }
 }

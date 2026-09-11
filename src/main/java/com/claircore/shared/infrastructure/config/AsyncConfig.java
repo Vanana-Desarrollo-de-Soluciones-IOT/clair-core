@@ -8,8 +8,24 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 
 @Configuration
-@EnableAsync
+@EnableAsync(proxyTargetClass = true)
 public class AsyncConfig {
+
+    /**
+     * Edge hints are droppable: the edge reconciles on a timer anyway. A tiny pool with a bounded
+     * queue that discards the oldest hint keeps a slow or dead edge from ever stalling a request.
+     */
+    @Bean(name = "edgeNotifierExecutor")
+    public Executor edgeNotifierExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("edge-notify-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
+        executor.initialize();
+        return executor;
+    }
 
     @Bean(name = "taskExecutor")
     public Executor taskExecutor() {

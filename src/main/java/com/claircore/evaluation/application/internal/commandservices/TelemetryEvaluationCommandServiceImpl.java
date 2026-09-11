@@ -3,6 +3,8 @@ package com.claircore.evaluation.application.internal.commandservices;
 import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.commands.EvaluateTelemetryCommand;
+import com.claircore.evaluation.domain.model.commands.MarkAlertsEvaluatedCommand;
+import com.claircore.evaluation.domain.model.commands.ReplayUnprocessedTelemetryCommand;
 import com.claircore.evaluation.domain.repositories.TelemetryEvaluationRepository;
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -61,5 +63,24 @@ public class TelemetryEvaluationCommandServiceImpl implements TelemetryEvaluatio
         eventPublisher.publishEvent(TelemetryRecordedIntegrationEvent.from(saved));
 
         return saved;
+    }
+    /**
+     * Runs inside a transaction on purpose: the consumers are after-commit listeners, so the
+     * replayed events fire exactly like the originals once this transaction commits.
+     */
+    @Override
+    @Transactional
+    public int handle(ReplayUnprocessedTelemetryCommand command) {
+        var pending = telemetryEvaluationRepository.findAlertsPending(command.createdBefore(), command.limit());
+        for (TelemetryEvaluation reading : pending) {
+            eventPublisher.publishEvent(TelemetryRecordedIntegrationEvent.from(reading));
+        }
+        return pending.size();
+    }
+
+    @Override
+    @Transactional
+    public void handle(MarkAlertsEvaluatedCommand command) {
+        telemetryEvaluationRepository.markAlertsEvaluated(command.deviceId(), command.readingId(), command.evaluatedAt());
     }
 }

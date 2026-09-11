@@ -1,6 +1,7 @@
 package com.claircore.alerting.application.internal.eventhandlers;
 
 import com.claircore.alerting.application.commandservices.AlertCommandService;
+import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingEvaluationService;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ class TelemetryRecordedEventHandlerTest {
 
     @Mock
     private AlertCommandService alertCommandService;
+    @Mock
+    private ExternalAlertingEvaluationService externalEvaluationService;
 
     @InjectMocks
     private TelemetryRecordedEventHandler handler;
@@ -46,6 +49,8 @@ class TelemetryRecordedEventHandlerTest {
         assertEquals(450.0, command.co2().doubleValue());
         assertEquals(23.5, command.temperature().doubleValue());
         assertEquals(52.0, command.humidity().doubleValue());
+        // The receipt is what stops the catch-up scheduler from replaying this reading.
+        verify(externalEvaluationService).markAlertsEvaluated(deviceId, UUID.fromString("00000000-0000-0000-0000-000000000123"));
     }
 
     /** A failing evaluation must not propagate: the publisher is evaluation, not alerting. */
@@ -54,11 +59,13 @@ class TelemetryRecordedEventHandlerTest {
         doThrow(new IllegalStateException("boom")).when(alertCommandService).handle(any(EvaluateTelemetryForAlertsCommand.class));
 
         assertDoesNotThrow(() -> handler.on(event(UUID.randomUUID(), Instant.now())));
+        // No receipt after a failure, so the reading is replayed instead of lost.
+        verify(externalEvaluationService, org.mockito.Mockito.never()).markAlertsEvaluated(any(), any());
     }
 
     private static TelemetryRecordedIntegrationEvent event(UUID deviceId, Instant recordedAt) {
         return new TelemetryRecordedIntegrationEvent(
                 deviceId, 450.0, 23.5, 52.0, 5, 12, 25,
-                "connected", "Wokwi-GUEST", -65, "PERU", 100, "Optimal", 20L, "14:30:25", recordedAt);
+                "connected", "Wokwi-GUEST", -65, "PERU", 100, "Optimal", 20L, "00000000-0000-0000-0000-000000000123", recordedAt);
     }
 }

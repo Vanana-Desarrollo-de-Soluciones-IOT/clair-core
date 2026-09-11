@@ -62,4 +62,22 @@ class TelemetryEvaluationCommandServiceImplTest {
         assertThat(result.getHealthStatus()).isEqualTo(command.healthStatus());
         verify(telemetryEvaluationRepository).saveIfAbsent(any(TelemetryEvaluation.class));
     }
+    @Test
+    void replayRepublishesOnlyReadingsWithoutAReceipt() {
+        var reading = new TelemetryEvaluation(
+                new DeviceId(UUID.randomUUID()), UUID.randomUUID(), 10L,
+                new AirQuality(400.0, 22.0, 45.0), new ParticulateMatter(1.0, 2.0, 3.0),
+                new Connectivity("ONLINE", "WiFi", -50), new Location("Chile"), 100, "STABLE", Instant.now());
+        Instant before = Instant.now().minusSeconds(30);
+        when(telemetryEvaluationRepository.findAlertsPending(before, 200)).thenReturn(java.util.List.of(reading));
+        int replayed = telemetryEvaluationCommandService.handle(
+                new com.claircore.evaluation.domain.model.commands.ReplayUnprocessedTelemetryCommand(before, 200));
+        assertThat(replayed).isEqualTo(1);
+        var captor = org.mockito.ArgumentCaptor.forClass(com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().readingId()).isEqualTo(reading.getReadingId().toString());
+        telemetryEvaluationCommandService.handle(
+                new com.claircore.evaluation.domain.model.commands.MarkAlertsEvaluatedCommand(reading.getDeviceId().value(), reading.getReadingId(), before));
+        verify(telemetryEvaluationRepository).markAlertsEvaluated(reading.getDeviceId().value(), reading.getReadingId(), before);
+    }
 }

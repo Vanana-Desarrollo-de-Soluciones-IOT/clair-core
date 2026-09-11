@@ -1,6 +1,8 @@
 package com.claircore.evaluation.application.acl;
 
+import com.claircore.evaluation.application.commandservices.TelemetryEvaluationCommandService;
 import com.claircore.evaluation.application.queryservices.TelemetryEvaluationQueryService;
+import com.claircore.evaluation.domain.model.commands.MarkAlertsEvaluatedCommand;
 import com.claircore.evaluation.domain.model.aggregates.TelemetryEvaluation;
 import com.claircore.evaluation.domain.model.queries.GetDeviceReadingsQuery;
 import com.claircore.evaluation.domain.model.queries.GetHourlyTelemetryAveragesQuery;
@@ -19,9 +21,17 @@ import java.util.UUID;
 public class EvaluationContextFacadeImpl implements EvaluationContextFacade {
 
     private final TelemetryEvaluationQueryService telemetryEvaluationQueryService;
+    private final TelemetryEvaluationCommandService telemetryEvaluationCommandService;
 
-    public EvaluationContextFacadeImpl(TelemetryEvaluationQueryService telemetryEvaluationQueryService) {
+    public EvaluationContextFacadeImpl(TelemetryEvaluationQueryService telemetryEvaluationQueryService,
+                                       TelemetryEvaluationCommandService telemetryEvaluationCommandService) {
         this.telemetryEvaluationQueryService = telemetryEvaluationQueryService;
+        this.telemetryEvaluationCommandService = telemetryEvaluationCommandService;
+    }
+
+    @Override
+    public void markAlertsEvaluated(UUID deviceId, UUID readingId) {
+        telemetryEvaluationCommandService.handle(new MarkAlertsEvaluatedCommand(deviceId, readingId, Instant.now()));
     }
 
     @Override

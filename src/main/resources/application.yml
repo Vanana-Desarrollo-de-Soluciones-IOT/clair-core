@@ -46,11 +46,11 @@ spring:
     properties:
       mail:
         smtp:
-          auth: true
+          auth: ${SMTP_AUTH:true}
           ssl:
-            enable: true
+            enable: ${SMTP_SSL:true}
           starttls:
-            enable: false
+            enable: ${SMTP_STARTTLS:false}
         debug: false
 
 

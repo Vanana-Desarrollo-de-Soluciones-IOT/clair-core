@@ -104,6 +104,24 @@ class TelemetryEvaluationRepositoryImplTest {
     }
 
     @Test
+    void receiptsHideReadingsFromTheAlertCatchUp() {
+        UUID deviceId = UUID.randomUUID();
+        var done = repository.save(reading(deviceId, RECORDED_AT, 400.0, 10));
+        var pending = repository.save(reading(deviceId, RECORDED_AT.plusSeconds(60), 500.0, 20));
+        entityManager.flush();
+        var future = Instant.now().plusSeconds(60);
+        assertThat(repository.findAlertsPending(future, 10)).extracting(TelemetryEvaluation::getId)
+                .containsExactly(done.getId(), pending.getId());
+        repository.markAlertsEvaluated(deviceId, done.getReadingId(), Instant.now());
+        assertThat(repository.findAlertsPending(future, 10)).extracting(TelemetryEvaluation::getId)
+                .containsExactly(pending.getId());
+        // Readings stored after the cutoff are left to the normal after-commit path.
+        assertThat(repository.findAlertsPending(Instant.now().minusSeconds(3600), 10)).isEmpty();
+        // Idempotent: a second receipt for the same reading is a no-op.
+        repository.markAlertsEvaluated(deviceId, done.getReadingId(), Instant.now());
+    }
+
+    @Test
     void averagesPerDeviceOverTheWindowAndExcludesReadingsOutsideIt() {
         UUID deviceId = UUID.randomUUID();
         repository.save(reading(deviceId, RECORDED_AT, 400.0, 10));

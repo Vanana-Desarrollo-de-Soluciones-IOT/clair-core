@@ -1,6 +1,8 @@
 package com.claircore.alerting.application.internal.eventhandlers;
 
 import com.claircore.alerting.application.commandservices.AlertCommandService;
+import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingEvaluationService;
+import java.util.UUID;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.evaluation.interfaces.events.TelemetryRecordedIntegrationEvent;
 import org.slf4j.Logger;
@@ -18,9 +20,12 @@ public class TelemetryRecordedEventHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRecordedEventHandler.class);
 
     private final AlertCommandService alertCommandService;
+    private final ExternalAlertingEvaluationService externalEvaluationService;
 
-    public TelemetryRecordedEventHandler(AlertCommandService alertCommandService) {
+    public TelemetryRecordedEventHandler(AlertCommandService alertCommandService,
+                                         ExternalAlertingEvaluationService externalEvaluationService) {
         this.alertCommandService = alertCommandService;
+        this.externalEvaluationService = externalEvaluationService;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -36,6 +41,9 @@ public class TelemetryRecordedEventHandler {
                     BigDecimal.valueOf(event.temperature()),
                     BigDecimal.valueOf(event.humidity())
             ));
+            // The receipt is written only after a successful evaluation; a failure leaves it null so the
+            // catch-up scheduler replays this reading instead of losing it.
+            externalEvaluationService.markAlertsEvaluated(event.deviceId(), UUID.fromString(event.readingId()));
         } catch (Exception e) {
             LOGGER.error("Failed to process telemetry event for alerting, device {}", event.deviceId(), e);
         }

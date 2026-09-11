@@ -55,6 +55,7 @@ class CommittedEventsIntegrationTest {
     @MockitoBean ExternalDeviceService devices;
     @MockitoBean ExternalAlertingService alerts;
     @MockitoBean PushNotificationDeliveryService delivery;
+    @MockitoBean com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingEvaluationService evaluationReceipts;
 
     @Test void sentPushHistoryIsCommittedAfterTheAlertTransaction() {
         UUID owner = UUID.randomUUID();

@@ -72,6 +72,9 @@ public class TelemetryEvaluationPersistenceEntity extends AuditableAbstractPersi
 
     @Column(name = "recorded_at", nullable = false)
     private Instant recordedAt;
+    /** When alerting finished with this reading; null means the after-commit handler never ran. */
+    @Column(name = "alerts_evaluated_at")
+    private Instant alertsEvaluatedAt;
 
     public TelemetryEvaluationPersistenceEntity() {
         // JPA, and the persistence assembler
@@ -106,4 +109,6 @@ public class TelemetryEvaluationPersistenceEntity extends AuditableAbstractPersi
 
     public Instant getRecordedAt() { return recordedAt; }
     public void setRecordedAt(Instant recordedAt) { this.recordedAt = recordedAt; }
+    public Instant getAlertsEvaluatedAt() { return alertsEvaluatedAt; }
+    public void setAlertsEvaluatedAt(Instant alertsEvaluatedAt) { this.alertsEvaluatedAt = alertsEvaluatedAt; }
 }

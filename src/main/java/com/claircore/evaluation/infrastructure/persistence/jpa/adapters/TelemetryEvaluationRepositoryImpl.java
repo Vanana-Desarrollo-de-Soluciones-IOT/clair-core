@@ -131,6 +131,17 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
     }
 
     @Override
+    public void markAlertsEvaluated(UUID deviceId, UUID readingId, Instant at) {
+        telemetryEvaluationPersistenceRepository.markAlertsEvaluated(new DeviceId(deviceId), readingId, at);
+    }
+
+    @Override
+    public List<TelemetryEvaluation> findAlertsPending(Instant createdBefore, int limit) {
+        return telemetryEvaluationPersistenceRepository.findAlertsPending(createdBefore, PageRequest.of(0, limit))
+                .stream().map(TelemetryEvaluationPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
     public List<HourlyDeviceAverage> findHourlyAveragesBetween(Instant start, Instant end) {
         return jdbcTemplate.query(
                 HOURLY_AVERAGES_SQL,

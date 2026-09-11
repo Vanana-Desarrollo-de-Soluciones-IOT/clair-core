@@ -24,13 +24,18 @@ public class Alert {
     private final String deviceName;
     private final Instant occurredAt;
     private Instant resolvedAt;
+    /** Strictly increasing across every alert; bumped on open, acknowledge and resolve. */
+    private long transitionSequence;
+    /** Highest transition the edge has confirmed it stored; null until the first receipt. */
+    private Long edgeReceiptSequence;
     private final Instant createdAt;
     private final Instant updatedAt;
 
     private Alert(UUID id, UUID deviceId, UUID spaceId, String spaceName, String deviceName,
                   MetricType metric, BigDecimal thresholdValue, BigDecimal actualValue,
                   String message, AlertStatus status, AlertSeverity severity,
-                  Instant occurredAt, Instant resolvedAt, Instant createdAt, Instant updatedAt) {
+                  Instant occurredAt, Instant resolvedAt, long transitionSequence, Long edgeReceiptSequence,
+                  Instant createdAt, Instant updatedAt) {
         if (id == null) {
             throw new IllegalArgumentException("Id must not be null");
         }
@@ -66,6 +71,8 @@ public class Alert {
         this.severity = severity;
         this.occurredAt = occurredAt;
         this.resolvedAt = resolvedAt;
+        this.transitionSequence = transitionSequence;
+        this.edgeReceiptSequence = edgeReceiptSequence;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -74,16 +81,18 @@ public class Alert {
                  MetricType metric, BigDecimal thresholdValue, BigDecimal actualValue,
                  String message, AlertSeverity severity, Instant occurredAt) {
         this(UUID.randomUUID(), deviceId, spaceId, spaceName, deviceName, metric, thresholdValue,
-                actualValue, message, AlertStatus.ACTIVE, severity, occurredAt, null, null, null);
+                actualValue, message, AlertStatus.ACTIVE, severity, occurredAt, null, 0L, null, null, null);
     }
 
     /** Rebuilds an alert that already exists in storage, identity and audit timestamps included. */
     public static Alert reconstitute(UUID id, UUID deviceId, UUID spaceId, String spaceName, String deviceName,
                                      MetricType metric, BigDecimal thresholdValue, BigDecimal actualValue,
                                      String message, AlertStatus status, AlertSeverity severity,
-                                     Instant occurredAt, Instant resolvedAt, Instant createdAt, Instant updatedAt) {
+                                     Instant occurredAt, Instant resolvedAt, long transitionSequence,
+                                     Long edgeReceiptSequence, Instant createdAt, Instant updatedAt) {
         return new Alert(id, deviceId, spaceId, spaceName, deviceName, metric, thresholdValue, actualValue,
-                message, status, severity, occurredAt, resolvedAt, createdAt, updatedAt);
+                message, status, severity, occurredAt, resolvedAt, transitionSequence, edgeReceiptSequence,
+                createdAt, updatedAt);
     }
 
     public void acknowledge() {
@@ -98,6 +107,27 @@ public class Alert {
         this.resolvedAt = resolvedAt;
     }
 
+    /** Stamps the transition that just happened; the sequence comes from the repository's counter. */
+    public void markTransition(long sequence) {
+        if (sequence <= this.transitionSequence) {
+            throw new IllegalArgumentException("Transition sequence must increase");
+        }
+        this.transitionSequence = sequence;
+    }
+
+    /**
+     * The edge confirms it stored transition {@code sequence}. Monotonic: an older receipt never
+     * lowers the watermark. Returns whether the edge is now current with this alert.
+     */
+    public boolean recordEdgeReceipt(long sequence) {
+        if (edgeReceiptSequence == null || sequence > edgeReceiptSequence) {
+            edgeReceiptSequence = Math.min(sequence, transitionSequence);
+        }
+        return edgeReceiptSequence != null && edgeReceiptSequence >= transitionSequence;
+    }
+
+    public long getTransitionSequence() { return transitionSequence; }
+    public Long getEdgeReceiptSequence() { return edgeReceiptSequence; }
     public UUID getId() { return id; }
     public UUID getDeviceId() { return deviceId; }
     public UUID getSpaceId() { return spaceId; }

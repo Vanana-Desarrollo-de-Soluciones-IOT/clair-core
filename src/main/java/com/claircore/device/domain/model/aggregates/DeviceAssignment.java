@@ -28,12 +28,14 @@ public class DeviceAssignment {
     private ClaimToken claimToken;
     private Instant activatedAt;
     private Instant lastSeenAt;
+    /** Occurrence time of the last presence event applied; the ordering watermark. */
+    private Instant presenceAt;
     private final Instant createdAt;
     private final Instant updatedAt;
 
     private DeviceAssignment(UUID id, UUID deviceId, UserId ownerUserId, UUID spaceId, DeviceStatus status,
                              Map<String, String> configuration, ClaimToken claimToken, Instant activatedAt,
-                             Instant lastSeenAt, Instant createdAt, Instant updatedAt) {
+                             Instant lastSeenAt, Instant presenceAt, Instant createdAt, Instant updatedAt) {
         if (id == null) {
             throw new IllegalArgumentException("Id must not be null");
         }
@@ -49,22 +51,23 @@ public class DeviceAssignment {
         this.claimToken = claimToken;
         this.activatedAt = activatedAt;
         this.lastSeenAt = lastSeenAt;
+        this.presenceAt = presenceAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     public DeviceAssignment(UUID deviceId, ClaimToken claimToken) {
         this(UUID.randomUUID(), deviceId, null, null, DeviceStatus.OFFLINE, new HashMap<>(),
-                requireClaimToken(claimToken), null, null, null, null);
+                requireClaimToken(claimToken), null, null, null, null, null);
     }
 
     /** Rebuilds an assignment already in storage; only a persistence assembler should call this. */
     public static DeviceAssignment reconstitute(
             UUID id, UUID deviceId, UserId ownerUserId, UUID spaceId, DeviceStatus status,
             Map<String, String> configuration, ClaimToken claimToken, Instant activatedAt,
-            Instant lastSeenAt, Instant createdAt, Instant updatedAt) {
+            Instant lastSeenAt, Instant presenceAt, Instant createdAt, Instant updatedAt) {
         return new DeviceAssignment(id, deviceId, ownerUserId, spaceId, status, configuration,
-                claimToken, activatedAt, lastSeenAt, createdAt, updatedAt);
+                claimToken, activatedAt, lastSeenAt, presenceAt, createdAt, updatedAt);
     }
 
     private static ClaimToken requireClaimToken(ClaimToken claimToken) {
@@ -116,14 +119,41 @@ public class DeviceAssignment {
         markLastSeen();
     }
 
-    public void updatePresence(DeviceStatus status, Instant occurredAt) {
+    /** Presence events further in the future than this are clock errors, not news. */
+    public static final java.time.Duration MAX_PRESENCE_CLOCK_SKEW = java.time.Duration.ofMinutes(5);
+
+    /**
+     * Applies a presence event from the edge in occurrence order.
+     *
+     * <p>Rules: an event at or before the last applied one is ignored (duplicates, reordering);
+     * one further ahead than {@link #MAX_PRESENCE_CLOCK_SKEW} is rejected. OFFLINE always applies.
+     * ONLINE is connectivity news only: it refreshes {@code lastSeenAt} but does not leave STANDBY,
+     * which is a power mode the user set through a command and is left by WAKE or RESTART.
+     *
+     * @return whether the event changed anything
+     */
+    public boolean updatePresence(DeviceStatus status, Instant occurredAt) {
         if (status == null) {
             throw new IllegalArgumentException("Device status must not be null");
         }
-        this.status = status;
-        if (status != DeviceStatus.OFFLINE) {
-            this.lastSeenAt = occurredAt != null ? occurredAt : Instant.now();
+        Instant at = occurredAt != null ? occurredAt : Instant.now();
+        if (at.isAfter(Instant.now().plus(MAX_PRESENCE_CLOCK_SKEW))) {
+            throw new IllegalArgumentException("Presence event is too far in the future");
         }
+        if (presenceAt != null && !at.isAfter(presenceAt)) {
+            return false;
+        }
+        presenceAt = at;
+        if (status == DeviceStatus.OFFLINE) {
+            this.status = DeviceStatus.OFFLINE;
+            return true;
+        }
+        this.lastSeenAt = at;
+        if (status == DeviceStatus.ONLINE && this.status == DeviceStatus.STANDBY) {
+            return true;
+        }
+        this.status = status;
+        return true;
     }
 
     public UUID getId() { return id; }
@@ -151,6 +181,7 @@ public class DeviceAssignment {
     public ClaimToken getClaimToken() { return claimToken; }
     public Instant getActivatedAt() { return activatedAt; }
     public Instant getLastSeenAt() { return lastSeenAt; }
+    public Instant getPresenceAt() { return presenceAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

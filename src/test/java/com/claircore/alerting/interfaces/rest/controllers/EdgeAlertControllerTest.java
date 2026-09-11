@@ -8,6 +8,8 @@ import com.claircore.alerting.domain.model.queries.GetPendingEdgeAlertsQuery;
 import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.interfaces.rest.resources.EdgeAlertAckRequest;
+import com.claircore.alerting.domain.model.commands.RecordEdgeAlertReceiptCommand;
+import com.claircore.alerting.interfaces.rest.resources.EdgeAlertReceiptRequest;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -34,6 +36,7 @@ class EdgeAlertControllerTest {
         var resolvedAt = Instant.parse("2024-01-01T00:05:00Z");
         var alert = alert(occurredAt);
         alert.resolve(resolvedAt);
+        alert.markTransition(17);
         when(queryService.fetchPendingForEdge(new GetPendingEdgeAlertsQuery(null, 200)))
                 .thenReturn(List.of(new AlertQueryService.PendingEdgeAlert(alert, "HW-0001")));
 
@@ -44,6 +47,7 @@ class EdgeAlertControllerTest {
             assertThat(resource.resolvedAt()).isEqualTo(resolvedAt.toString());
             assertThat(resource.hardwareId()).isEqualTo("HW-0001");
             assertThat(resource.alertId()).isEqualTo(alert.getId().toString());
+            assertThat(resource.sequence()).isEqualTo(17L);
         });
     }
 
@@ -71,6 +75,27 @@ class EdgeAlertControllerTest {
 
         verify(commandService, org.mockito.Mockito.times(3))
                 .handle(new AcknowledgeEdgeAlertCommand(alertId, "HW-0001", Instant.parse("2024-01-01T00:00:00Z")));
+    }
+
+    @Test
+    void mapsTheReceiptOutcomeOntoAStatusCode() {
+        UUID alertId = UUID.randomUUID();
+        var request = new EdgeAlertReceiptRequest("HW-0001", 17);
+        when(commandService.handle(any(RecordEdgeAlertReceiptCommand.class)))
+                .thenReturn(AlertCommandService.ReceiptOutcome.OK);
+        assertThat(controller.receipt(alertId, request).getStatusCode().value()).isEqualTo(200);
+        when(commandService.handle(any(RecordEdgeAlertReceiptCommand.class)))
+                .thenReturn(AlertCommandService.ReceiptOutcome.NOT_FOUND);
+        assertThat(controller.receipt(alertId, request).getStatusCode().value()).isEqualTo(404);
+        verify(commandService, org.mockito.Mockito.times(2))
+                .handle(new RecordEdgeAlertReceiptCommand(alertId, "HW-0001", 17));
+    }
+
+    @Test
+    void pagesAfterTheGivenSequence() {
+        when(queryService.fetchPendingForEdge(new GetPendingEdgeAlertsQuery(17L, 50))).thenReturn(List.of());
+        assertThat(controller.pending(17L, 50)).isEmpty();
+        verify(queryService).fetchPendingForEdge(new GetPendingEdgeAlertsQuery(17L, 50));
     }
 
     private static Alert alert(Instant occurredAt) {

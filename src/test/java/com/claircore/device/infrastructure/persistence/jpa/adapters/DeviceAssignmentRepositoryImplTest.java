@@ -125,8 +125,10 @@ class DeviceAssignmentRepositoryImplTest {
         assignment.updatePresence(DeviceStatus.OFFLINE, Instant.parse("2026-05-16T22:30:00Z"));
         assertThat(assignment.getLastSeenAt()).isNull();
 
-        assignment.updatePresence(DeviceStatus.ONLINE, Instant.parse("2026-05-16T22:30:00Z"));
-        assertThat(repository.save(assignment).getLastSeenAt()).isEqualTo(Instant.parse("2026-05-16T22:30:00Z"));
+        assignment.updatePresence(DeviceStatus.ONLINE, Instant.parse("2026-05-16T22:31:00Z"));
+        var saved = repository.save(assignment);
+        assertThat(saved.getLastSeenAt()).isEqualTo(Instant.parse("2026-05-16T22:31:00Z"));
+        assertThat(saved.getPresenceAt()).isEqualTo(Instant.parse("2026-05-16T22:31:00Z"));
     }
 
     @Test

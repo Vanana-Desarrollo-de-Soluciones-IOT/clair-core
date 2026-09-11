@@ -124,7 +124,8 @@ public class AlertQueryServiceImpl implements AlertQueryService {
     @Transactional(readOnly = true)
     public List<PendingEdgeAlert> fetchPendingForEdge(GetPendingEdgeAlertsQuery query) {
         List<Alert> pending = alertRepository.findPendingForEdge(
-                List.of(AlertStatus.ACTIVE, AlertStatus.RESOLVED), query.since(), query.limit());
+                List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED, AlertStatus.RESOLVED),
+                query.afterSequence(), query.limit());
         if (pending.isEmpty()) {
             return List.of();
         }

@@ -6,6 +6,7 @@ import com.claircore.alerting.application.internal.outboundservices.acl.External
 import com.claircore.alerting.application.internal.outboundservices.edge.AlertIncidentsChangedPublisher;
 import com.claircore.alerting.domain.model.aggregates.Alert;
 import com.claircore.alerting.domain.model.commands.AcknowledgeEdgeAlertCommand;
+import com.claircore.alerting.domain.model.commands.RecordEdgeAlertReceiptCommand;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
@@ -66,7 +67,7 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                                     var spaceName = externalDeviceService.fetchSpaceNameBySpaceId(spaceId).orElse(null);
                                     var deviceName = externalDeviceService.fetchDeviceNameByDeviceId(command.deviceId()).orElse(null);
                                     var severity = calculateSeverity(actual, threshold.value());
-                                    Alert created = alertRepository.save(new Alert(
+                                    Alert opened = new Alert(
                                             command.deviceId(),
                                             spaceId,
                                             spaceName,
@@ -77,14 +78,21 @@ public class AlertCommandServiceImpl implements AlertCommandService {
                                             buildMessage(metric, threshold.value(), actual),
                                             severity,
                                             command.occurredAt()
-                                    ));
-                                    publishIncidentChanged(created);
+
+                                            );
+
+                                            opened.markTransition(alertRepository.nextTransitionSequence());
+
+                                            Alert created = alertRepository.save(opened);
+
+                                            publishIncidentChanged(created);
                                 }
                         );
             } else {
                 alertRepository.findFirstByDeviceIdAndMetricAndStatusIn(command.deviceId(), metric, OPEN_STATUSES)
                         .ifPresent(openAlert -> {
                             openAlert.resolve(command.occurredAt());
+                            openAlert.markTransition(alertRepository.nextTransitionSequence());
                             Alert saved = alertRepository.save(openAlert);
                             publishIncidentChanged(saved);
                         });
@@ -119,8 +127,31 @@ public class AlertCommandServiceImpl implements AlertCommandService {
             return AcknowledgementOutcome.NOT_FOUND;
         }
         alert.acknowledge();
+
+        alert.markTransition(alertRepository.nextTransitionSequence());
+
         alertRepository.save(alert);
+
         return AcknowledgementOutcome.OK;
+    }
+
+    /** Ownership first, as with the ACK, so a receipt from another unit learns nothing. */
+    @Override
+    @Transactional
+    public ReceiptOutcome handle(RecordEdgeAlertReceiptCommand command) {
+        return alertRepository.findByIdForAcknowledgement(command.alertId())
+                .map(alert -> {
+                    boolean ownedByCaller = externalDeviceService.fetchHardwareIdByDeviceId(alert.getDeviceId())
+                            .map(command.hardwareId()::equals)
+                            .orElse(false);
+                    if (!ownedByCaller) {
+                        return ReceiptOutcome.NOT_FOUND;
+                    }
+                    alert.recordEdgeReceipt(command.sequence());
+                    alertRepository.save(alert);
+                    return ReceiptOutcome.OK;
+                })
+                .orElse(ReceiptOutcome.NOT_FOUND);
     }
 
     private void publishIncidentChanged(Alert alert) {

@@ -21,6 +21,7 @@ public final class DeviceAssignmentPersistenceAssembler {
                 entity.getClaimToken(),
                 entity.getActivatedAt(),
                 entity.getLastSeenAt(),
+                entity.getPresenceAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
@@ -39,6 +40,7 @@ public final class DeviceAssignmentPersistenceAssembler {
         entity.setClaimToken(assignment.getClaimToken());
         entity.setActivatedAt(assignment.getActivatedAt());
         entity.setLastSeenAt(assignment.getLastSeenAt());
+        entity.setPresenceAt(assignment.getPresenceAt());
         // Null for an assignment that has never been written; that is what marks the entity as new.
         entity.setCreatedAt(assignment.getCreatedAt());
         entity.setUpdatedAt(assignment.getUpdatedAt());

@@ -22,7 +22,8 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_alert_device_metric_status", columnList = "deviceId, metric, status"),
                 @Index(name = "idx_alert_space_status", columnList = "spaceId, status"),
-                @Index(name = "idx_alert_occurred_at", columnList = "occurredAt")
+                @Index(name = "idx_alert_occurred_at", columnList = "occurredAt"),
+                @Index(name = "idx_alert_transition_sequence", columnList = "transitionSequence")
         }
 )
 public class AlertPersistenceEntity extends AuditableAbstractPersistenceEntity {
@@ -65,6 +66,10 @@ public class AlertPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(name = "resolved_at")
     private Instant resolvedAt;
+    @Column(name = "transition_sequence", nullable = false)
+    private long transitionSequence;
+    @Column(name = "edge_receipt_sequence")
+    private Long edgeReceiptSequence;
 
     public AlertPersistenceEntity() {
         // JPA, and the persistence assembler
@@ -104,5 +109,9 @@ public class AlertPersistenceEntity extends AuditableAbstractPersistenceEntity {
     public void setOccurredAt(Instant occurredAt) { this.occurredAt = occurredAt; }
 
     public Instant getResolvedAt() { return resolvedAt; }
+    public long getTransitionSequence() { return transitionSequence; }
+    public void setTransitionSequence(long transitionSequence) { this.transitionSequence = transitionSequence; }
+    public Long getEdgeReceiptSequence() { return edgeReceiptSequence; }
+    public void setEdgeReceiptSequence(Long edgeReceiptSequence) { this.edgeReceiptSequence = edgeReceiptSequence; }
     public void setResolvedAt(Instant resolvedAt) { this.resolvedAt = resolvedAt; }
 }

@@ -56,6 +56,8 @@ public class DeviceAssignmentPersistenceEntity extends AuditableAbstractPersiste
 
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
+    @Column(name = "presence_at")
+    private Instant presenceAt;
 
     public DeviceAssignmentPersistenceEntity() {
         // JPA, and the persistence assembler
@@ -91,4 +93,6 @@ public class DeviceAssignmentPersistenceEntity extends AuditableAbstractPersiste
 
     public Instant getLastSeenAt() { return lastSeenAt; }
     public void setLastSeenAt(Instant lastSeenAt) { this.lastSeenAt = lastSeenAt; }
+    public Instant getPresenceAt() { return presenceAt; }
+    public void setPresenceAt(Instant presenceAt) { this.presenceAt = presenceAt; }
 }

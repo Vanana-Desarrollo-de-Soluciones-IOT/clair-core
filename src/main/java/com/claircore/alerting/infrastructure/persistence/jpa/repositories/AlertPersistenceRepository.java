@@ -47,10 +47,16 @@ public interface AlertPersistenceRepository extends JpaRepository<AlertPersisten
     // (no typed context to unify with) and rejects the query with "could not determine data type of
     // parameter $1". Comparing against the column itself when :since is null keeps the original
     // "no filter" semantics.
-    @Query("SELECT a FROM AlertPersistenceEntity a WHERE a.status IN :statuses AND a.occurredAt >= COALESCE(:since, a.occurredAt) ORDER BY a.occurredAt ASC")
+    @Query("""
+            SELECT a FROM AlertPersistenceEntity a
+            WHERE a.status IN :statuses
+              AND a.transitionSequence > COALESCE(:afterSequence, -1L)
+              AND (a.edgeReceiptSequence IS NULL OR a.edgeReceiptSequence < a.transitionSequence)
+            ORDER BY a.transitionSequence ASC
+            """)
     List<AlertPersistenceEntity> findPendingForEdge(
             @Param("statuses") Collection<AlertStatus> statuses,
-            @Param("since") Instant since,
+            @Param("afterSequence") Long afterSequence,
             Pageable pageable
     );
 

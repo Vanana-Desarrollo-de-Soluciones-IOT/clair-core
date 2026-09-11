@@ -12,6 +12,8 @@ import java.math.BigDecimal;
  */
 public record EdgeAlertResource(
         @JsonProperty("alert_id") String alertId,
+        /** Transition sequence: the edge pages on it and quotes it in its receipt. */
+        long sequence,
         @JsonProperty("device_id") String deviceId,
         @JsonProperty("hardware_id") String hardwareId,
         String metric,

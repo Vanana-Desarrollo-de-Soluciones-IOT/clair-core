@@ -44,8 +44,13 @@ public interface AlertRepository {
     /** Locks the row for the duration of the transaction so a concurrent acknowledgement cannot interleave. */
     Optional<Alert> findByIdForAcknowledgement(UUID alertId);
 
-    /** Oldest first, bounded by {@code limit}; {@code since} is optional. */
-    List<Alert> findPendingForEdge(Collection<AlertStatus> statuses, Instant since, int limit);
+    /**
+     * Transitions the edge has not confirmed yet, in sequence order: every alert whose sequence is
+     * above {@code afterSequence} (null means from the start) and above its own edge receipt.
+     */
+    List<Alert> findPendingForEdge(Collection<AlertStatus> statuses, Long afterSequence, int limit);
+    /** Hands out the next transition sequence; strictly increasing across every caller. */
+    long nextTransitionSequence();
 
     List<DailyAlertCount> countAlertsPerDayBySpaceId(UUID spaceId, Instant since);
 

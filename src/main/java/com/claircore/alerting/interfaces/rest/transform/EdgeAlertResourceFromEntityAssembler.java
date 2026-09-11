@@ -12,6 +12,7 @@ public final class EdgeAlertResourceFromEntityAssembler {
         var alert = pending.alert();
         return new EdgeAlertResource(
                 alert.getId().toString(),
+                alert.getTransitionSequence(),
                 alert.getDeviceId().toString(),
                 pending.hardwareId(),
                 alert.getMetric().name(),

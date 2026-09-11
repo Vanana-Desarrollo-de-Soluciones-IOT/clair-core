@@ -24,6 +24,8 @@ public final class AlertPersistenceAssembler {
                 entity.getSeverity(),
                 entity.getOccurredAt(),
                 entity.getResolvedAt(),
+                entity.getTransitionSequence(),
+                entity.getEdgeReceiptSequence(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
@@ -44,6 +46,8 @@ public final class AlertPersistenceAssembler {
         entity.setSeverity(alert.getSeverity());
         entity.setOccurredAt(alert.getOccurredAt());
         entity.setResolvedAt(alert.getResolvedAt());
+        entity.setTransitionSequence(alert.getTransitionSequence());
+        entity.setEdgeReceiptSequence(alert.getEdgeReceiptSequence());
         // Null for an alert that has never been written; that is what marks the entity as new.
         entity.setCreatedAt(alert.getCreatedAt());
         entity.setUpdatedAt(alert.getUpdatedAt());

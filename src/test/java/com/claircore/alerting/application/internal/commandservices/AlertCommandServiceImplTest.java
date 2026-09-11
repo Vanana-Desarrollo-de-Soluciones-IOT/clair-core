@@ -5,7 +5,9 @@ import com.claircore.alerting.application.internal.outboundservices.edge.AlertIn
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingDeviceService;
 import com.claircore.alerting.application.internal.outboundservices.acl.ExternalAlertingThresholdService;
 import com.claircore.alerting.domain.model.aggregates.Alert;
+import com.claircore.alerting.application.commandservices.AlertCommandService;
 import com.claircore.alerting.domain.model.commands.AcknowledgeEdgeAlertCommand;
+import com.claircore.alerting.domain.model.commands.RecordEdgeAlertReceiptCommand;
 import com.claircore.alerting.domain.model.commands.EvaluateTelemetryForAlertsCommand;
 import com.claircore.alerting.domain.model.valueobjects.AlertSeverity;
 import com.claircore.alerting.domain.model.valueobjects.AlertStatus;
@@ -58,6 +60,7 @@ class AlertCommandServiceImplTest {
     /** The threshold arrives as a name, not device's enum, and alerting maps it to its own metric. */
     @Test
     void opensAnAlertWhenAThresholdIsBreached() {
+        when(alertRepository.nextTransitionSequence()).thenReturn(41L);
         UUID spaceId = UUID.randomUUID();
         when(externalDeviceService.fetchSpaceIdByDeviceId(DEVICE_ID)).thenReturn(Optional.of(spaceId));
         when(externalThresholdService.fetchEnabledThresholdsByDeviceId(DEVICE_ID))
@@ -77,6 +80,7 @@ class AlertCommandServiceImplTest {
         assertThat(saved.getValue().getStatus()).isEqualTo(AlertStatus.ACTIVE);
         assertThat(saved.getValue().getSeverity()).isEqualTo(AlertSeverity.CRITICAL);
         assertThat(saved.getValue().getSpaceName()).isEqualTo("Floor 2");
+        assertThat(saved.getValue().getTransitionSequence()).isEqualTo(41L);
 
         ArgumentCaptor<AlertIncidentChangedIntegrationEvent> published =
                 ArgumentCaptor.forClass(AlertIncidentChangedIntegrationEvent.class);
@@ -100,6 +104,7 @@ class AlertCommandServiceImplTest {
 
     @Test
     void resolvesTheOpenAlertWhenTheReadingFallsBackUnderTheThreshold() {
+        when(alertRepository.nextTransitionSequence()).thenReturn(42L);
         when(externalDeviceService.fetchSpaceIdByDeviceId(DEVICE_ID)).thenReturn(Optional.empty());
         when(externalThresholdService.fetchEnabledThresholdsByDeviceId(DEVICE_ID))
                 .thenReturn(List.of(new ThresholdSummary("PM25", new BigDecimal("50.00"), true)));
@@ -114,11 +119,13 @@ class AlertCommandServiceImplTest {
         verify(alertRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(AlertStatus.RESOLVED);
         assertThat(saved.getValue().getResolvedAt()).isEqualTo(OCCURRED_AT);
+        assertThat(saved.getValue().getTransitionSequence()).isEqualTo(42L);
     }
 
     @Test
     void acknowledgesAnActiveAlertForTheOwningHardware() {
         var alert = openAlert();
+        when(alertRepository.nextTransitionSequence()).thenReturn(43L);
         when(alertRepository.findByIdForAcknowledgement(alert.getId())).thenReturn(Optional.of(alert));
         when(externalDeviceService.fetchHardwareIdByDeviceId(DEVICE_ID)).thenReturn(Optional.of("HW-0001"));
 
@@ -127,6 +134,7 @@ class AlertCommandServiceImplTest {
         assertThat(outcome).isEqualTo(AcknowledgementOutcome.OK);
         assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACKNOWLEDGED);
         verify(alertRepository).save(alert);
+        assertThat(alert.getTransitionSequence()).isEqualTo(43L);
     }
 
     /**
@@ -165,6 +173,31 @@ class AlertCommandServiceImplTest {
 
         assertThat(service.handle(new AcknowledgeEdgeAlertCommand(alertId, "HW-0001", Instant.now())))
                 .isEqualTo(AcknowledgementOutcome.NOT_FOUND);
+    }
+
+    @Test
+    void aReceiptRecordsDeliveryWithoutTouchingTheBusinessStatus() {
+        var alert = openAlert();
+        alert.markTransition(10);
+        when(alertRepository.findByIdForAcknowledgement(alert.getId())).thenReturn(Optional.of(alert));
+        when(externalDeviceService.fetchHardwareIdByDeviceId(DEVICE_ID)).thenReturn(Optional.of("HW-0001"));
+        var outcome = service.handle(new RecordEdgeAlertReceiptCommand(alert.getId(), "HW-0001", 10));
+        assertThat(outcome).isEqualTo(AlertCommandService.ReceiptOutcome.OK);
+        assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACTIVE);
+        assertThat(alert.getEdgeReceiptSequence()).isEqualTo(10L);
+        verify(alertRepository).save(alert);
+        verify(alertRepository, never()).nextTransitionSequence();
+    }
+
+    @Test
+    void aReceiptFromAnotherUnitIsNotFoundAndRecordsNothing() {
+        var alert = openAlert();
+        when(alertRepository.findByIdForAcknowledgement(alert.getId())).thenReturn(Optional.of(alert));
+        when(externalDeviceService.fetchHardwareIdByDeviceId(DEVICE_ID)).thenReturn(Optional.of("HW-owner"));
+        assertThat(service.handle(new RecordEdgeAlertReceiptCommand(alert.getId(), "HW-other", 1)))
+                .isEqualTo(AlertCommandService.ReceiptOutcome.NOT_FOUND);
+        assertThat(alert.getEdgeReceiptSequence()).isNull();
+        verify(alertRepository, never()).save(any());
     }
 
     private static EvaluateTelemetryForAlertsCommand command(BigDecimal pm25) {

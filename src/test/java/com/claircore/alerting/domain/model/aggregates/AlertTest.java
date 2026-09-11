@@ -47,6 +47,30 @@ class AlertTest {
         assertEquals("Test Device", alert.getDeviceName());
     }
 
+    @Test
+    void transitionSequenceOnlyEverIncreases() {
+        var alert = newAlert();
+        assertEquals(0L, alert.getTransitionSequence());
+        alert.markTransition(7);
+        assertEquals(7L, alert.getTransitionSequence());
+        assertThrows(IllegalArgumentException.class, () -> alert.markTransition(7));
+        assertThrows(IllegalArgumentException.class, () -> alert.markTransition(3));
+    }
+
+    @Test
+    void edgeReceiptIsMonotonicAndCappedAtTheCurrentTransition() {
+        var alert = newAlert();
+        alert.markTransition(5);
+        assertEquals(false, alert.recordEdgeReceipt(3));
+        assertEquals(3L, alert.getEdgeReceiptSequence());
+        assertEquals(true, alert.recordEdgeReceipt(9));   // ahead of what exists: clamped
+        assertEquals(5L, alert.getEdgeReceiptSequence());
+        assertEquals(true, alert.recordEdgeReceipt(2));   // older receipt never lowers the watermark
+        assertEquals(5L, alert.getEdgeReceiptSequence());
+        alert.markTransition(6);
+        assertEquals(false, alert.recordEdgeReceipt(5));  // a new transition is pending again
+    }
+
     private static Alert newAlert() {
         return new Alert(
                 UUID.randomUUID(),

@@ -107,21 +107,41 @@ class AlertRepositoryImplTest {
                 deviceId, MetricType.CO2, List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED))).isEmpty();
     }
 
-    /** Oldest first, bounded, and {@code since} is optional — the edge polls with a watermark. */
+    /** Sequence order, bounded, cursor optional; receipts hide what the edge already stored. */
     @Test
-    void returnsPendingEdgeAlertsOldestFirstWithoutJoiningDevices() {
+    void pagesPendingEdgeAlertsByTransitionSequenceAndHidesReceivedOnes() {
         UUID deviceId = UUID.randomUUID();
-        repository.save(alert(deviceId, null, OCCURRED_AT.plus(1, ChronoUnit.HOURS)));
-        repository.save(alert(deviceId, null, OCCURRED_AT));
+        var later = alert(deviceId, null, OCCURRED_AT.plus(1, ChronoUnit.HOURS));
+        later.markTransition(repository.nextTransitionSequence());
+        later = repository.save(later);
+        var earlier = alert(deviceId, null, OCCURRED_AT);
+        earlier.markTransition(repository.nextTransitionSequence());
+        earlier = repository.save(earlier);
+        var statuses = List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED, AlertStatus.RESOLVED);
 
-        var all = repository.findPendingForEdge(List.of(AlertStatus.ACTIVE, AlertStatus.RESOLVED), null, 200);
-        assertThat(all).extracting(Alert::getOccurredAt)
-                .containsExactly(OCCURRED_AT, OCCURRED_AT.plus(1, ChronoUnit.HOURS));
+        var all = repository.findPendingForEdge(statuses, null, 200);
+        assertThat(all).extracting(Alert::getId).containsExactly(later.getId(), earlier.getId());
+        assertThat(repository.findPendingForEdge(statuses, later.getTransitionSequence(), 200))
+                .extracting(Alert::getId).containsExactly(earlier.getId());
 
-        var since = repository.findPendingForEdge(
-                List.of(AlertStatus.ACTIVE, AlertStatus.RESOLVED), OCCURRED_AT.plusSeconds(1), 200);
-        assertThat(since).extracting(Alert::getOccurredAt)
-                .containsExactly(OCCURRED_AT.plus(1, ChronoUnit.HOURS));
+        // A receipt for the current transition removes the alert from the unfiltered page...
+        earlier.recordEdgeReceipt(earlier.getTransitionSequence());
+        earlier = repository.save(earlier);
+        assertThat(repository.findPendingForEdge(statuses, null, 200)).extracting(Alert::getId)
+                .containsExactly(later.getId());
+        // ...until it transitions again, when it reappears with a higher sequence.
+        earlier.resolve(OCCURRED_AT.plusSeconds(30));
+        earlier.markTransition(repository.nextTransitionSequence());
+        repository.save(earlier);
+        assertThat(repository.findPendingForEdge(statuses, null, 200)).extracting(Alert::getId)
+                .containsExactly(later.getId(), earlier.getId());
+    }
+
+    @Test
+    void transitionSequencesAreHandedOutStrictlyIncreasing() {
+        long first = repository.nextTransitionSequence();
+        long second = repository.nextTransitionSequence();
+        assertThat(second).isGreaterThan(first);
     }
 
     @Test

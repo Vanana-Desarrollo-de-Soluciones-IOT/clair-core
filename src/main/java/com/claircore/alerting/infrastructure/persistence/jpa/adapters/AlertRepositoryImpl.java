@@ -7,7 +7,9 @@ import com.claircore.alerting.domain.model.valueobjects.MetricType;
 import com.claircore.alerting.domain.repositories.AlertRepository;
 import com.claircore.alerting.infrastructure.persistence.jpa.assemblers.AlertPersistenceAssembler;
 import com.claircore.alerting.infrastructure.persistence.jpa.entities.AlertPersistenceEntity;
+import com.claircore.alerting.infrastructure.persistence.jpa.entities.AlertTransitionCounterPersistenceEntity;
 import com.claircore.alerting.infrastructure.persistence.jpa.repositories.AlertPersistenceRepository;
+import com.claircore.alerting.infrastructure.persistence.jpa.repositories.AlertTransitionCounterPersistenceRepository;
 import com.claircore.shared.domain.model.PageResult;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,9 +26,12 @@ import java.util.UUID;
 public class AlertRepositoryImpl implements AlertRepository {
 
     private final AlertPersistenceRepository alertPersistenceRepository;
+    private final AlertTransitionCounterPersistenceRepository counterPersistenceRepository;
 
-    public AlertRepositoryImpl(AlertPersistenceRepository alertPersistenceRepository) {
+    public AlertRepositoryImpl(AlertPersistenceRepository alertPersistenceRepository,
+                               AlertTransitionCounterPersistenceRepository counterPersistenceRepository) {
         this.alertPersistenceRepository = alertPersistenceRepository;
+        this.counterPersistenceRepository = counterPersistenceRepository;
     }
 
     @Override
@@ -103,8 +108,18 @@ public class AlertRepositoryImpl implements AlertRepository {
     }
 
     @Override
-    public List<Alert> findPendingForEdge(Collection<AlertStatus> statuses, Instant since, int limit) {
-        return toDomain(alertPersistenceRepository.findPendingForEdge(statuses, since, PageRequest.of(0, limit)));
+    public List<Alert> findPendingForEdge(Collection<AlertStatus> statuses, Long afterSequence, int limit) {
+        return toDomain(alertPersistenceRepository.findPendingForEdge(statuses, afterSequence, PageRequest.of(0, limit)));
+    }
+
+    /** The counter row is locked for the transaction, so concurrent transitions get distinct numbers. */
+    @Override
+    public long nextTransitionSequence() {
+        var counter = counterPersistenceRepository.lockById(AlertTransitionCounterPersistenceEntity.SINGLETON_ID)
+                .orElseGet(() -> counterPersistenceRepository.saveAndFlush(new AlertTransitionCounterPersistenceEntity(0L)));
+        counter.setValue(counter.getValue() + 1);
+        counterPersistenceRepository.saveAndFlush(counter);
+        return counter.getValue();
     }
 
     @Override

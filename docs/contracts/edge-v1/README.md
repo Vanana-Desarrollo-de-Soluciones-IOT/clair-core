@@ -19,7 +19,8 @@ Two hops, both plain HTTP:
 | `POST /api/v1/evaluations/telemetry/batch` | `telemetry.batch.*.json` | At most 10 records. HTTP 200 with per-record results; inspect each. `client_ref` is echo only. `device_id` may be the core UUID or the hardware id. |
 | `GET /api/v1/edge/commands/pending?hardware_id&since&limit` | `commands.pending.response.json` | Claiming: returned commands move `PENDING → SENT` under a 300 s lease. A lost response is redelivered after the lease. Each command carries the `assignment_id` it was issued under; unlinking a device expires its outstanding commands, and an ack for a stale generation returns 409 and voids the command. |
 | `POST /api/v1/edge/commands/{commandId}/ack` | `commands.ack.*.request.json` | 200 OK, 409 already terminal, 404 unknown or not owned. `result` is `OK` or `FAILED`. |
-| `GET /api/v1/edge/alerts/pending?since&limit` | `alerts.pending.response.json` | Returns `ACTIVE` and `RESOLVED` alerts ordered by `occurred_at`. See the ACK section: this is not a delivery queue yet. |
+| `GET /api/v1/edge/alerts/pending?after_sequence&limit` | `alerts.pending.response.json` | Alert transitions the edge has not confirmed, ordered by `sequence`. Every open, acknowledge and resolve bumps the alert's `sequence`. The edge stores the page, persists the highest `sequence` it stored as its cursor, and sends a receipt per alert. |
+| `POST /api/v1/edge/alerts/{alertId}/receipt` | `alerts.receipt.request.json` | **Delivery receipt**, not a business action: the edge stored transition `sequence`. Idempotent; 404 if unknown or not owned. |
 | `POST /api/v1/edge/alerts/{alertId}/ack` | `alerts.ack.request.json` | **Business acknowledgement**: moves `ACTIVE → ACKNOWLEDGED`. 409 if already ACKNOWLEDGED or RESOLVED. |
 | `POST /api/v1/edge/presence` | `presence.request.json` | `device_id` is the core UUID. `status` is a `DeviceStatus` name. |
 | `POST {edge}/api/v1/edge/notify` | `notify.request.json` | Core → edge hint. `resource` ∈ `device`, `command`, `alert`. Carries no data; edge must still poll on a timer. |
@@ -59,10 +60,10 @@ what a user would do from the app. Therefore:
   active incidents". The firmware keeps an incident active until it receives a `RESOLVED` transition
   for the same `alert_id`.
 
-**Proposed core extension (Phase 3):** a delivery-receipt endpoint distinct from business ACK, and a
-durable transition cursor (`sequence` per alert transition) for `/api/v1/edge/alerts/pending`, so the
-edge can advance past old `RESOLVED` rows without missing later resolutions of older alerts. Until it
-lands, the edge deduplicates by `(alert_id, status)` locally.
+**Delivery contract (Phase 3, implemented):** `/api/v1/edge/alerts/pending` pages by transition
+`sequence` and the edge confirms each stored transition through `/receipt`. A later resolution of an
+old alert gets a new, higher sequence, so it can never be starved by older rows. The business ACK
+stays a separate call that the edge makes only when a human acknowledged on the device.
 
 ## Metric names
 

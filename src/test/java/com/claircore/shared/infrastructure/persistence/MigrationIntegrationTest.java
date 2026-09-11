@@ -48,7 +48,7 @@ class MigrationIntegrationTest {
 
     @Test void freshSchemaMigratesAndMatchesHibernateAndRejectsOrphans() throws Exception {
         var flyway = configuration().load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         validateHibernate();
         try (var c = connection(); var s = c.createStatement()) {
@@ -68,7 +68,7 @@ class MigrationIntegrationTest {
             s.execute("ALTER TABLE device_assignments ADD CONSTRAINT old_assignment_fk FOREIGN KEY(device_id) REFERENCES devices(id)");
             s.execute("ALTER TABLE device_commands ADD CONSTRAINT old_command_fk FOREIGN KEY(device_id) REFERENCES devices(id)");
         }
-        assertThat(configuration().baselineOnMigrate(true).baselineVersion("1").load().migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(configuration().baselineOnMigrate(true).baselineVersion("1").load().migrate().migrationsExecuted).isEqualTo(4);
         validateHibernate();
         try (var c = connection(); var s = c.createStatement()) {
             try (var rs = s.executeQuery("SELECT created_at, updated_at FROM devices")) {
@@ -108,7 +108,7 @@ class MigrationIntegrationTest {
                             '2026-05-01T17:30:00Z', '2026-05-01T17:31:00Z', '2026-05-01T17:31:00Z')
                     """);
         }
-        assertThat(configuration().load().migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(configuration().load().migrate().migrationsExecuted).isEqualTo(3);
         try (var c = connection(); var statement = c.createStatement();
              var rs = statement.executeQuery("SELECT id, reading_id, recorded_at, created_at, pm_pm2_5, pg_typeof(pm_pm2_5)::text FROM telemetry_evaluations")) {
             assertThat(rs.next()).isTrue();

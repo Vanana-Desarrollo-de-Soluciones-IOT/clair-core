@@ -95,6 +95,27 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         return seeded;
     }
 
+    @Override
+    @Transactional
+    public List<Device> handle(ImportDevicesCommand command) {
+        List<Device> imported = new ArrayList<>();
+        for (var record : command.records()) {
+            if (deviceRepository.findBySerialNumber(record.serialNumber()).isPresent()
+                    || deviceRepository.existsByHardwareId(record.hardwareId())) {
+                continue;
+            }
+            Device saved = deviceRepository.save(new Device(
+                    record.serialNumber(),
+                    record.name(),
+                    new HardwareId(record.hardwareId()),
+                    new ApiKey(record.apiKey()),
+                    new DeviceType("air-quality-v1")));
+            publishDeviceChanged(saved, DeviceStatus.OFFLINE.name(), "CREATED");
+            imported.add(saved);
+        }
+        return imported;
+    }
+
     private String generateUniqueHardwareId() {
         // Very low collision probability, but we still guard uniqueness via the repository.
         for (int attempt = 0; attempt < 50; attempt++) {

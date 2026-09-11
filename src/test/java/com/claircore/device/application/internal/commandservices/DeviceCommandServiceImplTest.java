@@ -5,6 +5,7 @@ import com.claircore.device.application.internal.outboundservices.edge.Provision
 import com.claircore.device.domain.model.commands.ClaimDeviceCommand;
 import com.claircore.device.domain.model.commands.PairDeviceCommand;
 import com.claircore.device.domain.model.commands.ResetDeviceAssignmentCommand;
+import com.claircore.device.domain.model.commands.ImportDevicesCommand;
 import com.claircore.device.domain.model.commands.SeedDevicesCommand;
 import com.claircore.device.domain.model.aggregates.Device;
 import com.claircore.device.domain.model.aggregates.DeviceAssignment;
@@ -73,6 +74,29 @@ class DeviceCommandServiceImplTest {
         assertEquals(2, result.size());
         verify(deviceRepository, times(2)).save(any(Device.class));
         verify(provisioningDevicesChangedPublisher, times(2)).publish(any());
+    }
+
+    @Test
+    void importSkipsRowsWhoseSerialOrHardwareIdAlreadyExist() {
+        var existingSerial = new ImportDevicesCommand.DeviceProvisioningRecord("SN-0001", "CLAIR-0001", "k1", "Sensor 0001");
+        var existingHardware = new ImportDevicesCommand.DeviceProvisioningRecord("SN-0002", "CLAIR-0002", "k2", "Sensor 0002");
+        var fresh = new ImportDevicesCommand.DeviceProvisioningRecord("SN-0003", "CLAIR-0003", "k3", "Sensor 0003");
+        when(deviceRepository.findBySerialNumber("SN-0001")).thenReturn(Optional.of(deviceWithId(UUID.randomUUID(), "SN-0001", "CLAIR-0001")));
+        when(deviceRepository.findBySerialNumber("SN-0002")).thenReturn(Optional.empty());
+        when(deviceRepository.existsByHardwareId("CLAIR-0002")).thenReturn(true);
+        when(deviceRepository.findBySerialNumber("SN-0003")).thenReturn(Optional.empty());
+        when(deviceRepository.existsByHardwareId("CLAIR-0003")).thenReturn(false);
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> {
+            Device device = i.getArgument(0);
+            ReflectionTestUtils.setField(device, "id", UUID.randomUUID());
+            return device;
+        });
+        List<Device> created = service.handle(new ImportDevicesCommand(List.of(existingSerial, existingHardware, fresh)));
+        assertEquals(1, created.size());
+        assertEquals("CLAIR-0003", created.getFirst().getHardwareId().value());
+        assertEquals("k3", created.getFirst().getApiKey().value());
+        verify(deviceRepository, times(1)).save(any(Device.class));
+        verify(provisioningDevicesChangedPublisher, times(1)).publish(any());
     }
 
     @Test

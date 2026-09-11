@@ -15,7 +15,7 @@ class KpiLiveMetricsBufferTest {
         buffer.add(now.minusSeconds(10), 400.0, 10.0, 20.0, 40.0);
         buffer.add(now, 600.0, 20.0, 30.0, 60.0);
 
-        var averages = buffer.computeAverages();
+        var averages = buffer.computeAverages().orElseThrow();
         assertEquals(500.0, averages.co2());
         assertEquals(15.0, averages.pm2_5());
         assertEquals(25.0, averages.temperature());
@@ -32,7 +32,7 @@ class KpiLiveMetricsBufferTest {
         // 10 seconds ago (should remain)
         buffer.add(now.minusSeconds(10), 400.0, 10.0, 20.0, 40.0);
 
-        var averages = buffer.computeAverages();
+        var averages = buffer.computeAverages().orElseThrow();
         // Since the 6 minutes ago reading is pruned, the average should only reflect the 10 seconds ago reading
         assertEquals(400.0, averages.co2());
         assertEquals(10.0, averages.pm2_5());
@@ -41,12 +41,20 @@ class KpiLiveMetricsBufferTest {
     }
 
     @Test
-    void shouldReturnZeroAveragesWhenEmpty() {
-        var buffer = new KpiLiveMetricsBuffer();
-        var averages = buffer.computeAverages();
-        assertEquals(0.0, averages.co2());
-        assertEquals(0.0, averages.pm2_5());
-        assertEquals(0.0, averages.temperature());
-        assertEquals(0.0, averages.humidity());
+    void shouldReturnNoDataWhenEmpty() {
+        assertTrue(new KpiLiveMetricsBuffer().computeAverages().isEmpty());
+    }
+
+    @Test
+    void expiresOutOfOrderReadingsAndReportsMeasurementTime() {
+        Instant now = Instant.parse("2026-09-07T12:00:00Z");
+        var buffer = new KpiLiveMetricsBuffer(java.time.Clock.fixed(now, java.time.ZoneOffset.UTC));
+        buffer.add(now.minusSeconds(1), 400, 8, 20, 50);
+        buffer.add(now.minusSeconds(600), 900, 500, 20, 50);
+        buffer.add(now.minusSeconds(20), 600, 12, 20, 50);
+        var window = buffer.computeAverages().orElseThrow();
+        assertEquals(2, window.readingCount());
+        assertEquals(10, window.pm2_5());
+        assertEquals(now.minusSeconds(1), window.measuredAt());
     }
 }

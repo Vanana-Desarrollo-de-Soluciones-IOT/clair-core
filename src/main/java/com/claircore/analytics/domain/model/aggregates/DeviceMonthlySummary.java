@@ -125,6 +125,13 @@ public class DeviceMonthlySummary {
                 readingCount, daysCovered, aqiDeltaPct, createdAt, updatedAt);
     }
 
+    public DeviceMonthlySummary withPreviousAqi(Integer previous) {
+        Double delta = previous == null || previous <= 0 ? null : (averageAqi - previous) * 100.0 / previous;
+        return new DeviceMonthlySummary(id, deviceId, summaryMonth, co2, pm2_5, temperature, humidity,
+                peakPm2_5, peakPm2_5At, averageAqi, dominantAqiCategory, categoryBreakdown,
+                readingCount, daysCovered, delta, createdAt, updatedAt);
+    }
+
     public UUID getId() { return id; }
     public DeviceId getDeviceId() { return deviceId; }
     public LocalDate getSummaryMonth() { return summaryMonth; }

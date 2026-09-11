@@ -59,7 +59,7 @@ class MetricsAggregatorTest {
                 now
         );
 
-        when(aqiCalculator.calculateAqi(13.0, 450.0))
+        when(aqiCalculator.calculateAqi(13.0))
                 .thenReturn(new AirQualityIndex(85, AqiCategory.MODERATE));
 
         var result = metricsAggregationService.aggregate(List.of(snapshot1, snapshot2));
@@ -80,6 +80,19 @@ class MetricsAggregatorTest {
         assertEquals(now, result.recordedAt());
         assertEquals(Freshness.LIVE, result.freshness());
 
-        verify(aqiCalculator).calculateAqi(13.0, 450.0);
+        verify(aqiCalculator).calculateAqi(13.0);
+    }
+    @Test
+    void co2AndOldIndexCannotPoisonCleanPmOrFabricateMissingPm() {
+        var clean = new com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot(
+                com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot.Source.LIVE,
+                500, 400.5, 8.0, 22.0, 50.0, null, null, null, null, java.time.Instant.now());
+        var metrics = new MetricsAggregator(new AqiCalculator()).aggregate(java.util.List.of(clean));
+        assertEquals(44, metrics.aqiValue());
+        assertEquals("GOOD", metrics.aqiCategory());
+        var missing = new com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot(
+                com.claircore.analytics.domain.model.valueobjects.DeviceMetricsSnapshot.Source.LIVE,
+                500, 400.5, null, 22.0, 50.0, null, null, null, null, java.time.Instant.now());
+        assertNull(new MetricsAggregator(new AqiCalculator()).aggregate(java.util.List.of(missing)).aqiValue());
     }
 }

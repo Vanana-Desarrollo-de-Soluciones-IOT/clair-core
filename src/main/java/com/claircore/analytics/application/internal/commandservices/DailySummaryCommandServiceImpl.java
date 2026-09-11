@@ -43,20 +43,23 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
     private final DeviceDailySummaryRepository dailySummaryRepository;
     private final AqiCalculator aqiCalculator;
     private final ZoneId reportZone;
+    private final com.claircore.analytics.application.commandservices.MonthlySummaryCommandService monthlySummaries;
 
     public DailySummaryCommandServiceImpl(
             ExternalEvaluationService externalEvaluationService,
             DeviceDailySummaryRepository dailySummaryRepository,
             AqiCalculator aqiCalculator,
+            com.claircore.analytics.application.commandservices.MonthlySummaryCommandService monthlySummaries,
             @Value("${claircore.reports.zone:America/Lima}") String reportZone
     ) {
         this.externalEvaluationService = externalEvaluationService;
         this.dailySummaryRepository = dailySummaryRepository;
         this.aqiCalculator = aqiCalculator;
+        this.monthlySummaries = monthlySummaries;
         this.reportZone = ZoneId.of(reportZone);
     }
 
-    /** Idempotent: devices that already have a row for the date are skipped. */
+    /** Recomputes the date, replacing existing summaries so late measurements are repairable. */
     @Override
     @Transactional
     public int handle(GenerateDailySummaryCommand command) {
@@ -74,14 +77,15 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
         int written = 0;
         for (Map.Entry<UUID, DailyAccumulator> entry : byDevice.entrySet()) {
             UUID deviceId = entry.getKey();
-            if (dailySummaryRepository.existsByDeviceIdAndDate(deviceId, date)) {
-                continue;
-            }
             DeviceDailySummary summary = entry.getValue().toSummary(new DeviceId(deviceId), date,
                     previousDayAqi(deviceId, date));
             dailySummaryRepository.save(summary);
+            dailySummaryRepository.findByDeviceIdAndDate(deviceId, date.plusDays(1))
+                    .ifPresent(next -> dailySummaryRepository.save(next.withPreviousAqi(summary.getAverageAqi())));
             written++;
         }
+        if (written > 0) monthlySummaries.handle(new com.claircore.analytics.domain.model.commands.GenerateMonthlySummaryCommand(
+                java.time.YearMonth.from(date)));
         logger.info("Daily report aggregation for {} produced {} summaries", date, written);
         return written;
     }
@@ -101,7 +105,6 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
         private double pm25Min = Double.MAX_VALUE, pm25Max = -Double.MAX_VALUE;
         private double peakPm25 = -Double.MAX_VALUE;
         private Instant peakPm25At;
-        private long aqiSum;
         private long count;
         private final Map<AqiCategory, Long> categoryCounts = new EnumMap<>(AqiCategory.class);
 
@@ -112,14 +115,13 @@ public class DailySummaryCommandServiceImpl implements DailySummaryCommandServic
             humMin = Math.min(humMin, hum); humMax = Math.max(humMax, hum);
             pm25Min = Math.min(pm25Min, pm25); pm25Max = Math.max(pm25Max, pm25);
             if (pm25 > peakPm25) { peakPm25 = pm25; peakPm25At = at; }
-            AirQualityIndex aqi = aqiCalculator.calculateAqi(pm25, co2);
-            aqiSum += aqi.value();
+            AirQualityIndex aqi = aqiCalculator.calculateAqi(pm25);
             categoryCounts.merge(aqi.category(), 1L, Long::sum);
             count++;
         }
 
         DeviceDailySummary toSummary(DeviceId deviceId, LocalDate date, Integer previousDayAqi) {
-            int averageAqi = (int) Math.round((double) aqiSum / count);
+            int averageAqi = aqiCalculator.calculateAqi(pm25Sum / count).value();
             AqiCategoryBreakdown breakdown = new AqiCategoryBreakdown(
                     categoryCounts.getOrDefault(AqiCategory.GOOD, 0L),
                     categoryCounts.getOrDefault(AqiCategory.MODERATE, 0L),

@@ -17,6 +17,9 @@ import java.util.UUID;
 public interface DeviceAnalyticsSnapshotPersistenceRepository
         extends JpaRepository<DeviceAnalyticsSnapshotPersistenceEntity, UUID> {
 
+    List<DeviceAnalyticsSnapshotPersistenceEntity> findByDeviceIdAndTimeWindowStartAndTimeWindowEnd(
+            DeviceId deviceId, Instant start, Instant end);
+
     List<DeviceAnalyticsSnapshotPersistenceEntity>
     findByDeviceIdAndTimeWindowStartGreaterThanEqualAndTimeWindowStartLessThanOrderByTimeWindowStartAsc(
             DeviceId deviceId, Instant start, Instant end, Pageable pageable);

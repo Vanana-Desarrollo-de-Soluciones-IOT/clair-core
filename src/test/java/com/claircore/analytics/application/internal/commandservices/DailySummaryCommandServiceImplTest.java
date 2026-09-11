@@ -41,6 +41,8 @@ class DailySummaryCommandServiceImplTest {
     @Mock
     private DeviceDailySummaryRepository dailySummaryRepository;
 
+    @Mock private com.claircore.analytics.application.commandservices.MonthlySummaryCommandService monthlySummaries;
+
     private DailySummaryCommandServiceImpl commandService;
 
     @BeforeEach
@@ -49,6 +51,7 @@ class DailySummaryCommandServiceImplTest {
                 externalEvaluationService,
                 dailySummaryRepository,
                 new AqiCalculator(),
+                monthlySummaries,
                 "America/Lima");
     }
 
@@ -70,7 +73,6 @@ class DailySummaryCommandServiceImplTest {
                 reading(first, 400.0, 8.0, 20.0, 45.0, WINDOW_START),
                 reading(first, 500.0, 40.0, 26.0, 59.0, peak),
                 reading(second, 450.0, 12.0, 23.0, 52.0, WINDOW_START)));
-        when(dailySummaryRepository.existsByDeviceIdAndDate(any(), eq(DAY))).thenReturn(false);
         when(dailySummaryRepository.findByDeviceIdAndDate(any(), eq(DAY.minusDays(1))))
                 .thenReturn(Optional.empty());
 
@@ -94,16 +96,15 @@ class DailySummaryCommandServiceImplTest {
     }
 
     @Test
-    void skipsADeviceThatAlreadyHasASummaryForTheDay() {
+    void recomputesADayInsteadOfSkippingIt() {
         UUID deviceId = UUID.randomUUID();
         when(externalEvaluationService.fetchReadings(any(), any()))
                 .thenReturn(List.of(reading(deviceId, 450.0, 12.0, 23.0, 52.0, WINDOW_START)));
-        when(dailySummaryRepository.existsByDeviceIdAndDate(deviceId, DAY)).thenReturn(true);
 
         int written = commandService.handle(new GenerateDailySummaryCommand(DAY));
 
-        assertThat(written).isZero();
-        verify(dailySummaryRepository, never()).save(any());
+        assertThat(written).isEqualTo(1);
+        verify(dailySummaryRepository).save(any());
     }
 
     @Test
@@ -111,7 +112,6 @@ class DailySummaryCommandServiceImplTest {
         UUID deviceId = UUID.randomUUID();
         when(externalEvaluationService.fetchReadings(any(), any()))
                 .thenReturn(List.of(reading(deviceId, 450.0, 12.0, 23.0, 52.0, WINDOW_START)));
-        when(dailySummaryRepository.existsByDeviceIdAndDate(deviceId, DAY)).thenReturn(false);
         when(dailySummaryRepository.findByDeviceIdAndDate(deviceId, DAY.minusDays(1)))
                 .thenReturn(Optional.of(previousDayWithAqi(deviceId, 50)));
 

@@ -27,8 +27,16 @@ public class DeviceAnalyticsSnapshotRepositoryImpl implements DeviceAnalyticsSna
 
     @Override
     public DeviceAnalyticsSnapshot save(DeviceAnalyticsSnapshot snapshot) {
-        var saved = snapshotPersistenceRepository.save(
-                DeviceAnalyticsSnapshotPersistenceAssembler.toPersistenceFromDomain(snapshot));
+        var entity = DeviceAnalyticsSnapshotPersistenceAssembler.toPersistenceFromDomain(snapshot);
+        var existing = snapshotPersistenceRepository.findByDeviceIdAndTimeWindowStartAndTimeWindowEnd(
+                snapshot.getDeviceId(), snapshot.getTimeWindowStart(), snapshot.getTimeWindowEnd());
+        if (!existing.isEmpty()) {
+            entity.setId(existing.getFirst().getId());
+            entity.setCreatedAt(existing.getFirst().getCreatedAt());
+            // Older versions could append a bucket again on retry. Consolidate derived rows on rebuild.
+            snapshotPersistenceRepository.deleteAll(existing.subList(1, existing.size()));
+        }
+        var saved = snapshotPersistenceRepository.save(entity);
         return DeviceAnalyticsSnapshotPersistenceAssembler.toDomainFromPersistence(saved);
     }
 

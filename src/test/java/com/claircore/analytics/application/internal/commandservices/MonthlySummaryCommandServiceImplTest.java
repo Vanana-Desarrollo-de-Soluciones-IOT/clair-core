@@ -62,7 +62,6 @@ class MonthlySummaryCommandServiceImplTest {
         when(dailySummaryRepository.findAllByDateBetween(any(), any())).thenReturn(List.of(
                 daily(deviceId, FIRST, 10L, 400.0, 50),
                 daily(deviceId, FIRST.plusDays(1), 90L, 500.0, 50)));
-        when(monthlySummaryRepository.existsByDeviceIdAndMonth(deviceId, FIRST)).thenReturn(false);
         when(monthlySummaryRepository.findByDeviceIdAndMonth(deviceId, FIRST.minusMonths(1)))
                 .thenReturn(Optional.empty());
 
@@ -84,7 +83,6 @@ class MonthlySummaryCommandServiceImplTest {
         when(dailySummaryRepository.findAllByDateBetween(any(), any())).thenReturn(List.of(
                 daily(deviceId, FIRST, 10L, 400.0, 50),
                 daily(deviceId, FIRST.plusDays(1), 90L, 500.0, 50)));
-        when(monthlySummaryRepository.existsByDeviceIdAndMonth(deviceId, FIRST)).thenReturn(false);
         when(monthlySummaryRepository.findByDeviceIdAndMonth(any(), any())).thenReturn(Optional.empty());
 
         commandService.handle(new GenerateMonthlySummaryCommand(MONTH));
@@ -98,14 +96,13 @@ class MonthlySummaryCommandServiceImplTest {
     }
 
     @Test
-    void skipsADeviceThatAlreadyHasASummaryForTheMonth() {
+    void recomputesAMonthInsteadOfSkippingIt() {
         UUID deviceId = UUID.randomUUID();
         when(dailySummaryRepository.findAllByDateBetween(any(), any()))
                 .thenReturn(List.of(daily(deviceId, FIRST, 10L, 400.0, 50)));
-        when(monthlySummaryRepository.existsByDeviceIdAndMonth(deviceId, FIRST)).thenReturn(true);
 
-        assertThat(commandService.handle(new GenerateMonthlySummaryCommand(MONTH))).isZero();
-        verify(monthlySummaryRepository, never()).save(any());
+        assertThat(commandService.handle(new GenerateMonthlySummaryCommand(MONTH))).isEqualTo(1);
+        verify(monthlySummaryRepository).save(any());
     }
 
     private static DeviceDailySummary daily(

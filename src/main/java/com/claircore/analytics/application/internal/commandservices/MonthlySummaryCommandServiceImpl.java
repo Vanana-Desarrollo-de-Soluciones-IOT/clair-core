@@ -43,7 +43,7 @@ public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandSe
         this.monthlySummaryRepository = monthlySummaryRepository;
     }
 
-    /** Idempotent: existing rows for the month are skipped. */
+    /** Recomputes existing rows from the latest daily summaries. */
     @Override
     @Transactional
     public int handle(GenerateMonthlySummaryCommand command) {
@@ -60,12 +60,11 @@ public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandSe
         int written = 0;
         for (Map.Entry<UUID, MonthlyAccumulator> entry : byDevice.entrySet()) {
             UUID deviceId = entry.getKey();
-            if (monthlySummaryRepository.existsByDeviceIdAndMonth(deviceId, firstDay)) {
-                continue;
-            }
             DeviceMonthlySummary summary = entry.getValue().toSummary(new DeviceId(deviceId), firstDay,
                     previousMonthAqi(deviceId, firstDay));
             monthlySummaryRepository.save(summary);
+            monthlySummaryRepository.findByDeviceIdAndMonth(deviceId, firstDay.plusMonths(1))
+                    .ifPresent(next -> monthlySummaryRepository.save(next.withPreviousAqi(summary.getAverageAqi())));
             written++;
         }
         logger.info("Monthly report aggregation for {} produced {} summaries", firstDay, written);
@@ -81,7 +80,6 @@ public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandSe
     /** Reading-count-weighted cascade over one device's daily summaries for a month. */
     private static final class MonthlyAccumulator {
         private double co2WeightedAvg, pm25WeightedAvg, tempWeightedAvg, humWeightedAvg;
-        private double aqiWeightedSum;
         private double co2Min = Double.MAX_VALUE, co2Max = -Double.MAX_VALUE;
         private double pm25Min = Double.MAX_VALUE, pm25Max = -Double.MAX_VALUE;
         private double tempMin = Double.MAX_VALUE, tempMax = -Double.MAX_VALUE;
@@ -98,7 +96,6 @@ public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandSe
             pm25WeightedAvg += d.getPm2_5().avg() * w;
             tempWeightedAvg += d.getTemperature().avg() * w;
             humWeightedAvg += d.getHumidity().avg() * w;
-            aqiWeightedSum += (double) d.getAverageAqi() * w;
             co2Min = Math.min(co2Min, d.getCo2().min()); co2Max = Math.max(co2Max, d.getCo2().max());
             pm25Min = Math.min(pm25Min, d.getPm2_5().min()); pm25Max = Math.max(pm25Max, d.getPm2_5().max());
             tempMin = Math.min(tempMin, d.getTemperature().min()); tempMax = Math.max(tempMax, d.getTemperature().max());
@@ -110,7 +107,8 @@ public class MonthlySummaryCommandServiceImpl implements MonthlySummaryCommandSe
         }
 
         DeviceMonthlySummary toSummary(DeviceId deviceId, LocalDate month, Integer previousMonthAqi) {
-            int averageAqi = (int) Math.round(aqiWeightedSum / readingCount);
+            int averageAqi = new com.claircore.analytics.domain.services.AqiCalculator()
+                    .calculateAqi(pm25WeightedAvg / readingCount).value();
             Double deltaPct = (previousMonthAqi != null && previousMonthAqi > 0)
                     ? ((averageAqi - previousMonthAqi) * 100.0) / previousMonthAqi
                     : null;

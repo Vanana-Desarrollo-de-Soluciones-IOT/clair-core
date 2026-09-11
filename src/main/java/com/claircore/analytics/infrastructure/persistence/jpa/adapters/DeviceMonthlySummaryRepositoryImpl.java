@@ -23,8 +23,13 @@ public class DeviceMonthlySummaryRepositoryImpl implements DeviceMonthlySummaryR
 
     @Override
     public DeviceMonthlySummary save(DeviceMonthlySummary summary) {
-        var saved = monthlySummaryPersistenceRepository.save(
-                DeviceMonthlySummaryPersistenceAssembler.toPersistenceFromDomain(summary));
+        var entity = DeviceMonthlySummaryPersistenceAssembler.toPersistenceFromDomain(summary);
+        monthlySummaryPersistenceRepository.findByDeviceIdAndSummaryMonth(summary.getDeviceId(), summary.getSummaryMonth())
+                .ifPresent(existing -> {
+                    entity.setId(existing.getId());
+                    entity.setCreatedAt(existing.getCreatedAt());
+                });
+        var saved = monthlySummaryPersistenceRepository.save(entity);
         return DeviceMonthlySummaryPersistenceAssembler.toDomainFromPersistence(saved);
     }
 

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Domain service: folds many device snapshots into one set of averages, an index and a freshness.
+ * Domain service: equal-device averages, a PM index of their mean concentration, and freshness.
  *
  * <p>Concrete for the same reason as {@link AqiCalculator}. It takes {@link AqiCalculator} as a
  * constructor argument rather than an interface: the collaboration is a real dependency between two
@@ -33,7 +33,6 @@ public class MetricsAggregator {
         List<Double> pm25 = new ArrayList<>();
         List<Double> temp = new ArrayList<>();
         List<Double> hum = new ArrayList<>();
-        List<Integer> aqi = new ArrayList<>();
         List<Double> co2Delta = new ArrayList<>();
         List<Double> pm25Delta = new ArrayList<>();
         List<Double> tempDelta = new ArrayList<>();
@@ -47,10 +46,9 @@ public class MetricsAggregator {
             if (snapshot.source() == DeviceMetricsSnapshot.Source.SNAPSHOT) hasSnapshot = true;
 
             if (isValid(snapshot.averageCo2())) co2.add(snapshot.averageCo2());
-            if (isValid(snapshot.averagePm2_5())) pm25.add(snapshot.averagePm2_5());
+            if (isValid(snapshot.averagePm2_5()) && snapshot.averagePm2_5() >= 0) pm25.add(snapshot.averagePm2_5());
             if (isValid(snapshot.averageTemperature())) temp.add(snapshot.averageTemperature());
             if (isValid(snapshot.averageHumidity())) hum.add(snapshot.averageHumidity());
-            if (snapshot.aqiValue() != null) aqi.add(snapshot.aqiValue());
             if (isValid(snapshot.co2DeltaPercentage())) co2Delta.add(snapshot.co2DeltaPercentage());
             if (isValid(snapshot.pm2_5DeltaPercentage())) pm25Delta.add(snapshot.pm2_5DeltaPercentage());
             if (isValid(snapshot.temperatureDeltaPercentage())) tempDelta.add(snapshot.temperatureDeltaPercentage());
@@ -70,10 +68,10 @@ public class MetricsAggregator {
         Double avgTempDelta = average(tempDelta);
         Double avgHumDelta = average(humDelta);
 
-        Integer avgAqi = averageInt(aqi);
+        Integer avgAqi = null;
         String aqiCategory = null;
-        if (avgAqi != null && avgPm25 != null && avgCo2 != null) {
-            AirQualityIndex derived = aqiCalculator.calculateAqi(avgPm25, avgCo2);
+        if (avgPm25 != null) {
+            AirQualityIndex derived = aqiCalculator.calculateAqi(avgPm25);
             avgAqi = derived.value();
             aqiCategory = derived.category().name();
         }
@@ -84,6 +82,7 @@ public class MetricsAggregator {
 
         if (avgAqi == null && avgCo2 == null && avgPm25 == null && avgTemp == null && avgHum == null) {
             latest = null;
+            freshness = Freshness.NO_DATA;
         }
 
         return new AggregatedMetrics(
@@ -105,12 +104,6 @@ public class MetricsAggregator {
     private Double average(List<Double> values) {
         if (values.isEmpty()) return null;
         return values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-    }
-
-    private Integer averageInt(List<Integer> values) {
-        if (values.isEmpty()) return null;
-        double avg = values.stream().mapToInt(Integer::intValue).average().orElse(0.0);
-        return (int) Math.round(avg);
     }
 
     private Double round1(Double value) {

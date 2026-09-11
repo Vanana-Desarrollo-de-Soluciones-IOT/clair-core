@@ -118,6 +118,13 @@ public class DeviceDailySummary {
                 readingCount, aqiDeltaPct, createdAt, updatedAt);
     }
 
+    public DeviceDailySummary withPreviousAqi(Integer previous) {
+        Double delta = previous == null || previous <= 0 ? null : (averageAqi - previous) * 100.0 / previous;
+        return new DeviceDailySummary(id, deviceId, summaryDate, co2, pm2_5, temperature, humidity,
+                peakPm2_5, peakPm2_5At, averageAqi, dominantAqiCategory, categoryBreakdown,
+                readingCount, delta, createdAt, updatedAt);
+    }
+
     public UUID getId() { return id; }
     public DeviceId getDeviceId() { return deviceId; }
     public LocalDate getSummaryDate() { return summaryDate; }

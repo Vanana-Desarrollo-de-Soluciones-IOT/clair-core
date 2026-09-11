@@ -38,7 +38,7 @@ public class SnapshotAggregationCommandServiceImpl implements SnapshotAggregatio
                 .fetchHourlyTelemetryAggregation(command.windowStart(), command.windowEnd());
 
         for (HourlyTelemetryAverage row : rows) {
-            var aqi = aqiCalculator.calculateAqi(row.averagePm25(), row.averageCo2());
+            var aqi = aqiCalculator.calculateAqi(row.averagePm25());
             snapshotRepository.save(new DeviceAnalyticsSnapshot(
                     new DeviceId(row.deviceId()),
                     command.windowStart(),

@@ -46,6 +46,8 @@ class KpiDashboardMetricsQueryServiceImplTest {
     @Mock
     private DeviceAnalyticsSnapshotRepository snapshotRepository;
 
+    @Mock private com.claircore.analytics.application.internal.outboundservices.acl.ExternalEvaluationService evaluations;
+
     private KpiDashboardMetricsQueryServiceImpl queryService;
 
     @BeforeEach
@@ -54,7 +56,7 @@ class KpiDashboardMetricsQueryServiceImplTest {
                 liveMetricsStore,
                 new AqiCalculator(),
                 new TrendAnalyzer(),
-                snapshotRepository);
+                snapshotRepository, evaluations);
     }
 
     @Test
@@ -97,9 +99,9 @@ class KpiDashboardMetricsQueryServiceImplTest {
 
     @Test
     void aPeriodChoosesTheWindowAndTheTrendComparesTheEqualWindowBeforeIt() {
-        when(snapshotRepository.findAveragesByDeviceIdAndWindow(eq(deviceId), any(), any()))
-                .thenReturn(Optional.of(new MetricAverages(500.0, 12.0, 23.5, 52.0)))
-                .thenReturn(Optional.of(new MetricAverages(400.0, 12.0, 23.5, 52.0)));
+        when(evaluations.fetchHourlyTelemetryAggregation(any(), any()))
+                .thenReturn(java.util.List.of(new com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage(deviceId, 500.0, 12.0, 23.5, 52.0)))
+                .thenReturn(java.util.List.of(new com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage(deviceId, 400.0, 12.0, 23.5, 52.0)));
 
         var metrics = queryService.handle(query(TrendPeriod.WEEK, null, null)).orElseThrow();
 
@@ -108,8 +110,8 @@ class KpiDashboardMetricsQueryServiceImplTest {
 
         var starts = ArgumentCaptor.forClass(Instant.class);
         var ends = ArgumentCaptor.forClass(Instant.class);
-        verify(snapshotRepository, times(2))
-                .findAveragesByDeviceIdAndWindow(eq(deviceId), starts.capture(), ends.capture());
+        verify(evaluations, times(2))
+                .fetchHourlyTelemetryAggregation(starts.capture(), ends.capture());
         // The current window is seven days long, and the comparison window is the seven before it.
         assertThat(Duration.between(starts.getAllValues().get(0), ends.getAllValues().get(0)))
                 .isCloseTo(Duration.ofDays(7), Duration.ofSeconds(5));
@@ -120,10 +122,10 @@ class KpiDashboardMetricsQueryServiceImplTest {
     void anExplicitWindowWinsOverThePeriod() {
         Instant start = Instant.parse("2026-05-01T00:00:00Z");
         Instant end = Instant.parse("2026-05-02T00:00:00Z");
-        when(snapshotRepository.findAveragesByDeviceIdAndWindow(deviceId, start, end))
-                .thenReturn(Optional.of(new MetricAverages(500.0, 12.0, 23.5, 52.0)));
-        when(snapshotRepository.findAveragesByDeviceIdAndWindow(
-                deviceId, start.minus(1, ChronoUnit.DAYS), start)).thenReturn(Optional.empty());
+        when(evaluations.fetchHourlyTelemetryAggregation(start, end))
+                .thenReturn(java.util.List.of(new com.claircore.evaluation.interfaces.acl.HourlyTelemetryAverage(deviceId, 500.0, 12.0, 23.5, 52.0)));
+        when(evaluations.fetchHourlyTelemetryAggregation(
+                start.minus(1, ChronoUnit.DAYS), start)).thenReturn(java.util.List.of());
 
         var metrics = queryService.handle(query(TrendPeriod.MONTH, start, end)).orElseThrow();
 
@@ -134,8 +136,8 @@ class KpiDashboardMetricsQueryServiceImplTest {
 
     @Test
     void anEmptyHistoricalWindowIsNotFoundRatherThanZeroedMetrics() {
-        when(snapshotRepository.findAveragesByDeviceIdAndWindow(eq(deviceId), any(), any()))
-                .thenReturn(Optional.empty());
+        when(evaluations.fetchHourlyTelemetryAggregation(any(), any()))
+                .thenReturn(java.util.List.of());
 
         // The message is the assertion that matters: it is what reaches the client, and the
         // dedicated exception subclass that used to carry it added nothing else.

@@ -24,8 +24,13 @@ public class DeviceDailySummaryRepositoryImpl implements DeviceDailySummaryRepos
 
     @Override
     public DeviceDailySummary save(DeviceDailySummary summary) {
-        var saved = dailySummaryPersistenceRepository.save(
-                DeviceDailySummaryPersistenceAssembler.toPersistenceFromDomain(summary));
+        var entity = DeviceDailySummaryPersistenceAssembler.toPersistenceFromDomain(summary);
+        dailySummaryPersistenceRepository.findByDeviceIdAndSummaryDate(summary.getDeviceId(), summary.getSummaryDate())
+                .ifPresent(existing -> {
+                    entity.setId(existing.getId());
+                    entity.setCreatedAt(existing.getCreatedAt());
+                });
+        var saved = dailySummaryPersistenceRepository.save(entity);
         return DeviceDailySummaryPersistenceAssembler.toDomainFromPersistence(saved);
     }
 

@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
+
 
 @Service
 public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQueryService {
@@ -64,59 +64,24 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
 
         List<OrganizationSummary> orgs = externalDeviceService.findOrganizationsByOwnerId(ownerUserId);
         
-        // Use CompletableFuture to fetch organization details in parallel
-        List<CompletableFuture<OverviewDashboardSnapshot.OrganizationBreakdown>> orgBreakdownFutures = new ArrayList<>();
-        Set<UUID> allDeviceIds = Collections.synchronizedSet(new HashSet<>());
-        
+        Set<UUID> allDeviceIds = new LinkedHashSet<>();
+        List<OverviewDashboardSnapshot.OrganizationBreakdown> orgBreakdown = new ArrayList<>();
         for (OrganizationSummary org : orgs) {
-            CompletableFuture<OverviewDashboardSnapshot.OrganizationBreakdown> orgFuture = CompletableFuture.supplyAsync(() -> {
-                List<SpaceSummary> spaces = externalDeviceService.findSpacesByOrganizationId(org.organizationId());
-                List<OverviewDashboardSnapshot.SpaceBreakdown> spaceBreakdowns = new ArrayList<>();
-                
-                // Fetch spaces in parallel
-                List<CompletableFuture<OverviewDashboardSnapshot.SpaceBreakdown>> spaceFutures = spaces.stream().map(space -> CompletableFuture.supplyAsync(() -> {
-                    List<UUID> spaceDeviceIds = externalDeviceService.findDeviceIdsBySpaceId(space.spaceId(), deviceLimit);
-                    allDeviceIds.addAll(spaceDeviceIds);
-
-                    var aggregated = aggregateAcrossDevices(spaceDeviceIds);
-                    return new OverviewDashboardSnapshot.SpaceBreakdown(
-                            space.spaceId(),
-                            space.organizationId(),
-                            space.spaceName(),
-                            aggregated.aqiValue(),
-                            aggregated.aqiCategory(),
-                            aggregated.recordedAt(),
-                            spaceDeviceIds.size(),
-                            aggregated.freshness().name()
-                    );
-                })).toList();
-                
-                for (var sf : spaceFutures) {
-                    spaceBreakdowns.add(sf.join());
-                }
-
-                return new OverviewDashboardSnapshot.OrganizationBreakdown(
-                        org.organizationId(),
-                        org.organizationName(),
-                        spaceBreakdowns
-                );
-            });
-            orgBreakdownFutures.add(orgFuture);
+            List<OverviewDashboardSnapshot.SpaceBreakdown> spaces = new ArrayList<>();
+            for (SpaceSummary space : externalDeviceService.findSpacesByOrganizationId(org.organizationId())) {
+                List<UUID> deviceIds = externalDeviceService.findDeviceIdsBySpaceId(space.spaceId(), deviceLimit);
+                allDeviceIds.addAll(deviceIds);
+                var metrics = aggregateAcrossDevices(deviceIds);
+                spaces.add(new OverviewDashboardSnapshot.SpaceBreakdown(space.spaceId(), org.organizationId(),
+                        space.spaceName(), metrics.aqiValue(), metrics.aqiCategory(), metrics.recordedAt(),
+                        deviceIds.size(), metrics.freshness().name()));
+            }
+            orgBreakdown.add(new OverviewDashboardSnapshot.OrganizationBreakdown(
+                    org.organizationId(), org.organizationName(), spaces));
         }
-
-        List<OverviewDashboardSnapshot.OrganizationBreakdown> orgBreakdown = orgBreakdownFutures.stream()
-                .map(CompletableFuture::join)
-                .toList();
-
         int spaceCount = orgBreakdown.stream().mapToInt(ob -> ob.spaces().size()).sum();
-
-        // Fetch recent alerts asynchronously
-        CompletableFuture<List<OverviewDashboardSnapshot.AlertSummary>> alertsFuture = CompletableFuture.supplyAsync(() -> {
-            List<AlertDetails> recentAlerts = alertingContextFacade.getRecentAlertsByOwnerId(ownerUserId, DEFAULT_ALERT_STATUSES, alertLimit);
-            return enrichAlertNames(toAlertSummaries(recentAlerts));
-        });
-
-        List<OverviewDashboardSnapshot.AlertSummary> alertSummaries = alertsFuture.join();
+        var recentAlerts = alertingContextFacade.getRecentAlertsByOwnerId(ownerUserId, DEFAULT_ALERT_STATUSES, alertLimit);
+        List<OverviewDashboardSnapshot.AlertSummary> alertSummaries = enrichAlertNames(toAlertSummaries(recentAlerts));
 
         var overall = aggregateAcrossDevices(allDeviceIds.stream().toList());
         Instant updatedAt = overall.recordedAt() != null ? overall.recordedAt() : Instant.now();
@@ -148,15 +113,14 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         }
 
         // Dividir entre dispositivos en caché (LIVE) y los que necesitan Snapshot de la DB
-        List<UUID> liveDeviceIds = new ArrayList<>();
         List<UUID> snapshotDeviceIds = new ArrayList<>();
         Map<UUID, DeviceMetricsSnapshot> cachedSnapshots = new HashMap<>();
 
         for (UUID deviceId : deviceIds) {
             var live = liveMetricsStore.getIfPresent(deviceId);
-            if (live != null && !live.isEmpty()) {
-                liveDeviceIds.add(deviceId);
-                cachedSnapshots.put(deviceId, resolveLiveMetrics(deviceId, live));
+            var window = live == null ? Optional.<KpiLiveMetricsBuffer.Averages>empty() : live.computeAverages();
+            if (window.isPresent()) {
+                cachedSnapshots.put(deviceId, resolveLiveMetrics(window.orElseThrow()));
             } else {
                 snapshotDeviceIds.add(deviceId);
             }
@@ -186,9 +150,8 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
         return metricsAggregator.aggregate(allSnapshots);
     }
 
-    private DeviceMetricsSnapshot resolveLiveMetrics(UUID deviceId, KpiLiveMetricsBuffer live) {
-        var avg = live.computeAverages();
-        var aqi = aqiCalculator.calculateAqi(avg.pm2_5(), avg.co2());
+    private DeviceMetricsSnapshot resolveLiveMetrics(KpiLiveMetricsBuffer.Averages avg) {
+        var aqi = aqiCalculator.calculateAqi(avg.pm2_5());
 
         return new DeviceMetricsSnapshot(
                 DeviceMetricsSnapshot.Source.LIVE,
@@ -198,7 +161,7 @@ public class OverviewDashboardQueryServiceImpl implements OverviewDashboardQuery
                 avg.temperature(),
                 avg.humidity(),
                 null, null, null, null,
-                Instant.now()
+                avg.measuredAt()
         );
     }
 

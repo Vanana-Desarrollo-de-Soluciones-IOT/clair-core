@@ -27,17 +27,20 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
     private final AqiCalculator aqiCalculator;
     private final TrendAnalyzer trendAnalyzer;
     private final DeviceAnalyticsSnapshotRepository snapshotRepository;
+    private final com.claircore.analytics.application.internal.outboundservices.acl.ExternalEvaluationService evaluations;
 
     public KpiDashboardMetricsQueryServiceImpl(
             LiveMetricsStore liveMetricsStore,
             AqiCalculator aqiCalculator,
             TrendAnalyzer trendAnalyzer,
-            DeviceAnalyticsSnapshotRepository snapshotRepository
+            DeviceAnalyticsSnapshotRepository snapshotRepository,
+            com.claircore.analytics.application.internal.outboundservices.acl.ExternalEvaluationService evaluations
     ) {
         this.liveMetricsStore = liveMetricsStore;
         this.aqiCalculator = aqiCalculator;
         this.trendAnalyzer = trendAnalyzer;
         this.snapshotRepository = snapshotRepository;
+        this.evaluations = evaluations;
     }
 
     @Override
@@ -52,12 +55,14 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
 
     private Optional<KpiDashboardMetrics> liveMetrics(UUID deviceId) {
         var buffer = liveMetricsStore.getIfPresent(deviceId);
-        if (buffer == null || buffer.isEmpty()) {
+        if (buffer == null) {
             return Optional.empty();
         }
 
-        var avg = buffer.computeAverages();
-        var aqi = aqiCalculator.calculateAqi(avg.pm2_5(), avg.co2());
+        var window = buffer.computeAverages();
+        if (window.isEmpty()) return Optional.empty();
+        var avg = window.orElseThrow();
+        var aqi = aqiCalculator.calculateAqi(avg.pm2_5());
 
         // The last stored snapshot is the "previous" the live window is compared against; with none,
         // the trend compares the window to itself and reads as flat rather than as a spike.
@@ -77,7 +82,7 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                         latest.map(s -> s.getAverageTemperature()).orElse(avg.temperature())),
                 trendAnalyzer.calculateTrend(avg.humidity(),
                         latest.map(s -> s.getAverageHumidity()).orElse(avg.humidity())),
-                Instant.now()
+                avg.measuredAt()
         ));
     }
 
@@ -86,13 +91,13 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
         Instant end = hasExplicitWindow ? query.endDate() : Instant.now();
         Instant start = hasExplicitWindow ? query.startDate() : end.minus(windowOf(query.period()));
 
-        var averages = snapshotRepository.findAveragesByDeviceIdAndWindow(deviceId, start, end)
+        var averages = periodAverages(deviceId, start, end)
                 .orElseThrow(() -> new ResourceNotFoundException("No telemetry data available for device with ID %s in the requested period.".formatted(deviceId)));
-        var aqi = aqiCalculator.calculateAqi(averages.pm2_5(), averages.co2());
+        var aqi = aqiCalculator.calculateAqi(averages.pm2_5());
 
         // Trends compare the window against the window of equal length that precedes it.
         Duration duration = Duration.between(start, end);
-        var previous = snapshotRepository.findAveragesByDeviceIdAndWindow(deviceId, start.minus(duration), start);
+        var previous = periodAverages(deviceId, start.minus(duration), start);
 
         return new KpiDashboardMetrics(
                 aqi,
@@ -106,6 +111,13 @@ public class KpiDashboardMetricsQueryServiceImpl implements KpiDashboardMetricsQ
                 trendAnalyzer.calculateTrend(averages.humidity(), previous.map(MetricAverages::humidity).orElse(null)),
                 Instant.now()
         );
+    }
+
+    private Optional<MetricAverages> periodAverages(UUID deviceId, Instant start, Instant end) {
+        return evaluations.fetchHourlyTelemetryAggregation(start, end).stream()
+                .filter(row -> row.deviceId().equals(deviceId))
+                .findFirst().map(row -> new MetricAverages(row.averageCo2(), row.averagePm25(),
+                        row.averageTemperature(), row.averageHumidity()));
     }
 
     private static Duration windowOf(TrendPeriod period) {

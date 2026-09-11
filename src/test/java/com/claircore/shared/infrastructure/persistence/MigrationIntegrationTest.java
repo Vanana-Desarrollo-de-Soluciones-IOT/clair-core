@@ -48,7 +48,7 @@ class MigrationIntegrationTest {
 
     @Test void freshSchemaMigratesAndMatchesHibernateAndRejectsOrphans() throws Exception {
         var flyway = configuration().load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         validateHibernate();
         try (var c = connection(); var s = c.createStatement()) {
@@ -68,7 +68,7 @@ class MigrationIntegrationTest {
             s.execute("ALTER TABLE device_assignments ADD CONSTRAINT old_assignment_fk FOREIGN KEY(device_id) REFERENCES devices(id)");
             s.execute("ALTER TABLE device_commands ADD CONSTRAINT old_command_fk FOREIGN KEY(device_id) REFERENCES devices(id)");
         }
-        assertThat(configuration().baselineOnMigrate(true).baselineVersion("1").load().migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(configuration().baselineOnMigrate(true).baselineVersion("1").load().migrate().migrationsExecuted).isEqualTo(2);
         validateHibernate();
         try (var c = connection(); var s = c.createStatement()) {
             try (var rs = s.executeQuery("SELECT created_at, updated_at FROM devices")) {
@@ -93,6 +93,30 @@ class MigrationIntegrationTest {
         assertThatThrownBy(() -> configuration().load().migrate()).isInstanceOf(FlywayException.class);
         try (var c = connection(); var s = c.createStatement(); var rs = s.executeQuery("SELECT data_type FROM information_schema.columns WHERE table_schema='" + schema + "' AND table_name='devices' AND column_name='created_at'")) {
             rs.next(); assertThat(rs.getString(1)).isEqualTo("timestamp without time zone");
+        }
+    }
+
+    @Test void telemetryUpgradePreservesLegacyTimesAndAssignsStableIdentity() throws Exception {
+        configuration().target("2").load().migrate();
+        try (var c = connection(); var statement = c.createStatement()) {
+            statement.execute("""
+                    INSERT INTO telemetry_evaluations
+                      (id, device_id, device_time, uptime_seconds, aq_co2, aq_temperature, aq_humidity,
+                       pm_pm1_0, pm_pm2_5, pm_pm10, conn_status, health_status, status, recorded_at, created_at, updated_at)
+                    VALUES ('00000000-0000-0000-0000-000000000123', gen_random_uuid(), '12:30:00', 10,
+                            400.5, 22, 50, 1, 12, 20, 'ONLINE', 100, 'STABLE',
+                            '2026-05-01T17:30:00Z', '2026-05-01T17:31:00Z', '2026-05-01T17:31:00Z')
+                    """);
+        }
+        assertThat(configuration().load().migrate().migrationsExecuted).isEqualTo(1);
+        try (var c = connection(); var statement = c.createStatement();
+             var rs = statement.executeQuery("SELECT id, reading_id, recorded_at, created_at, pm_pm2_5, pg_typeof(pm_pm2_5)::text FROM telemetry_evaluations")) {
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getObject(2)).isEqualTo(rs.getObject(1));
+            assertThat(rs.getTimestamp(3).toInstant()).isEqualTo(Instant.parse("2026-05-01T17:30:00Z"));
+            assertThat(rs.getTimestamp(4).toInstant()).isEqualTo(Instant.parse("2026-05-01T17:31:00Z"));
+            assertThat(rs.getDouble(5)).isEqualTo(12.0);
+            assertThat(rs.getString(6)).isEqualTo("double precision");
         }
     }
 

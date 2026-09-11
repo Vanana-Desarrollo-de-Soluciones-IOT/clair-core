@@ -4,12 +4,13 @@ Flyway is a permanent runtime dependency. Hibernate runs with `ddl-auto: validat
 nothing, so **Flyway is the only thing that builds or changes the schema.** An empty database with
 Flyway disabled will not start.
 
-Two migrations exist, both in `src/main/resources/db/migration/`:
+Three migrations exist, both in `src/main/resources/db/migration/`:
 
 | Version | What it does |
 |---|---|
 | `V1__baseline.sql` | The phase-7 schema, verbatim. On an existing installation it is never executed — it exists so that installation has something to baseline onto. |
 | `V2__audit_instants_and_device_integrity.sql` | Converts `created_at` / `updated_at` on 15 tables to `timestamp(6) with time zone`, restores the two device foreign keys, drops the legacy `devices.device_secret` column. |
+| `V3__telemetry_identity_and_precision.sql` | Adds stable telemetry reading identity/uniqueness, converts PM to double precision, allows unused legacy device_time to be null. Reuses existing recorded_at/created_at instants. |
 
 Relevant settings, all in `src/main/resources/application.yml`:
 
@@ -112,8 +113,8 @@ LEGACY_AUDIT_ZONE=America/Lima \
   ./mvnw spring-boot:run          # or however you start the app
 ```
 
-Flyway writes one baseline row for version 1 without recreating any table, then applies V2 — exactly
-one migration executed. Hibernate then validates the migrated schema; a startup failure here means
+Flyway writes one baseline row for version 1 without recreating any table, then applies V2 and V3 — exactly
+two migrations executed. Hibernate then validates the migrated schema; a startup failure here means
 the schema did not match the mappings, and the migration has already committed, so go back to your
 dump.
 
@@ -149,7 +150,7 @@ the right one.
 
 ```sql
 SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;
--- expect: 1 << Flyway Baseline >> true, then 2 audit-instants... true
+-- expect: versions 1 (baseline), 2 and 3, all successful
 
 SELECT count(*) FROM information_schema.columns
 WHERE table_schema = 'public' AND column_name IN ('created_at','updated_at')
@@ -166,7 +167,7 @@ And spot-check that a timestamp you can date independently now reads correctly i
 
 # Connecting to an empty database
 
-Nothing to decide. Start the application; Flyway applies V1 then V2 and the schema is ready.
+Nothing to decide. Start the application; Flyway applies V1, V2 and V3 and the schema is ready.
 
 `FLYWAY_BASELINE_ON_MIGRATE` is irrelevant — it only applies to a populated database with no history
 table. `LEGACY_AUDIT_ZONE` is also irrelevant: V2's conversion runs over zero rows, so no value of it
@@ -180,7 +181,7 @@ alone does not describe the schema you end up with. Harmless on empty tables.
 # Afterwards
 
 Do not edit a migration that has been applied anywhere. Flyway stores a checksum per version;
-changing V1 or V2 breaks validation on every database that already ran it. Add `V3__…sql` instead.
+changing V1 or V2 breaks validation on every database that already ran it. V3 is now present; add a new version for future schema changes.
 
 Squashing V1 and V2 into one file is only possible while **no** database has applied them, and it
 costs you the adoption path above for anyone whose database predates this branch.
@@ -193,8 +194,7 @@ rejection with no partial conversion, and Hibernate validation of the migrated s
 `PostgresRosterIntegrationTest` runs the device-reset and roster-cursor path against the migrated
 schema.
 
-Both are gated on `CLAIR_TEST_POSTGRES_URL`. **A local `mvn test` without that variable skips all
-four tests and still reports green.** CI sets it (`.github/workflows/ci.yml`, `postgres:15`
+Both are gated on `CLAIR_TEST_POSTGRES_URL`. **A local `mvn test` without that variable skips the PostgreSQL tests and still reports green.** CI sets it (`.github/workflows/ci.yml`, `postgres:15`
 service). To run them locally:
 
 ```sh
@@ -206,3 +206,31 @@ CLAIR_TEST_POSTGRES_PASSWORD=... \
 
 The two device foreign keys belong to Flyway, not to any JPA association, so they never appear in
 Hibernate-generated DDL. `MigrationIntegrationTest` is the only thing that checks them.
+
+## V3 rollout and Edge coordination
+
+For an installation already on V2, take a backup and use a maintenance window: V3 alters telemetry
+column types and builds a unique index, which can lock/rewrite the table. Stop the old Core writer
+before migration; it cannot supply the new non-null reading ID. Deploy the updated Edge payload
+producer and Core together. Do not edit V1/V2 checksums or use Flyway repair to bypass them.
+
+The [MVP report](mvp-telemetry-analytics-report.md) contains complete singular/batch payload examples,
+validation ranges, compatibility notes and the date-bounded historical rebuild procedure. V3 leaves
+old raw rows and their timestamps intact. It assigns legacy reading IDs from row IDs; historical
+retries and discarded measurement timestamps cannot be recovered automatically.
+
+Verify after startup:
+
+```sql
+SELECT version, success FROM flyway_schema_history ORDER BY installed_rank;
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'telemetry_evaluations'
+  AND column_name IN ('reading_id', 'pm_pm1_0', 'pm_pm2_5', 'pm_pm10', 'device_time');
+-- reading_id: uuid, not nullable; PM: double precision; legacy device_time: nullable.
+SELECT count(*) FROM telemetry_evaluations WHERE reading_id IS NULL; -- 0
+```
+
+Reverting only the application binary is not a rollback: the old writer omits reading_id. Restore
+the pre-upgrade database/application together if rollback is necessary. No deployment or production
+migration was performed while preparing these changes.

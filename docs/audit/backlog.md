@@ -8,6 +8,20 @@ from the working tree once the work landed; recover any of them with
 `git show 5da6b2e:docs/audit/refactor.md`. This backlog is the remaining domain-behaviour work — it
 is not a list of unresolved repairs from that refactor.
 
+## MVP scope decision — 2026-09-07
+
+The fixed-size MVP now follows [the telemetry/analytics implementation report](mvp-telemetry-analytics-report.md).
+Its scope supersedes the broader ingestion/analytics proposals below. B0.2 is implemented using
+EPA decimal truncation and revised PM-only breakpoints. MVP portions of B2.1/B2.3/B2.4/B5.1/B5.2/B5.5
+are implemented: stable identity with database uniqueness, two explicit timestamp meanings, decimal
+PM and range rejection, consistent concentration-derived indices, empty-window handling, synchronous
+overview reads, and repairable reports. The detailed API/migration deviations are in the report.
+
+Ventilation-rate estimation and exposure-dose metrics are useful but post-MVP. Redis, incremental
+buckets, DeviceModel, quality states, learned/corrected sensor metrics and tenant zones are deferred.
+The rows below retain the original broader proposals for reference, not as a commitment to implement
+all of them. The unrelated device review remains separately scoped.
+
 ## Rule
 
 An item may start only when the structural phase it names is merged. Each item is one branch, one `fix:` or `feat:` commit series, with the test named in its row written **first** as the control.
@@ -17,7 +31,7 @@ An item may start only when the structural phase it names is merged. Each item i
 | # | Item | Source | Control |
 |---|---|---|---|
 | ~~B0.1~~ | **Done in Phase 7.** Both classes are deleted and `ServiceTokenAuthenticationFilter.PATHS` is `{"/api/v1/edge/**", "/api/v1/evaluations/telemetry/batch"}` — the real route carries the `/batch` suffix the row omitted. | I§1 | request without token → 401 |
-| B0.2 | AQI breakpoint gaps: make ranges contiguous, clamp above the last bound. Still open. | A§1 | `AqiCalculatorTest` sweeps 0..1000 step 0.01, asserts monotonic |
+| ~~B0.2~~ | **Implemented in MVP changes.** PM-only EPA decimal truncation and revised bands; explicit display cap at 500. | A§1 | `AqiCalculatorTest` sweeps 0..1000 step 0.01, asserts monotonic |
 | ~~B0.3~~ | **Obsolete.** The internal `TelemetryRecordedEvent` was deleted in Phase 5; consumers read evaluation's `TelemetryRecordedIntegrationEvent`, whose `from(...)` maps `pm10` from `pm10()`, carries no `hardwareId` field, and keeps `healthStatus` as an `int`. All three defects are gone with the class. | I§13 rows 1–3 | event field test |
 
 ## After Phase 2 (evaluation split)
@@ -62,9 +76,9 @@ An item may start only when the structural phase it names is merged. Each item i
 
 Time-in-category, data completeness, ventilation insight, space/organization reports, peak-hour profile, alert-aware reports, comparative baseline, standard-labelled AQI. Each depends on B5.4 and B7.1; none is scheduled until those two exist.
 
-## Dropped from the original documents
+## Original roadmap history
 
-Nothing dropped. Two items moved: I§1 telemetry token (now B0.1) and A§1 (now B0.2) run before Phase 0 because they touch one file each and do not depend on structure.
+Originally nothing was dropped; the MVP scope decision above now defers the broader analytics work. Two items moved: I§1 telemetry token (now B0.1) and A§1 (now B0.2) run before Phase 0 because they touch one file each and do not depend on structure.
 
 ## Device review — 2026-09-07
 

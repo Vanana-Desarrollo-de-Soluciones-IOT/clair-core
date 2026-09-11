@@ -61,6 +61,11 @@ public class DeviceContextFacadeImpl implements DeviceContextFacade {
     }
 
     @Override
+    public Optional<java.time.Instant> findVisibleSinceByDeviceId(UUID deviceId) {
+        return deviceQueryService.findActivatedAtByDeviceId(deviceId);
+    }
+
+    @Override
     public Optional<UUID> findOwnerIdByDeviceId(UUID deviceId) {
         return deviceQueryService.findOwnerIdByDeviceId(deviceId);
     }

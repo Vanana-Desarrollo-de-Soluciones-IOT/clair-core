@@ -164,7 +164,9 @@ public class TelemetryEvaluationsController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        var query = new GetEvaluationsByDeviceQuery(deviceId, page, size);
+        // Readings before the current claim were measured for a previous owner and stay hidden.
+        var visibleSince = externalDeviceService.findVisibleSinceByDeviceId(deviceId).orElse(null);
+        var query = new GetEvaluationsByDeviceQuery(deviceId, page, size, visibleSince);
         var evaluations = telemetryEvaluationQueryService.handle(query);
         var resources = evaluations.items().stream()
                 .map(TelemetryEvaluationResourceFromEntityAssembler::toResourceFromEntity)
@@ -194,7 +196,8 @@ public class TelemetryEvaluationsController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        var query = new GetLatestEvaluationByDeviceQuery(deviceId);
+        var visibleSince = externalDeviceService.findVisibleSinceByDeviceId(deviceId).orElse(null);
+        var query = new GetLatestEvaluationByDeviceQuery(deviceId, visibleSince);
         return telemetryEvaluationQueryService.handle(query)
                 .map(e -> ResponseEntity.ok(TelemetryEvaluationResourceFromEntityAssembler.toResourceFromEntity(e)))
                 .orElse(ResponseEntity.notFound().build());

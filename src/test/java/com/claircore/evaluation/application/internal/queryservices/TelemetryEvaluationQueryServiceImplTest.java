@@ -78,4 +78,18 @@ class TelemetryEvaluationQueryServiceImplTest {
         assertThat(result).isPresent();
         assertThat(result.get().getDeviceId().value()).isEqualTo(deviceId);
     }
+    @Test
+    void aVisibleSinceBoundRoutesBothReadsToTheRestrictedQueries() {
+        UUID deviceId = UUID.randomUUID();
+        java.time.Instant since = java.time.Instant.parse("2026-09-01T00:00:00Z");
+        var service = new TelemetryEvaluationQueryServiceImpl(telemetryEvaluationRepository);
+        when(telemetryEvaluationRepository.findByDeviceIdSince(deviceId, since, 0, 10))
+                .thenReturn(com.claircore.shared.domain.model.PageResult.empty(0, 10));
+        service.handle(new GetEvaluationsByDeviceQuery(deviceId, 0, 10, since));
+        service.handle(new GetLatestEvaluationByDeviceQuery(deviceId, since));
+        org.mockito.Mockito.verify(telemetryEvaluationRepository).findByDeviceIdSince(deviceId, since, 0, 10);
+        org.mockito.Mockito.verify(telemetryEvaluationRepository).findLatestByDeviceIdSince(deviceId, since);
+        org.mockito.Mockito.verify(telemetryEvaluationRepository, org.mockito.Mockito.never()).findByDeviceId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        org.mockito.Mockito.verify(telemetryEvaluationRepository, org.mockito.Mockito.never()).findLatestByDeviceId(org.mockito.ArgumentMatchers.any());
+    }
 }

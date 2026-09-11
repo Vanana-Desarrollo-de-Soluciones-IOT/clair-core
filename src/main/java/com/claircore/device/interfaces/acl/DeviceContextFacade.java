@@ -16,6 +16,11 @@ public interface DeviceContextFacade {
     Optional<String> findHardwareIdByDeviceId(UUID deviceId);
 
     boolean isDeviceOwnedByUser(UUID deviceId, UUID userId);
+    /**
+     * The instant from which readings of this device belong to its current owner. Consumers must
+     * not show anything recorded earlier to that owner: it was measured for someone else.
+     */
+    Optional<java.time.Instant> findVisibleSinceByDeviceId(UUID deviceId);
 
     Optional<UUID> findOwnerIdByDeviceId(UUID deviceId);
 

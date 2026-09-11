@@ -108,6 +108,23 @@ public class TelemetryEvaluationRepositoryImpl implements TelemetryEvaluationRep
     }
 
     @Override
+    public PageResult<TelemetryEvaluation> findByDeviceIdSince(UUID deviceId, Instant since, int page, int size) {
+        var found = telemetryEvaluationPersistenceRepository
+                .findByDeviceIdAndRecordedAtGreaterThanEqualOrderByRecordedAtDesc(
+                        new DeviceId(deviceId), since, PageRequest.of(page, size));
+        return new PageResult<>(
+                found.getContent().stream().map(TelemetryEvaluationPersistenceAssembler::toDomainFromPersistence).toList(),
+                page, size, found.getTotalElements());
+    }
+
+    @Override
+    public Optional<TelemetryEvaluation> findLatestByDeviceIdSince(UUID deviceId, Instant since) {
+        return telemetryEvaluationPersistenceRepository
+                .findFirstByDeviceIdAndRecordedAtGreaterThanEqualOrderByRecordedAtDesc(new DeviceId(deviceId), since)
+                .map(TelemetryEvaluationPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
     public Optional<TelemetryEvaluation> findLatestByDeviceId(UUID deviceId) {
         return telemetryEvaluationPersistenceRepository.findFirstByDeviceIdOrderByRecordedAtDesc(new DeviceId(deviceId))
                 .map(TelemetryEvaluationPersistenceAssembler::toDomainFromPersistence);

@@ -24,7 +24,10 @@ public interface TelemetryEvaluationRepository {
     /** Most recently recorded first. */
     PageResult<TelemetryEvaluation> findByDeviceId(UUID deviceId, int page, int size);
 
+    /** As {@link #findByDeviceId}, restricted to readings recorded at or after {@code since}. */
+    PageResult<TelemetryEvaluation> findByDeviceIdSince(UUID deviceId, Instant since, int page, int size);
     Optional<TelemetryEvaluation> findLatestByDeviceId(UUID deviceId);
+    Optional<TelemetryEvaluation> findLatestByDeviceIdSince(UUID deviceId, Instant since);
 
     /** Per-device averages over [start, end), the aggregation analytics reads hourly. */
     List<HourlyDeviceAverage> findHourlyAveragesBetween(Instant start, Instant end);

@@ -254,6 +254,14 @@ public class DeviceQueryServiceImpl implements DeviceQueryService {
     }
     @Override
     @Transactional(readOnly = true)
+    public Optional<java.time.Instant> findActivatedAtByDeviceId(UUID deviceId) {
+        return deviceAssignmentRepository.findByDeviceId(deviceId)
+                .filter(assignment -> assignment.getOwnerUserId() != null)
+                .map(DeviceAssignment::getActivatedAt);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<DeviceAssignment> findAssignmentByDeviceId(UUID deviceId) {
         return deviceAssignmentRepository.findByDeviceId(deviceId);
     }

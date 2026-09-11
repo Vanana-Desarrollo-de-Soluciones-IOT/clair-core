@@ -18,4 +18,8 @@ public interface TelemetryEvaluationPersistenceRepository extends JpaRepository<
     Page<TelemetryEvaluationPersistenceEntity> findByDeviceIdOrderByRecordedAtDesc(DeviceId deviceId, Pageable pageable);
 
     Optional<TelemetryEvaluationPersistenceEntity> findFirstByDeviceIdOrderByRecordedAtDesc(DeviceId deviceId);
+    Page<TelemetryEvaluationPersistenceEntity> findByDeviceIdAndRecordedAtGreaterThanEqualOrderByRecordedAtDesc(
+            DeviceId deviceId, java.time.Instant since, Pageable pageable);
+    Optional<TelemetryEvaluationPersistenceEntity> findFirstByDeviceIdAndRecordedAtGreaterThanEqualOrderByRecordedAtDesc(
+            DeviceId deviceId, java.time.Instant since);
 }

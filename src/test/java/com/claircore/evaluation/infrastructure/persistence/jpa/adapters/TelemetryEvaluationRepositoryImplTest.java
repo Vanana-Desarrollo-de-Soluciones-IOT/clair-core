@@ -89,6 +89,21 @@ class TelemetryEvaluationRepositoryImplTest {
     }
 
     @Test
+    void sinceBoundHidesReadingsRecordedBeforeTheCurrentClaim() {
+        UUID deviceId = UUID.randomUUID();
+        repository.save(reading(deviceId, RECORDED_AT, 400.0, 10));
+        repository.save(reading(deviceId, RECORDED_AT.plusSeconds(600), 500.0, 20));
+        var claimedAt = RECORDED_AT.plusSeconds(300);
+
+        var page = repository.findByDeviceIdSince(deviceId, claimedAt, 0, 10);
+        assertThat(page.total()).isEqualTo(1);
+        assertThat(page.items().getFirst().getRecordedAt()).isEqualTo(RECORDED_AT.plusSeconds(600));
+        assertThat(repository.findLatestByDeviceIdSince(deviceId, claimedAt))
+                .map(r -> r.getAirQuality().co2()).contains(500.0);
+        assertThat(repository.findLatestByDeviceIdSince(deviceId, RECORDED_AT.plusSeconds(601))).isEmpty();
+    }
+
+    @Test
     void averagesPerDeviceOverTheWindowAndExcludesReadingsOutsideIt() {
         UUID deviceId = UUID.randomUUID();
         repository.save(reading(deviceId, RECORDED_AT, 400.0, 10));

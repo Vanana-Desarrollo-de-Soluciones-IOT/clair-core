@@ -421,4 +421,28 @@ class TelemetryEvaluationsControllerTest {
                         .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
                 .andExpect(status().isNotFound());
     }
+    @Test
+    void ownerReadsAreClampedToTheCurrentClaim() throws Exception {
+        UUID deviceId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        java.time.Instant claimedAt = java.time.Instant.parse("2026-09-10T12:00:00Z");
+        when(externalDeviceService.isDeviceOwnedByUser(deviceId, userId)).thenReturn(true);
+        when(externalDeviceService.findVisibleSinceByDeviceId(deviceId)).thenReturn(java.util.Optional.of(claimedAt));
+        when(telemetryEvaluationQueryService.handle(org.mockito.ArgumentMatchers.any(GetEvaluationsByDeviceQuery.class)))
+                .thenReturn(com.claircore.shared.domain.model.PageResult.empty(0, 20));
+        when(telemetryEvaluationQueryService.handle(org.mockito.ArgumentMatchers.any(GetLatestEvaluationByDeviceQuery.class)))
+                .thenReturn(java.util.Optional.empty());
+        mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}", deviceId)
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/evaluations/devices/{deviceId}/latest", deviceId)
+                        .requestAttr(CurrentUserIdArgumentResolver.USER_ID_ATTRIBUTE, userId))
+                .andExpect(status().isNotFound());
+        var pageCaptor = org.mockito.ArgumentCaptor.forClass(GetEvaluationsByDeviceQuery.class);
+        org.mockito.Mockito.verify(telemetryEvaluationQueryService).handle(pageCaptor.capture());
+        org.assertj.core.api.Assertions.assertThat(pageCaptor.getValue().visibleSince()).isEqualTo(claimedAt);
+        var latestCaptor = org.mockito.ArgumentCaptor.forClass(GetLatestEvaluationByDeviceQuery.class);
+        org.mockito.Mockito.verify(telemetryEvaluationQueryService).handle(latestCaptor.capture());
+        org.assertj.core.api.Assertions.assertThat(latestCaptor.getValue().visibleSince()).isEqualTo(claimedAt);
+    }
 }

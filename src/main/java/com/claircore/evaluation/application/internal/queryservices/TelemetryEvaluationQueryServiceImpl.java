@@ -33,13 +33,17 @@ public class TelemetryEvaluationQueryServiceImpl implements TelemetryEvaluationQ
     public PageResult<TelemetryEvaluation> handle(GetEvaluationsByDeviceQuery query) {
         int page = query.page() != null ? query.page() : DEFAULT_PAGE;
         int size = query.size() != null ? query.size() : DEFAULT_SIZE;
-        return telemetryEvaluationRepository.findByDeviceId(query.deviceId(), page, size);
+        return query.visibleSince() == null
+                ? telemetryEvaluationRepository.findByDeviceId(query.deviceId(), page, size)
+                : telemetryEvaluationRepository.findByDeviceIdSince(query.deviceId(), query.visibleSince(), page, size);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<TelemetryEvaluation> handle(GetLatestEvaluationByDeviceQuery query) {
-        return telemetryEvaluationRepository.findLatestByDeviceId(query.deviceId());
+        return query.visibleSince() == null
+                ? telemetryEvaluationRepository.findLatestByDeviceId(query.deviceId())
+                : telemetryEvaluationRepository.findLatestByDeviceIdSince(query.deviceId(), query.visibleSince());
     }
 
     @Override

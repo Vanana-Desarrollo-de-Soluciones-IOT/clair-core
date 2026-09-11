@@ -36,6 +36,8 @@ public interface DeviceQueryService {
     boolean isSpaceOwnedByUser(UUID spaceId, UUID userId);
     List<UUID> findDeviceIdsByOwnerId(UUID ownerUserId);
     Optional<DeviceAssignment> findAssignmentByDeviceId(UUID deviceId);
+    /** When the current owner claimed the device; empty while unclaimed. Older readings belong to a previous owner. */
+    Optional<java.time.Instant> findActivatedAtByDeviceId(UUID deviceId);
 
     /** The assignment together with the device it points at, resolved in one place. */
     Optional<AssignedDevice> findAssignedDeviceByDeviceId(UUID deviceId);

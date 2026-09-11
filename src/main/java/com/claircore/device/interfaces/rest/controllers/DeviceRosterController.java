@@ -34,7 +34,8 @@ public class DeviceRosterController {
         var page = deviceQueryService.handle(new GetDeviceRosterQuery(parseSince(since), afterId, limit));
         var rows = page.items();
         var devices = rows.stream().map(d -> new DeviceRosterResponse.DeviceRosterItem(
-                d.deviceId().toString(), d.hardwareId(), d.apiKey(),
+                d.deviceId().toString(), d.assignmentId() == null ? null : d.assignmentId().toString(),
+                d.hardwareId(), d.apiKey(),
                 d.status().name(), d.deleted(), d.updatedAt().toString())).toList();
 
         boolean hasMore = page.total() > rows.size();

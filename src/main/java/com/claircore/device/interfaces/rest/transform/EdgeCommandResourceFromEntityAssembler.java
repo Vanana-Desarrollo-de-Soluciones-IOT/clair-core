@@ -15,6 +15,7 @@ public final class EdgeCommandResourceFromEntityAssembler {
         return new EdgeCommandResource(
                 command.getId().toString(),
                 command.getDeviceId().toString(),
+                command.getAssignmentId() == null ? null : command.getAssignmentId().toString(),
                 pending.hardwareId(),
                 command.getType().name(),
                 parsePayload(command.getPayload(), mapper),

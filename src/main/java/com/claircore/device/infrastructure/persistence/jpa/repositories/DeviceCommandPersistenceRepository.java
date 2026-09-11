@@ -45,6 +45,7 @@ public interface DeviceCommandPersistenceRepository extends JpaRepository<Device
                         AND c.createdAt >= COALESCE(:since, c.createdAt))
                    OR (c.status = com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT
                         AND c.sentAt <= :leaseCutoff))
+              AND (c.assignmentId IS NULL OR EXISTS (SELECT a.id FROM DeviceAssignmentPersistenceEntity a WHERE a.id = c.assignmentId))
             ORDER BY COALESCE(c.sentAt, c.createdAt) ASC
             """)
     List<DeviceCommandPersistenceEntity> findPendingForEdge(
@@ -59,6 +60,7 @@ public interface DeviceCommandPersistenceRepository extends JpaRepository<Device
                         AND c.createdAt >= COALESCE(:since, c.createdAt))
                    OR (c.status = com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT
                         AND c.sentAt <= :leaseCutoff))
+              AND (c.assignmentId IS NULL OR EXISTS (SELECT a.id FROM DeviceAssignmentPersistenceEntity a WHERE a.id = c.assignmentId))
             ORDER BY COALESCE(c.sentAt, c.createdAt) ASC
             """)
     List<DeviceCommandPersistenceEntity> findPendingForEdgeByDevice(
@@ -77,4 +79,13 @@ public interface DeviceCommandPersistenceRepository extends JpaRepository<Device
             """)
     int claimForEdge(@Param("commandId") UUID commandId, @Param("leaseCutoff") Instant leaseCutoff,
                      @Param("claimedAt") Instant claimedAt);
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            UPDATE DeviceCommandPersistenceEntity c
+            SET c.status = com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.EXPIRED
+            WHERE c.assignmentId = :assignmentId
+              AND c.status IN (com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.PENDING,
+                               com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT)
+            """)
+    int expireOutstandingByAssignmentId(@Param("assignmentId") UUID assignmentId);
 }

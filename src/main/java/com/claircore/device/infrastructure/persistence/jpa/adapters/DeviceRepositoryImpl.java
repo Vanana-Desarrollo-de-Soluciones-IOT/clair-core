@@ -119,12 +119,13 @@ public class DeviceRepositoryImpl implements DeviceRepository {
         var cursor = (since != null ? since : CURSOR_START).atOffset(java.time.ZoneOffset.UTC);
         var id = afterId != null ? afterId : ID_CURSOR_START;
         var rows = jdbcTemplate.query("""
-                SELECT d.id, d.hardware_id, d.api_key, coalesce(a.status, 'OFFLINE') AS status,
+                SELECT d.id, a.id AS assignment_id, d.hardware_id, d.api_key, coalesce(a.status, 'OFFLINE') AS status,
                        coalesce(d.deleted, false) AS deleted,
                        greatest(d.updated_at, coalesce(a.updated_at, d.updated_at)) AS updated_at
                 """ + ROSTER_FROM + " ORDER BY updated_at ASC, d.id ASC LIMIT ?",
                 (rs, rowNum) -> new ProvisionedDevice(
-                        rs.getObject("id", UUID.class), rs.getString("hardware_id"), rs.getString("api_key"),
+                        rs.getObject("id", UUID.class), rs.getObject("assignment_id", UUID.class),
+                        rs.getString("hardware_id"), rs.getString("api_key"),
                         com.claircore.device.domain.model.valueobjects.DeviceStatus.valueOf(rs.getString("status")),
                         rs.getBoolean("deleted"), rs.getTimestamp("updated_at").toInstant()),
                 cursor, cursor, id, limit);

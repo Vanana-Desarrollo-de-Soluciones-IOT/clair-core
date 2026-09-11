@@ -44,7 +44,7 @@ class DeviceControlCommandServiceImplTest {
     @Test
     void shouldCreateDeviceCommandWhenDeviceBelongsToUser() {
         DeviceAssignment assignment = ownedAssignment();
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDeviceId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDeviceId())).thenReturn(Optional.of(assignment));
         when(deviceRepository.findById(assignment.getDeviceId())).thenReturn(Optional.of(ownedDevice()));
         when(deviceCommandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> {
             DeviceCommand saved = invocation.getArgument(0);
@@ -65,13 +65,14 @@ class DeviceControlCommandServiceImplTest {
         ));
 
         assertEquals(DeviceCommandStatus.PENDING, result.getStatus());
+        assertEquals(assignment.getId(), result.getAssignmentId());
         verify(deviceCommandRepository).save(any(DeviceCommand.class));
     }
 
     @Test
     void shouldThrowAccessDeniedWhenDeviceDoesNotBelongToUser() {
         DeviceAssignment assignment = ownedAssignment();
-        when(deviceAssignmentRepository.findByDeviceId(assignment.getDeviceId())).thenReturn(Optional.of(assignment));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(assignment.getDeviceId())).thenReturn(Optional.of(assignment));
         // Ownership is refused before the device is ever looked up.
 
         assertThrowsExactly(
@@ -119,6 +120,22 @@ class DeviceControlCommandServiceImplTest {
 
         assertEquals(DeviceCommandStatus.EXECUTED, result.getStatus());
         verify(deviceAssignmentRepository).save(assignment);
+    }
+
+    @Test
+    void aLegacyAcknowledgementForAPreviousGenerationIsRejectedAndTheCommandExpired() {
+        DeviceAssignment current = ownedAssignment();
+        DeviceCommand stale = new DeviceCommand(current.getDeviceId(), UUID.randomUUID(), DeviceCommandType.STANDBY, "{}");
+        org.springframework.test.util.ReflectionTestUtils.setField(stale, "id", UUID.fromString("550e8400-e29b-41d4-a716-446655440910"));
+        when(deviceCommandRepository.findByDeviceIdAndCommandId(current.getDeviceId(), stale.getId())).thenReturn(Optional.of(stale));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(current.getDeviceId())).thenReturn(Optional.of(current));
+        assertThrowsExactly(IllegalStateException.class, () ->
+                new DeviceControlCommandServiceImpl(deviceAssignmentRepository, deviceCommandRepository, deviceRepository, deviceCommandsPendingPublisher)
+                        .handle(new AcknowledgeDeviceCommandCommand(current.getDeviceId(), stale.getId(), DeviceCommandStatus.EXECUTED, null)));
+        assertEquals(DeviceCommandStatus.EXPIRED, stale.getStatus());
+        assertEquals(com.claircore.device.domain.model.valueobjects.DeviceStatus.OFFLINE, current.getStatus());
+        verify(deviceAssignmentRepository, never()).save(any());
+        verify(deviceCommandRepository).save(stale);
     }
 
     /** The service resolves the device through its own port now, so tests must stub that lookup. */

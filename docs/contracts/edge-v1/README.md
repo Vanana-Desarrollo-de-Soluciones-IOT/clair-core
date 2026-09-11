@@ -15,9 +15,9 @@ Two hops, both plain HTTP:
 
 | Route | Fixture | Notes |
 |---|---|---|
-| `GET /api/v1/edge/devices?since&afterId&limit` | `roster.*.response.json` | `since` is epoch ms or ISO-8601. `watermark` is the last row handed back, never wall-clock. `deleted: true` rows are tombstones the edge must keep. Empty page keeps the caller's `since`. |
+| `GET /api/v1/edge/devices?since&afterId&limit` | `roster.*.response.json` | `since` is epoch ms or ISO-8601. `watermark` is the last row handed back, never wall-clock. `deleted: true` rows are tombstones the edge must keep. Empty page keeps the caller's `since`. `assignment_id` is the current pairing generation (null while unclaimed); when it changes, the edge drops every cached command carrying a different one. |
 | `POST /api/v1/evaluations/telemetry/batch` | `telemetry.batch.*.json` | At most 10 records. HTTP 200 with per-record results; inspect each. `client_ref` is echo only. `device_id` may be the core UUID or the hardware id. |
-| `GET /api/v1/edge/commands/pending?hardware_id&since&limit` | `commands.pending.response.json` | Claiming: returned commands move `PENDING → SENT` under a 300 s lease. A lost response is redelivered after the lease. |
+| `GET /api/v1/edge/commands/pending?hardware_id&since&limit` | `commands.pending.response.json` | Claiming: returned commands move `PENDING → SENT` under a 300 s lease. A lost response is redelivered after the lease. Each command carries the `assignment_id` it was issued under; unlinking a device expires its outstanding commands, and an ack for a stale generation returns 409 and voids the command. |
 | `POST /api/v1/edge/commands/{commandId}/ack` | `commands.ack.*.request.json` | 200 OK, 409 already terminal, 404 unknown or not owned. `result` is `OK` or `FAILED`. |
 | `GET /api/v1/edge/alerts/pending?since&limit` | `alerts.pending.response.json` | Returns `ACTIVE` and `RESOLVED` alerts ordered by `occurred_at`. See the ACK section: this is not a delivery queue yet. |
 | `POST /api/v1/edge/alerts/{alertId}/ack` | `alerts.ack.request.json` | **Business acknowledgement**: moves `ACTIVE → ACKNOWLEDGED`. 409 if already ACKNOWLEDGED or RESOLVED. |

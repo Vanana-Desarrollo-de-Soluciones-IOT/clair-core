@@ -40,4 +40,10 @@ public interface DeviceCommandRepository {
      * @return 1 when this caller won the claim, 0 when another already had it.
      */
     int claimForEdge(UUID commandId, Instant leaseCutoff, Instant claimedAt);
+    /**
+     * Voids every PENDING or SENT command issued under an assignment that is being unlinked.
+     *
+     * @return how many commands were expired
+     */
+    int expireOutstandingByAssignmentId(UUID assignmentId);
 }

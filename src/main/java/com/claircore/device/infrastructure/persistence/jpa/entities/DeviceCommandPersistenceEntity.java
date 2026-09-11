@@ -14,11 +14,13 @@ import java.util.UUID;
 
 /** Storage shape of {@code DeviceCommand}; {@code device_id} keeps the join column's name. */
 @Entity
-@Table(name = "device_commands")
+@Table(name = "device_commands", indexes = @jakarta.persistence.Index(name = "idx_device_commands_assignment", columnList = "assignment_id"))
 public class DeviceCommandPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(name = "device_id", nullable = false)
     private UUID deviceId;
+    @Column(name = "assignment_id")
+    private UUID assignmentId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -45,6 +47,8 @@ public class DeviceCommandPersistenceEntity extends AuditableAbstractPersistence
     }
 
     public UUID getDeviceId() { return deviceId; }
+    public UUID getAssignmentId() { return assignmentId; }
+    public void setAssignmentId(UUID assignmentId) { this.assignmentId = assignmentId; }
     public void setDeviceId(UUID deviceId) { this.deviceId = deviceId; }
 
     public DeviceCommandType getType() { return type; }

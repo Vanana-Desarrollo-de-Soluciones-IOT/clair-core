@@ -42,8 +42,10 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
     @Override
     @Transactional
     public DeviceCommand handle(CreateDeviceCommandCommand command) {
+        // Locked: a reset running concurrently must either see this command and expire it, or
+        // finish first so this creation fails on the missing assignment. Never both succeed.
         DeviceAssignment assignment = deviceAssignmentRepository
-                .findByDeviceId(command.deviceId())
+                .findByDeviceIdForUpdate(command.deviceId())
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
 
         if (assignment.getOwnerUserId() == null || !assignment.getOwnerUserId().equals(command.userId())) {
@@ -53,7 +55,8 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
         var device = deviceRepository.findById(assignment.getDeviceId())
                 .orElseThrow(() -> new IllegalArgumentException("Device not found"));
 
-        DeviceCommand deviceCommand = new DeviceCommand(assignment.getDeviceId(), command.type(), command.payload());
+        DeviceCommand deviceCommand = new DeviceCommand(
+                assignment.getDeviceId(), assignment.getId(), command.type(), command.payload());
         DeviceCommand saved = deviceCommandRepository.save(deviceCommand);
 
         deviceCommandsPendingPublisher.publish(new DeviceCommandIssuedIntegrationEvent(
@@ -84,28 +87,30 @@ public class DeviceControlCommandServiceImpl implements DeviceControlCommandServ
         DeviceCommand deviceCommand = deviceCommandRepository
                 .findByDeviceIdAndCommandId(command.deviceId(), command.commandId())
                 .orElseThrow(() -> new IllegalArgumentException("Device command not found"));
-
-        if (command.status() == DeviceCommandStatus.EXECUTED) {
-            deviceCommand.markExecuted();
-            applyExecutedCommandToDevice(deviceCommand);
-        } else {
-            deviceCommand.markFailed(command.failureReason());
-        }
-
-        return deviceCommandRepository.save(deviceCommand);
-    }
-
-    private void applyExecutedCommandToDevice(DeviceCommand deviceCommand) {
         DeviceAssignment assignment = deviceAssignmentRepository
                 .findByDeviceIdForUpdate(deviceCommand.getDeviceId())
                 .orElseThrow(() -> new IllegalArgumentException("Device assignment not found"));
+        if (!deviceCommand.belongsToAssignment(assignment.getId())) {
+            // Issued under a previous owner: the result must not leak onto the current assignment.
+            deviceCommand.expire();
+            deviceCommandRepository.save(deviceCommand);
+            throw new IllegalStateException("Device command belongs to a previous assignment");
+        }
+        if (command.status() == DeviceCommandStatus.EXECUTED) {
+            deviceCommand.markExecuted();
+            applyExecutedCommandToDevice(deviceCommand, assignment);
+        } else {
+            deviceCommand.markFailed(command.failureReason());
+        }
+        return deviceCommandRepository.save(deviceCommand);
+    }
 
+    private void applyExecutedCommandToDevice(DeviceCommand deviceCommand, DeviceAssignment assignment) {
         switch (deviceCommand.getType()) {
             case STANDBY -> assignment.markStandby();
             case WAKE -> assignment.markOnline();
             case RESTART -> assignment.markOnline();
         }
-
         deviceAssignmentRepository.save(assignment);
     }
 }

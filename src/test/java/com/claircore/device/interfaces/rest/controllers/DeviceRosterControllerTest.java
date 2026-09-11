@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @TestPropertySource(properties = "EDGE_TO_CORE_TOKEN=test-token")
 class DeviceRosterControllerTest {
+    private static final UUID ASSIGNMENT_ID = UUID.fromString("7d5b1e2c-3a4f-4b6d-8c9e-0f1a2b3c4d5e");
     // Authentication is ServiceTokenAuthenticationFilter's, and is asserted in its own test.
 
     @Autowired MockMvc mockMvc;
@@ -44,7 +45,7 @@ class DeviceRosterControllerTest {
     @Test
     void returnsTheRosterAndPaginationFlag() throws Exception {
         UUID id = UUID.randomUUID();
-        var row = new ProvisionedDevice(id, "HW-1", "secret", DeviceStatus.OFFLINE, true,
+        var row = new ProvisionedDevice(id, ASSIGNMENT_ID, "HW-1", "secret", DeviceStatus.OFFLINE, true,
                 Instant.ofEpochMilli(1000));
         when(deviceQueryService.handle(new GetDeviceRosterQuery(null, null, 200)))
                 .thenReturn(new PageResult<>(List.of(row), 0, 200, 1));
@@ -53,6 +54,7 @@ class DeviceRosterControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.devices[0].device_id").value(id.toString()))
                 .andExpect(jsonPath("$.devices[0].hardware_id").value("HW-1"))
+                .andExpect(jsonPath("$.devices[0].assignment_id").value(ASSIGNMENT_ID.toString()))
                 .andExpect(jsonPath("$.devices[0].api_key").value("secret"))
                 .andExpect(jsonPath("$.devices[0].updated_at").value("1970-01-01T00:00:01Z"))
                 .andExpect(jsonPath("$.devices[0].deleted").value(true))

@@ -10,6 +10,7 @@ import com.claircore.device.domain.model.aggregates.Space;
 import com.claircore.device.domain.model.valueobjects.*;
 import com.claircore.device.application.commandservices.DeviceCommandService;
 import com.claircore.device.domain.repositories.DeviceAssignmentRepository;
+import com.claircore.device.domain.repositories.DeviceCommandRepository;
 import com.claircore.device.domain.repositories.DeviceRepository;
 import com.claircore.device.domain.repositories.OrganizationRepository;
 import com.claircore.device.domain.repositories.SpaceRepository;
@@ -36,6 +37,7 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
     private final SpaceRepository spaceRepository;
     private final OrganizationRepository organizationRepository;
     private final ExternalBillingService externalBillingService;
+    private final DeviceCommandRepository deviceCommandRepository;
     private final ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher;
 
     public DeviceCommandServiceImpl(
@@ -44,12 +46,14 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
             SpaceRepository spaceRepository,
             OrganizationRepository organizationRepository,
             ExternalBillingService externalBillingService,
+            DeviceCommandRepository deviceCommandRepository,
             ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher) {
         this.deviceRepository = deviceRepository;
         this.deviceAssignmentRepository = deviceAssignmentRepository;
         this.spaceRepository = spaceRepository;
         this.organizationRepository = organizationRepository;
         this.externalBillingService = externalBillingService;
+        this.deviceCommandRepository = deviceCommandRepository;
         this.provisioningDevicesChangedPublisher = provisioningDevicesChangedPublisher;
     }
 
@@ -202,6 +206,12 @@ public class DeviceCommandServiceImpl implements DeviceCommandService {
         Device device = requireDevice(assignment.getDeviceId());
         device.resetNameToFactoryDefault();
         deviceRepository.save(device);
+
+        // Whatever was queued for the old owner is void; the edge learns the same from the roster's
+
+        // assignment id and drops its own cached copies.
+
+        deviceCommandRepository.expireOutstandingByAssignmentId(assignment.getId());
 
         deviceAssignmentRepository.deleteById(assignment.getId());
         Instant previousWatermark = assignment.getUpdatedAt();

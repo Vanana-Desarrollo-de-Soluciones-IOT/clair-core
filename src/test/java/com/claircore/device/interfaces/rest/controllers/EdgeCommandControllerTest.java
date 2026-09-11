@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
  * {@code EdgeCommandServiceImplTest}'s subject.
  */
 class EdgeCommandControllerTest {
+    private static final UUID ASSIGNMENT_ID = UUID.fromString("7d5b1e2c-3a4f-4b6d-8c9e-0f1a2b3c4d5e");
 
     private final EdgeCommandService service = mock(EdgeCommandService.class);
     private final EdgeCommandController controller = new EdgeCommandController(service, new ObjectMapper());
@@ -35,7 +36,7 @@ class EdgeCommandControllerTest {
     void rendersEveryFieldTheEdgeFirmwareReadsInSnakeCase() {
         UUID deviceId = UUID.randomUUID();
         var command = DeviceCommand.reconstitute(
-                UUID.randomUUID(), deviceId, DeviceCommandType.WAKE,
+                UUID.randomUUID(), deviceId, ASSIGNMENT_ID, DeviceCommandType.WAKE,
                 com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT,
                 "{\"level\":3}", null, null, null, Instant.parse("2026-05-16T22:30:00Z"), null);
         when(service.handle(any(ClaimPendingEdgeCommandsQuery.class)))
@@ -56,7 +57,7 @@ class EdgeCommandControllerTest {
     @Test
     void aPayloadThatIsNotJsonIsSentAsTheStringItWasStoredAs() {
         var command = DeviceCommand.reconstitute(
-                UUID.randomUUID(), UUID.randomUUID(), DeviceCommandType.RESTART,
+                UUID.randomUUID(), UUID.randomUUID(), null, DeviceCommandType.RESTART,
                 com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT,
                 "not json", null, null, null, Instant.now(), null);
         when(service.handle(any(ClaimPendingEdgeCommandsQuery.class)))
@@ -68,7 +69,7 @@ class EdgeCommandControllerTest {
     @Test
     void aCommandWithNoCreationTimestampIssuesAnEmptyStringNotNull() {
         var command = DeviceCommand.reconstitute(
-                UUID.randomUUID(), UUID.randomUUID(), DeviceCommandType.WAKE,
+                UUID.randomUUID(), UUID.randomUUID(), null, DeviceCommandType.WAKE,
                 com.claircore.device.domain.model.valueobjects.DeviceCommandStatus.SENT,
                 "{}", null, null, null, null, null);
         when(service.handle(any(ClaimPendingEdgeCommandsQuery.class)))

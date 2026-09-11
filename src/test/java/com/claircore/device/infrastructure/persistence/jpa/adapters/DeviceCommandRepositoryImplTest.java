@@ -19,6 +19,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @TestPropertySource(properties = "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect")
-@Import({JpaAuditingConfiguration.class, DeviceCommandRepositoryImpl.class, DeviceRepositoryImpl.class})
+@Import({JpaAuditingConfiguration.class, DeviceCommandRepositoryImpl.class, DeviceRepositoryImpl.class, DeviceAssignmentRepositoryImpl.class})
 class DeviceCommandRepositoryImplTest {
 
     @Autowired
@@ -38,6 +39,8 @@ class DeviceCommandRepositoryImplTest {
 
     @Autowired
     private DeviceRepository devices;
+    @Autowired
+    private com.claircore.device.domain.repositories.DeviceAssignmentRepository assignments;
 
     @Test
     void bothPendingQueriesTakeAPessimisticWriteLock() throws NoSuchMethodException {
@@ -136,6 +139,40 @@ class DeviceCommandRepositoryImplTest {
 
         assertThat(commands.findLatestByDeviceId(device.getId()))
                 .map(DeviceCommand::getId).contains(newest.getId());
+    }
+
+    @Test
+    void aCommandBoundToAnUnlinkedAssignmentIsNeverOfferedToTheEdge() {
+        var device = saveDevice("SN-9", "HW-0009");
+        var assignment = assignments.save(new com.claircore.device.domain.model.aggregates.DeviceAssignment(
+                device.getId(), com.claircore.device.domain.model.valueobjects.ClaimToken.generate()));
+        var bound = commands.save(new DeviceCommand(device.getId(), assignment.getId(), DeviceCommandType.WAKE, "{}"));
+        assertThat(commands.findPendingForEdge(null, Instant.now(), 10)).extracting(DeviceCommand::getId)
+                .contains(bound.getId());
+        assignments.deleteById(assignment.getId());
+        assertThat(commands.findPendingForEdge(null, Instant.now(), 10)).extracting(DeviceCommand::getId)
+                .doesNotContain(bound.getId());
+        assertThat(commands.findPendingForEdgeByHardware("HW-0009", null, Instant.now(), 10)).isEmpty();
+    }
+
+    @Test
+    void expiringAnAssignmentVoidsOnlyItsOutstandingCommands() {
+        var device = saveDevice("SN-10", "HW-0010");
+        var assignment = assignments.save(new com.claircore.device.domain.model.aggregates.DeviceAssignment(
+                device.getId(), com.claircore.device.domain.model.valueobjects.ClaimToken.generate()));
+        var pending = commands.save(new DeviceCommand(device.getId(), assignment.getId(), DeviceCommandType.WAKE, "{}"));
+        var sent = new DeviceCommand(device.getId(), assignment.getId(), DeviceCommandType.STANDBY, "{}");
+        sent.markSent();
+        sent = commands.save(sent);
+        var done = new DeviceCommand(device.getId(), assignment.getId(), DeviceCommandType.RESTART, "{}");
+        done.markExecuted();
+        done = commands.save(done);
+        var other = commands.save(new DeviceCommand(device.getId(), UUID.randomUUID(), DeviceCommandType.WAKE, "{}"));
+        assertThat(commands.expireOutstandingByAssignmentId(assignment.getId())).isEqualTo(2);
+        assertThat(commands.findById(pending.getId()).orElseThrow().getStatus()).isEqualTo(DeviceCommandStatus.EXPIRED);
+        assertThat(commands.findById(sent.getId()).orElseThrow().getStatus()).isEqualTo(DeviceCommandStatus.EXPIRED);
+        assertThat(commands.findById(done.getId()).orElseThrow().getStatus()).isEqualTo(DeviceCommandStatus.EXECUTED);
+        assertThat(commands.findById(other.getId()).orElseThrow().getStatus()).isEqualTo(DeviceCommandStatus.PENDING);
     }
 
     private Device saveDevice(String serial, String hardware) {

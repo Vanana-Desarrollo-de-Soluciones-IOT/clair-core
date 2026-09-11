@@ -12,6 +12,7 @@ public record DeviceRosterResponse(
 ) {
     public record DeviceRosterItem(
             @JsonProperty("device_id") String deviceId,
+            @JsonProperty("assignment_id") String assignmentId,
             @JsonProperty("hardware_id") String hardwareId,
             @JsonProperty("api_key") String apiKey,
             String status,

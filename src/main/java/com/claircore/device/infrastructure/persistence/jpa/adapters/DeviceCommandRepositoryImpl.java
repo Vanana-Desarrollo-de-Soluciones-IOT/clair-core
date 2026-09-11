@@ -89,4 +89,9 @@ public class DeviceCommandRepositoryImpl implements DeviceCommandRepository {
     public int claimForEdge(UUID commandId, Instant leaseCutoff, Instant claimedAt) {
         return commandPersistenceRepository.claimForEdge(commandId, leaseCutoff, claimedAt);
     }
+
+    @Override
+    public int expireOutstandingByAssignmentId(UUID assignmentId) {
+        return commandPersistenceRepository.expireOutstandingByAssignmentId(assignmentId);
+    }
 }

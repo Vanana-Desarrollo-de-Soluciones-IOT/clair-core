@@ -2,6 +2,7 @@ package com.claircore.device.application.internal.commandservices;
 
 import com.claircore.device.application.commandservices.EdgeCommandService;
 import com.claircore.device.domain.model.aggregates.Device;
+import com.claircore.device.domain.model.aggregates.DeviceAssignment;
 import com.claircore.device.domain.model.aggregates.DeviceCommand;
 import com.claircore.device.domain.model.commands.AcknowledgeEdgeCommandCommand;
 import com.claircore.device.domain.model.queries.ClaimPendingEdgeCommandsQuery;
@@ -113,25 +114,32 @@ public class EdgeCommandServiceImpl implements EdgeCommandService {
             return AcknowledgementOutcome.NOT_FOUND;
         }
 
+        var assignment = deviceAssignmentRepository.findByDeviceIdForUpdate(found.getDeviceId());
+        boolean currentGeneration = assignment.map(a -> found.belongsToAssignment(a.getId()))
+                .orElse(found.getAssignmentId() == null);
+        if (!currentGeneration) {
+            // The device was unlinked (and possibly reclaimed) after this command was claimed. Its
+            // result belongs to nobody now: void it and tell the edge it is terminal.
+            found.expire();
+            deviceCommandRepository.save(found);
+            return AcknowledgementOutcome.CONFLICT;
+        }
         if (command.result() == EdgeCommandResult.FAILED) {
             found.markFailed(command.detail());
         } else {
             found.markExecuted();
-            applyToAssignment(found);
+            assignment.ifPresent(a -> applyToAssignment(found, a));
         }
         deviceCommandRepository.save(found);
         return AcknowledgementOutcome.OK;
     }
 
     /** Executing a command changes what the device is doing, as part of the same acknowledgement. */
-    private void applyToAssignment(DeviceCommand command) {
-        deviceAssignmentRepository.findByDeviceIdForUpdate(command.getDeviceId())
-                .ifPresent(assignment -> {
-                    switch (command.getType()) {
-                        case STANDBY -> assignment.markStandby();
-                        case WAKE, RESTART -> assignment.markOnline();
-                    }
-                    deviceAssignmentRepository.save(assignment);
-                });
+    private void applyToAssignment(DeviceCommand command, DeviceAssignment assignment) {
+        switch (command.getType()) {
+            case STANDBY -> assignment.markStandby();
+            case WAKE, RESTART -> assignment.markOnline();
+        }
+        deviceAssignmentRepository.save(assignment);
     }
 }

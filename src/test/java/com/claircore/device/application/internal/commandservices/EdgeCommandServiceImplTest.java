@@ -212,6 +212,40 @@ class EdgeCommandServiceImplTest {
         verify(deviceAssignmentRepository, never()).save(any());
     }
 
+    @Test
+    void anAcknowledgementForAPreviousAssignmentGenerationIsVoidedAndConflicts() {
+        var device = device();
+        var previousGeneration = UUID.randomUUID();
+        var command = new DeviceCommand(device.getId(), previousGeneration, DeviceCommandType.STANDBY, "{}");
+        command.markSent();
+        var current = new DeviceAssignment(device.getId(), ClaimToken.generate());
+        when(deviceCommandRepository.findByIdForAcknowledgement(command.getId())).thenReturn(Optional.of(command));
+        when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.of(current));
+        var outcome = service.handle(new AcknowledgeEdgeCommandCommand(
+                command.getId(), HARDWARE_ID, EdgeCommandResult.EXECUTED, null));
+        assertThat(outcome).isEqualTo(EdgeCommandService.AcknowledgementOutcome.CONFLICT);
+        assertThat(command.getStatus()).isEqualTo(DeviceCommandStatus.EXPIRED);
+        // The new owner's assignment must not move to STANDBY because of the old owner's command.
+        assertThat(current.getStatus()).isEqualTo(DeviceStatus.OFFLINE);
+        verify(deviceAssignmentRepository, never()).save(any());
+        verify(deviceCommandRepository).save(command);
+    }
+
+    @Test
+    void anAcknowledgementAfterTheAssignmentWasUnlinkedIsVoidedAndConflicts() {
+        var device = device();
+        var command = new DeviceCommand(device.getId(), UUID.randomUUID(), DeviceCommandType.WAKE, "{}");
+        command.markSent();
+        when(deviceCommandRepository.findByIdForAcknowledgement(command.getId())).thenReturn(Optional.of(command));
+        when(deviceRepository.findById(device.getId())).thenReturn(Optional.of(device));
+        when(deviceAssignmentRepository.findByDeviceIdForUpdate(device.getId())).thenReturn(Optional.empty());
+        var outcome = service.handle(new AcknowledgeEdgeCommandCommand(
+                command.getId(), HARDWARE_ID, EdgeCommandResult.EXECUTED, null));
+        assertThat(outcome).isEqualTo(EdgeCommandService.AcknowledgementOutcome.CONFLICT);
+        assertThat(command.getStatus()).isEqualTo(DeviceCommandStatus.EXPIRED);
+    }
+
     private static Device device() {
         return Device.reconstitute(UUID.randomUUID(), "SN-1", "Sensor", "Sensor", false,
                 new HardwareId(HARDWARE_ID), ApiKey.generate(), new DeviceType("air-quality-v1"), null, null);

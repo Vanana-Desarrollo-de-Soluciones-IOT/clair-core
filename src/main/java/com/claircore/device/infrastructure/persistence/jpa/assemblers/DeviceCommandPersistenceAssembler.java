@@ -13,6 +13,7 @@ public final class DeviceCommandPersistenceAssembler {
         return DeviceCommand.reconstitute(
                 entity.getId(),
                 entity.getDeviceId(),
+                entity.getAssignmentId(),
                 entity.getType(),
                 entity.getStatus(),
                 entity.getPayload(),
@@ -28,6 +29,7 @@ public final class DeviceCommandPersistenceAssembler {
         var entity = new DeviceCommandPersistenceEntity();
         entity.setId(command.getId());
         entity.setDeviceId(command.getDeviceId());
+        entity.setAssignmentId(command.getAssignmentId());
         entity.setType(command.getType());
         entity.setStatus(command.getStatus());
         entity.setPayload(command.getPayload());

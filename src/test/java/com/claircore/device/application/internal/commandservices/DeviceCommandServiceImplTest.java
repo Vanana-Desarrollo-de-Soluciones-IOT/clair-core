@@ -48,6 +48,8 @@ class DeviceCommandServiceImplTest {
 
     @Mock
     private ExternalBillingService externalBillingService;
+    @Mock
+    private com.claircore.device.domain.repositories.DeviceCommandRepository deviceCommandRepository;
 
     @Mock
     private ProvisioningDevicesChangedPublisher provisioningDevicesChangedPublisher;
@@ -191,6 +193,11 @@ class DeviceCommandServiceImplTest {
         service.handle(new ResetDeviceAssignmentCommand(deviceId, new UserId(userId)));
 
         verify(deviceAssignmentRepository).deleteById(assignment.getId());
+        // Everything still queued for the old owner is voided in the same transaction, before the
+        // assignment row goes, so nothing can claim or acknowledge it afterwards.
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(deviceCommandRepository, deviceAssignmentRepository);
+        order.verify(deviceCommandRepository).expireOutstandingByAssignmentId(assignment.getId());
+        order.verify(deviceAssignmentRepository).deleteById(assignment.getId());
         // The device row is never removed; a reset unlinks it, a decommission tombstones it.
         org.junit.jupiter.api.Assertions.assertFalse(device.isDeleted());
         verify(provisioningDevicesChangedPublisher).publish(any());

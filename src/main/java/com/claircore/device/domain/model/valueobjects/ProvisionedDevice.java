@@ -13,6 +13,8 @@ import java.util.UUID;
  */
 public record ProvisionedDevice(
         UUID deviceId,
+        /** Current pairing generation, or null while the unit sits unclaimed in inventory. */
+        UUID assignmentId,
         String hardwareId,
         String apiKey,
         DeviceStatus status,
